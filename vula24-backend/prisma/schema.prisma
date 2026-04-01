@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountType {
+  INDIVIDUAL
+  BUSINESS
+}
+
+enum ServiceType {
+  CAR_LOCKOUT
+  HOUSE_LOCKOUT
+  KEY_DUPLICATION
+  LOCK_REPLACEMENT
+  LOCK_REPAIR
+}
+
+enum JobMode {
+  EMERGENCY
+  SCHEDULED
+}
+
+enum JobStatus {
+  PENDING
+  ACCEPTED
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum QuoteStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum WalletTxType {
+  CREDIT
+  DEBIT
+}
+
+enum RecipientType {
+  CUSTOMER
+  LOCKSMITH
+  TEAM_MEMBER
+}
+
+model Customer {
+  id           String   @id @default(uuid())
+  name         String
+  phone        String   @unique
+  email        String   @unique
+  password     String
+  profilePhoto String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  jobs    Job[]
+  reviews Review[]
+}
+
+model Locksmith {
+  id                String      @id @default(uuid())
+  name              String
+  phone             String      @unique
+  email             String      @unique
+  password          String
+  accountType       AccountType
+  businessName      String?
+  psiraNumber       String?
+  psiraVerified     Boolean     @default(false)
+  idPhotoUrl        String?
+  selfiePhotoUrl    String?
+  toolsPhotoUrl     String?
+  proofOfAddressUrl String?
+  bankName          String?
+  bankAccountNumber String?
+  bankAccountHolder String?
+  isVerified        Boolean     @default(false)
+  isOnline          Boolean     @default(false)
+  isSuspended       Boolean     @default(false)
+  currentLat        Float?
+  currentLng        Float?
+  rating            Float       @default(5.0)
+  totalJobs         Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  teamMembers    TeamMember[]
+  servicePricing ServicePricing[]
+  jobs           Job[]            @relation("JobLocksmith")
+  quotes         Quote[]
+  reviews        Review[]
+  wallet         Wallet?
+}
+
+model TeamMember {
+  id          String    @id @default(uuid())
+  businessId  String
+  business    Locksmith @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name        String
+  phone       String
+  idPhotoUrl  String?
+  appEmail    String    @unique
+  appPassword String
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  jobs Job[]
+}
+
+model ServicePricing {
+  id          String      @id @default(uuid())
+  locksithId  String
+  locksmith   Locksmith   @relation(fields: [locksithId], references: [id], onDelete: Cascade)
+  serviceType ServiceType
+  basePrice   Float
+  isOffered   Boolean     @default(true)
+
+  @@unique([locksithId, serviceType])
+}
+
+model Job {
+  id                String      @id @default(uuid())
+  customerId        String
+  customer          Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  locksithId        String?
+  locksmith         Locksmith?  @relation("JobLocksmith", fields: [locksithId], references: [id], onDelete: SetNull)
+  teamMemberId      String?
+  teamMember        TeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: SetNull)
+  serviceType       ServiceType
+  mode              JobMode
+  status            JobStatus
+  customerLat       Float
+  customerLng       Float
+  customerAddress   String
+  customerNote      String?
+  jobPhotoUrl       String?
+  scheduledDate     DateTime?
+  locksithBasePrice Float
+  travelFee         Float
+  platformFee       Float
+  totalPrice        Float
+  locksithEarning   Float
+  depositPaid       Boolean     @default(false)
+  finalPaid         Boolean     @default(false)
+  createdAt         DateTime    @default(now())
+  acceptedAt        DateTime?
+  completedAt       DateTime?
+  updatedAt         DateTime    @updatedAt
+
+  quotes       Quote[]
+  review       Review?
+  transactions Transaction[] @relation("JobWalletTx")
+}
+
+model Quote {
+  id         String      @id @default(uuid())
+  jobId      String
+  job        Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  locksithId String
+  locksmith  Locksmith   @relation(fields: [locksithId], references: [id], onDelete: Cascade)
+  price      Float
+  message    String?
+  status     QuoteStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+
+  @@unique([jobId, locksithId])
+}
+
+model Review {
+  id         String    @id @default(uuid())
+  jobId      String    @unique
+  job        Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  locksithId String
+  locksmith  Locksmith @relation(fields: [locksithId], references: [id], onDelete: Cascade)
+  rating     Int
+  comment    String?
+  createdAt  DateTime  @default(now())
+}
+
+model Wallet {
+  id         String    @id @default(uuid())
+  locksithId String    @unique
+  locksmith  Locksmith @relation(fields: [locksithId], references: [id], onDelete: Cascade)
+  balance    Float     @default(0)
+  updatedAt  DateTime  @updatedAt
+
+  transactions Transaction[]
+}
+
+model Transaction {
+  id          String       @id @default(uuid())
+  walletId    String
+  wallet      Wallet       @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  amount      Float
+  type        WalletTxType
+  description String
+  jobId       String?
+  job         Job?         @relation("JobWalletTx", fields: [jobId], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+
+  @@map("transactions")
+}
+
+model Notification {
+  id            String        @id @default(uuid())
+  recipientId   String
+  recipientType RecipientType
+  title         String
+  message       String
+  isRead        Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+}

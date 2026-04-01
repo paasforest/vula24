@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Env and secrets (never commit)
+.env
+.env.*
+!.env.example
+
+# Expo / React Native
+.expo/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# API uploads (local dev)
+vula24-backend/uploads/
+
+# Logs and OS
+*.log
+.DS_Store
+Thumbs.db

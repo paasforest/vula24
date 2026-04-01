@@ -1,0 +1,9 @@
+{
+  "name": "vula24",
+  "private": true,
+  "scripts": {
+    "start": "expo start Vula24Pro",
+    "start:pro": "expo start Vula24Pro",
+    "start:customer": "expo start Vula24"
+  }
+}
