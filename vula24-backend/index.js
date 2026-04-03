@@ -6,6 +6,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
+const prisma = require('./lib/prisma');
 
 const authRoutes = require('./routes/auth');
 const jobRoutes = require('./routes/jobs');
@@ -32,6 +33,22 @@ app.use(express.urlencoded({ extended: true }));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', app: 'Vula24 API' });
+});
+
+/** Confirms Prisma can reach Postgres (Railway: DATABASE_URL usually needs ?sslmode=require). */
+app.get('/health/db', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', database: 'connected' });
+  } catch (err) {
+    console.error('health/db', err);
+    res.status(503).json({
+      status: 'error',
+      database: 'unreachable',
+      hint:
+        'Set DATABASE_URL with ?sslmode=require for Railway Postgres (see .env.example).',
+    });
+  }
 });
 
 app.use(
