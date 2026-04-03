@@ -22,6 +22,17 @@ function errorHandler(err, req, res, next) {
       error: 'Email or phone already registered',
     });
   }
+  const msg = err.message || '';
+  if (
+    msg.includes('secretOrPrivateKey') ||
+    msg.includes('JWT_SECRET') ||
+    (msg.includes('secret') && msg.includes('must have'))
+  ) {
+    return res.status(503).json({
+      error:
+        'Server misconfiguration: set JWT_SECRET in environment (Railway Variables).',
+    });
+  }
 
   const status = err.statusCode || 500;
   const message =

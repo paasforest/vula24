@@ -1,12 +1,16 @@
 require('dotenv').config();
 
-['JWT_SECRET', 'DATABASE_URL'].forEach((key) => {
-  const v = process.env[key];
-  if (!v || !String(v).trim()) {
-    console.error(`FATAL: Missing required environment variable: ${key}`);
-    process.exit(1);
-  }
-});
+const dbUrl = process.env.DATABASE_URL;
+if (!dbUrl || !String(dbUrl).trim()) {
+  console.error('FATAL: DATABASE_URL is required');
+  process.exit(1);
+}
+
+if (!process.env.JWT_SECRET || !String(process.env.JWT_SECRET).trim()) {
+  console.error(
+    'WARN: JWT_SECRET is not set — /api/auth/* will fail until you add it in Railway Variables.'
+  );
+}
 
 const path = require('path');
 const express = require('express');
@@ -79,6 +83,6 @@ app.use('/api/notifications', notificationRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`Vula24 API listening on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Vula24 API listening on 0.0.0.0:${PORT}`);
 });
