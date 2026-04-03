@@ -50,6 +50,7 @@ function verifyAdminToken(token) {
 }
 
 module.exports = {
+  requireJwtSecret,
   signCustomerToken,
   signLocksmithToken,
   signMemberToken,

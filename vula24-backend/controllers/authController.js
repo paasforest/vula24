@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const prisma = require('../lib/prisma');
 const { AppError } = require('../middleware/errorHandler');
 const {
+  requireJwtSecret,
   signCustomerToken,
   signLocksmithToken,
   signMemberToken,
@@ -20,6 +21,7 @@ function stripLocksmith(l) {
 }
 
 async function registerCustomer(req, res) {
+  requireJwtSecret();
   const { name, phone, email, password } = req.body;
   const existing = await prisma.customer.findFirst({
     where: { OR: [{ email }, { phone }] },
@@ -36,6 +38,7 @@ async function registerCustomer(req, res) {
 }
 
 async function loginCustomer(req, res) {
+  requireJwtSecret();
   const { email, password } = req.body;
   const customer = await prisma.customer.findUnique({ where: { email } });
   if (!customer) throw new AppError('Invalid email or password', 401);
@@ -59,6 +62,7 @@ function publicLocksmithFileUrl(req, filename) {
 }
 
 async function registerLocksmith(req, res) {
+  requireJwtSecret();
   const {
     name,
     phone,
@@ -129,6 +133,7 @@ async function registerLocksmith(req, res) {
 }
 
 async function loginLocksmith(req, res) {
+  requireJwtSecret();
   const { email, password } = req.body;
   const locksmith = await prisma.locksmith.findUnique({ where: { email } });
   if (!locksmith) throw new AppError('Invalid email or password', 401);
@@ -142,6 +147,7 @@ async function loginLocksmith(req, res) {
 }
 
 async function loginMember(req, res) {
+  requireJwtSecret();
   const { appEmail, appPassword } = req.body;
   const member = await prisma.teamMember.findUnique({
     where: { appEmail },
