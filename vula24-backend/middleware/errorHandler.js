@@ -17,6 +17,11 @@ function errorHandler(err, req, res, next) {
   if (err.message === 'Only image files are allowed') {
     return res.status(400).json({ error: err.message });
   }
+  if (err.code === 'P2002') {
+    return res.status(409).json({
+      error: 'Email or phone already registered',
+    });
+  }
 
   const status = err.statusCode || 500;
   const message =

@@ -1,5 +1,13 @@
 require('dotenv').config();
 
+['JWT_SECRET', 'DATABASE_URL'].forEach((key) => {
+  const v = process.env[key];
+  if (!v || !String(v).trim()) {
+    console.error(`FATAL: Missing required environment variable: ${key}`);
+    process.exit(1);
+  }
+});
+
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
