@@ -1,18 +1,6 @@
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
 
-const uploadRoot = path.join(__dirname, '..', 'uploads', 'locksmith');
-fs.mkdirSync(uploadRoot, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadRoot),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.jpg';
-    cb(null, `${crypto.randomUUID()}${ext}`);
-  },
-});
+const storage = multer.memoryStorage();
 
 function fileFilter(req, file, cb) {
   const ok =

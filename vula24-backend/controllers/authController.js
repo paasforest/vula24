@@ -7,6 +7,7 @@ const {
   signLocksmithToken,
   signMemberToken,
 } = require('../utils/jwt');
+const { uploadLocksmithImage } = require('../lib/locksmithUploads');
 
 function stripCustomer(c) {
   if (!c) return c;
@@ -48,19 +49,6 @@ async function loginCustomer(req, res) {
   res.json({ token, customer: stripCustomer(customer) });
 }
 
-function publicLocksmithFileUrl(req, filename) {
-  let base;
-  if (process.env.APP_URL) {
-    base = process.env.APP_URL.replace(/\/$/, '');
-  } else {
-    const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
-    const host =
-      req.get('host') || `localhost:${process.env.PORT || 3000}`;
-    base = `${proto}://${host}`;
-  }
-  return `${base}/uploads/locksmith/${filename}`;
-}
-
 async function registerLocksmith(req, res) {
   requireJwtSecret();
   const {
@@ -81,15 +69,19 @@ async function registerLocksmith(req, res) {
   } = req.body;
 
   const files = req.files || {};
-  const idPhotoUrl = files.idPhoto?.[0]
-    ? publicLocksmithFileUrl(req, files.idPhoto[0].filename)
-    : bodyIdUrl || null;
-  const selfiePhotoUrl = files.selfiePhoto?.[0]
-    ? publicLocksmithFileUrl(req, files.selfiePhoto[0].filename)
-    : bodySelfieUrl || null;
-  const proofOfAddressUrl = files.proofOfAddress?.[0]
-    ? publicLocksmithFileUrl(req, files.proofOfAddress[0].filename)
-    : bodyProofUrl || null;
+  let idPhotoUrl = bodyIdUrl || null;
+  let selfiePhotoUrl = bodySelfieUrl || null;
+  let proofOfAddressUrl = bodyProofUrl || null;
+
+  if (files.idPhoto?.[0]) {
+    idPhotoUrl = await uploadLocksmithImage(req, files.idPhoto[0]);
+  }
+  if (files.selfiePhoto?.[0]) {
+    selfiePhotoUrl = await uploadLocksmithImage(req, files.selfiePhoto[0]);
+  }
+  if (files.proofOfAddress?.[0]) {
+    proofOfAddressUrl = await uploadLocksmithImage(req, files.proofOfAddress[0]);
+  }
 
   if (accountType === 'BUSINESS' && !businessName?.trim()) {
     throw new AppError('businessName is required for BUSINESS accounts', 400);
