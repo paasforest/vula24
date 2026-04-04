@@ -149,6 +149,185 @@ async function getStats(req, res) {
   });
 }
 
+async function strikeCustomer(req, res) {
+  const customerId = req.params.id;
+  const exists = await prisma.customer.findUnique({ where: { id: customerId } });
+  if (!exists) throw new AppError('Customer not found', 404);
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const next = await tx.customer.update({
+      where: { id: customerId },
+      data: { strikeCount: { increment: 1 } },
+    });
+
+    if (next.strikeCount >= 2) {
+      const banned = await tx.customer.update({
+        where: { id: customerId },
+        data: {
+          isBanned: true,
+          bannedAt: new Date(),
+          bannedReason: 'Refused payment twice',
+        },
+      });
+      await tx.notification.create({
+        data: {
+          recipientId: customerId,
+          recipientType: 'CUSTOMER',
+          title: 'Account suspended',
+          message:
+            'Your account has been suspended due to payment issues.',
+        },
+      });
+      return banned;
+    }
+    return next;
+  });
+
+  const { password, ...customer } = updated;
+  res.json({ customer });
+}
+
+async function resolveDispute(req, res) {
+  const jobId = req.params.id;
+  const { winner, notes } = req.body;
+  const adminRecipientId =
+    process.env.ADMIN_NOTIFICATION_RECIPIENT_ID || 'admin';
+
+  if (winner !== 'locksmith' && winner !== 'customer') {
+    throw new AppError('winner must be locksmith or customer', 400);
+  }
+  if (!notes || typeof notes !== 'string' || !notes.trim()) {
+    throw new AppError('notes is required', 400);
+  }
+
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: { customer: true, locksmith: true },
+  });
+  if (!job) throw new AppError('Job not found', 404);
+  if (!job.isDisputed) throw new AppError('Job is not under dispute', 400);
+
+  const existingCredit = await prisma.transaction.findFirst({
+    where: { jobId, type: 'CREDIT' },
+  });
+
+  if (winner === 'locksmith') {
+    await prisma.$transaction(async (tx) => {
+      await tx.job.update({
+        where: { id: jobId },
+        data: {
+          disputeResolvedAt: new Date(),
+          disputeNotes: notes.trim(),
+        },
+      });
+
+      const wallet = job.locksithId
+        ? await tx.wallet.findUnique({ where: { locksithId: job.locksithId } })
+        : null;
+
+      if (!existingCredit && wallet && job.locksithId && job.locksithEarning > 0) {
+        await tx.wallet.update({
+          where: { id: wallet.id },
+          data: { balance: { increment: job.locksithEarning } },
+        });
+        await tx.transaction.create({
+          data: {
+            walletId: wallet.id,
+            amount: job.locksithEarning,
+            type: 'CREDIT',
+            description: `Dispute resolved — payment for job ${job.id}`,
+            jobId: job.id,
+          },
+        });
+      }
+
+      if (job.locksithId) {
+        await tx.notification.create({
+          data: {
+            recipientId: job.locksithId,
+            recipientType: 'LOCKSMITH',
+            title: 'Dispute resolved',
+            message:
+              'Dispute resolved in your favour. Payment released.',
+          },
+        });
+      }
+      await tx.notification.create({
+        data: {
+          recipientId: job.customerId,
+          recipientType: 'CUSTOMER',
+          title: 'Dispute resolved',
+          message: 'Dispute resolved. No refund will be issued.',
+        },
+      });
+    });
+  } else {
+    await prisma.$transaction(async (tx) => {
+      await tx.job.update({
+        where: { id: jobId },
+        data: {
+          disputeResolvedAt: new Date(),
+          disputeNotes: notes.trim(),
+        },
+      });
+
+      const wallet = job.locksithId
+        ? await tx.wallet.findUnique({ where: { locksithId: job.locksithId } })
+        : null;
+
+      if (existingCredit && wallet && job.locksithEarning > 0) {
+        await tx.wallet.update({
+          where: { id: wallet.id },
+          data: { balance: { decrement: job.locksithEarning } },
+        });
+        await tx.transaction.create({
+          data: {
+            walletId: wallet.id,
+            amount: job.locksithEarning,
+            type: 'DEBIT',
+            description: `Dispute refund clawback — job ${job.id}`,
+            jobId: job.id,
+          },
+        });
+      }
+
+      await tx.notification.create({
+        data: {
+          recipientId: adminRecipientId,
+          recipientType: 'CUSTOMER',
+          title: 'Refund required',
+          message: `Manual refund processing for job ${jobId}. Customer dispute resolved in customer's favour.`,
+        },
+      });
+
+      await tx.notification.create({
+        data: {
+          recipientId: job.customerId,
+          recipientType: 'CUSTOMER',
+          title: 'Dispute resolved',
+          message:
+            'Dispute resolved in your favour. Refund will be processed within 3 business days.',
+        },
+      });
+
+      if (job.locksithId) {
+        await tx.notification.create({
+          data: {
+            recipientId: job.locksithId,
+            recipientType: 'LOCKSMITH',
+            title: 'Dispute resolved',
+            message:
+              "Dispute resolved in customer's favour. No payment will be released.",
+          },
+        });
+      }
+    });
+  }
+
+  const updatedJob = await prisma.job.findUnique({ where: { id: jobId } });
+  res.json({ job: updatedJob });
+}
+
 module.exports = {
   listPendingLocksmiths,
   approveLocksmith,
@@ -156,4 +335,6 @@ module.exports = {
   suspendLocksmith,
   listAllJobs,
   getStats,
+  strikeCustomer,
+  resolveDispute,
 };

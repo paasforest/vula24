@@ -56,4 +56,22 @@ router.get(
 
 router.get('/stats', asyncHandler(admin.getStats));
 
+router.post(
+  '/customer/:id/strike',
+  [param('id').isUUID()],
+  handleValidationErrors,
+  asyncHandler(admin.strikeCustomer)
+);
+
+router.post(
+  '/jobs/:id/dispute/resolve',
+  [
+    param('id').isUUID(),
+    body('winner').isIn(['locksmith', 'customer']),
+    body('notes').trim().notEmpty(),
+  ],
+  handleValidationErrors,
+  asyncHandler(admin.resolveDispute)
+);
+
 module.exports = router;

@@ -8,7 +8,15 @@ function appBaseUrl() {
 
 function parsePaymentRef(mPaymentId) {
   if (!mPaymentId || typeof mPaymentId !== 'string') return null;
-  const [jobId, kind] = mPaymentId.split(':');
+  if (mPaymentId.startsWith('wallet-topup:')) {
+    const walletId = mPaymentId.slice('wallet-topup:'.length);
+    if (!walletId) return null;
+    return { kind: 'wallet-topup', walletId };
+  }
+  const idx = mPaymentId.lastIndexOf(':');
+  if (idx === -1) return null;
+  const jobId = mPaymentId.slice(0, idx);
+  const kind = mPaymentId.slice(idx + 1);
   if (!jobId || (kind !== 'deposit' && kind !== 'final')) return null;
   return { jobId, kind };
 }
@@ -21,7 +29,7 @@ async function createDepositPayment(req, res) {
   if (!job) throw new AppError('Job not found', 404);
   if (job.customerId !== customerId) throw new AppError('Forbidden', 403);
 
-  const amount = job.totalPrice * 0.5;
+  const amount = job.totalPrice;
   if (amount <= 0) throw new AppError('Invalid job total for payment', 400);
 
   const customer = await prisma.customer.findUnique({
@@ -31,8 +39,8 @@ async function createDepositPayment(req, res) {
   const mPaymentId = `${jobId}:deposit`;
   const { url, fields } = buildPaymentFields({
     amount,
-    itemName: `Vula24 deposit — job ${jobId}`,
-    itemDescription: '50% deposit',
+    itemName: `Vula24 payment — job ${jobId}`,
+    itemDescription: 'Full upfront payment',
     mPaymentId,
     email: customer.email,
     returnUrl: `${appBaseUrl()}/api/payments/return?status=deposit`,
@@ -44,31 +52,38 @@ async function createDepositPayment(req, res) {
 }
 
 async function createFinalPayment(req, res) {
-  const { jobId } = req.body;
-  const customerId = req.customer.id;
+  throw new AppError(
+    'Payment is now collected upfront in full. This endpoint is deprecated.',
+    400
+  );
+}
 
-  const job = await prisma.job.findUnique({ where: { id: jobId } });
-  if (!job) throw new AppError('Job not found', 404);
-  if (job.customerId !== customerId) throw new AppError('Forbidden', 403);
-  if (!job.depositPaid) {
-    throw new AppError('Deposit must be paid first', 400);
+async function createWalletTopup(req, res) {
+  const { amount } = req.body;
+  const locksmithId = req.locksmith.id;
+
+  if (typeof amount !== 'number' || amount < 100) {
+    throw new AppError('Minimum top up is R100', 400);
   }
 
-  const amount = job.totalPrice * 0.5;
-  if (amount <= 0) throw new AppError('Invalid job total for payment', 400);
-
-  const customer = await prisma.customer.findUnique({
-    where: { id: customerId },
+  const wallet = await prisma.wallet.findUnique({
+    where: { locksithId: locksmithId },
   });
+  if (!wallet) throw new AppError('Wallet not found', 404);
 
-  const mPaymentId = `${jobId}:final`;
+  const locksmith = await prisma.locksmith.findUnique({
+    where: { id: locksmithId },
+  });
+  if (!locksmith) throw new AppError('Locksmith not found', 404);
+
+  const mPaymentId = `wallet-topup:${wallet.id}`;
   const { url, fields } = buildPaymentFields({
     amount,
-    itemName: `Vula24 final payment — job ${jobId}`,
-    itemDescription: 'Remaining 50%',
+    itemName: 'Vula24 wallet top-up',
+    itemDescription: 'Wallet balance top-up',
     mPaymentId,
-    email: customer.email,
-    returnUrl: `${appBaseUrl()}/api/payments/return?status=final`,
+    email: locksmith.email,
+    returnUrl: `${appBaseUrl()}/api/payments/return?status=wallet-topup`,
     cancelUrl: `${appBaseUrl()}/api/payments/cancel`,
     notifyUrl: `${appBaseUrl()}/api/payments/webhook`,
   });
@@ -96,6 +111,47 @@ async function payfastWebhook(req, res) {
     return res.status(400).send('BAD_AMOUNT');
   }
 
+  if (ref.kind === 'wallet-topup') {
+    const wallet = await prisma.wallet.findUnique({
+      where: { id: ref.walletId },
+      include: { locksmith: true },
+    });
+    if (!wallet || !wallet.locksmith) {
+      return res.status(200).send('OK');
+    }
+
+    const locksmith = wallet.locksmith;
+
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: { increment: amountGross } },
+      });
+      await tx.transaction.create({
+        data: {
+          walletId: wallet.id,
+          amount: amountGross,
+          type: 'CREDIT',
+          description: 'Wallet top-up',
+        },
+      });
+
+      const meetsMin = updated.balance >= locksmith.walletMinimum;
+      await tx.notification.create({
+        data: {
+          recipientId: locksmith.id,
+          recipientType: 'LOCKSMITH',
+          title: 'Wallet topped up',
+          message: meetsMin
+            ? 'Wallet topped up successfully. You can now go online.'
+            : `Wallet topped up R${amountGross.toFixed(2)}. Top up further to meet your minimum balance.`,
+        },
+      });
+    });
+
+    return res.status(200).send('OK');
+  }
+
   const job = await prisma.job.findUnique({
     where: { id: ref.jobId },
     include: { locksmith: true },
@@ -104,31 +160,39 @@ async function payfastWebhook(req, res) {
     return res.status(200).send('OK');
   }
 
-  const expectedHalf = job.totalPrice * 0.5;
-  if (Math.abs(amountGross - expectedHalf) > 0.02) {
-    console.warn('PayFast amount mismatch', { jobId: job.id, amountGross, expectedHalf });
-    return res.status(400).send('AMOUNT_MISMATCH');
-  }
-
   if (ref.kind === 'deposit') {
-    if (job.depositPaid) {
+    const expectedFull = job.totalPrice;
+    const expectedHalf = job.totalPrice * 0.5;
+    const matchesFull = Math.abs(amountGross - expectedFull) <= 0.02;
+    const matchesHalf = Math.abs(amountGross - expectedHalf) <= 0.02;
+    if (!matchesFull && !matchesHalf) {
+      console.warn('PayFast amount mismatch', {
+        jobId: job.id,
+        amountGross,
+        expectedFull,
+        expectedHalf,
+      });
+      return res.status(400).send('AMOUNT_MISMATCH');
+    }
+
+    if (matchesHalf) {
+      if (job.depositPaid) {
+        return res.status(200).send('OK');
+      }
+      await prisma.job.update({
+        where: { id: job.id },
+        data: { depositPaid: true },
+      });
       return res.status(200).send('OK');
     }
-    await prisma.job.update({
-      where: { id: job.id },
-      data: { depositPaid: true },
-    });
-    return res.status(200).send('OK');
-  }
 
-  if (ref.kind === 'final') {
-    if (job.finalPaid) {
+    if (job.depositPaid && job.finalPaid) {
       return res.status(200).send('OK');
     }
     await prisma.$transaction(async (tx) => {
       await tx.job.update({
         where: { id: job.id },
-        data: { finalPaid: true },
+        data: { depositPaid: true, finalPaid: true },
       });
 
       const wallet = await tx.wallet.findUnique({
@@ -149,6 +213,60 @@ async function payfastWebhook(req, res) {
           amount: credit,
           type: 'CREDIT',
           description: `Payment for job ${job.id}`,
+          jobId: job.id,
+        },
+      });
+
+      const serviceLabel = String(job.serviceType).replace(/_/g, ' ');
+      await tx.notification.create({
+        data: {
+          recipientId: job.locksithId,
+          recipientType: 'LOCKSMITH',
+          title: 'Payment received',
+          message: `Payment received for ${serviceLabel} job. You earned R${credit.toFixed(2)}`,
+        },
+      });
+    });
+    return res.status(200).send('OK');
+  }
+
+  if (ref.kind === 'final') {
+    const expectedHalf = job.totalPrice * 0.5;
+    if (Math.abs(amountGross - expectedHalf) > 0.02) {
+      console.warn('PayFast amount mismatch', {
+        jobId: job.id,
+        amountGross,
+        expectedHalf,
+      });
+      return res.status(400).send('AMOUNT_MISMATCH');
+    }
+    if (job.finalPaid) {
+      return res.status(200).send('OK');
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.job.update({
+        where: { id: job.id },
+        data: { finalPaid: true, depositPaid: true },
+      });
+
+      const wallet = await tx.wallet.findUnique({
+        where: { locksithId: job.locksithId },
+      });
+      if (!wallet) {
+        throw new Error('Wallet missing for locksmith');
+      }
+
+      const credit = job.locksithEarning;
+      await tx.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: { increment: credit } },
+      });
+      await tx.transaction.create({
+        data: {
+          walletId: wallet.id,
+          amount: credit,
+          type: 'CREDIT',
+          description: `Payment for job ${job.id} (final)`,
           jobId: job.id,
         },
       });
@@ -213,6 +331,7 @@ async function paymentCancel(req, res) {
 module.exports = {
   createDepositPayment,
   createFinalPayment,
+  createWalletTopup,
   payfastWebhook,
   withdraw,
   paymentReturn,

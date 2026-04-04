@@ -36,4 +36,12 @@ router.post(
   asyncHandler(payments.withdraw)
 );
 
+router.post(
+  '/wallet-topup',
+  authenticateLocksmith,
+  [body('amount').isFloat({ gte: 100 })],
+  handleValidationErrors,
+  asyncHandler(payments.createWalletTopup)
+);
+
 module.exports = router;

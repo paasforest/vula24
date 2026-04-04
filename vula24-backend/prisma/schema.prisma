@@ -52,6 +52,11 @@ enum RecipientType {
   TEAM_MEMBER
 }
 
+enum PaymentMethod {
+  APP
+  CASH
+}
+
 model Customer {
   id           String   @id @default(uuid())
   name         String
@@ -59,6 +64,10 @@ model Customer {
   email        String   @unique
   password     String
   profilePhoto String?
+  strikeCount  Int      @default(0)
+  isBanned     Boolean  @default(false)
+  bannedAt     DateTime?
+  bannedReason String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -90,6 +99,7 @@ model Locksmith {
   currentLng        Float?
   rating            Float       @default(5.0)
   totalJobs         Int         @default(0)
+  walletMinimum     Float       @default(200)
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -151,6 +161,13 @@ model Job {
   locksithEarning   Float
   depositPaid       Boolean     @default(false)
   finalPaid         Boolean     @default(false)
+  paymentMethod     PaymentMethod @default(APP)
+  cashCollected     Float?
+  isDisputed        Boolean     @default(false)
+  disputeProofUrl   String?
+  disputeResolvedAt DateTime?
+  disputeNotes      String?
+  disputeReason     String?
   createdAt         DateTime    @default(now())
   acceptedAt        DateTime?
   completedAt       DateTime?
@@ -189,11 +206,12 @@ model Review {
 }
 
 model Wallet {
-  id         String    @id @default(uuid())
-  locksithId String    @unique
-  locksmith  Locksmith @relation(fields: [locksithId], references: [id], onDelete: Cascade)
-  balance    Float     @default(0)
-  updatedAt  DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  locksithId      String    @unique
+  locksmith       Locksmith @relation(fields: [locksithId], references: [id], onDelete: Cascade)
+  balance         Float     @default(0)
+  minimumBalance  Float     @default(200)
+  updatedAt       DateTime  @updatedAt
 
   transactions Transaction[]
 }

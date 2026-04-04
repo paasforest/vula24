@@ -24,10 +24,23 @@ function stripLocksmith(l) {
 async function registerCustomer(req, res) {
   requireJwtSecret();
   const { name, phone, email, password } = req.body;
+
   const existing = await prisma.customer.findFirst({
     where: { OR: [{ email }, { phone }] },
   });
   if (existing) {
+    if (existing.isBanned) {
+      if (existing.phone === phone) {
+        throw new AppError(
+          'This phone number has been suspended. Contact support@vula24.co.za',
+          403
+        );
+      }
+      throw new AppError(
+        'Your account has been suspended. Contact support@vula24.co.za',
+        403
+      );
+    }
     throw new AppError('Email or phone already registered', 409);
   }
   const hash = await bcrypt.hash(password, 12);
@@ -43,6 +56,12 @@ async function loginCustomer(req, res) {
   const { email, password } = req.body;
   const customer = await prisma.customer.findUnique({ where: { email } });
   if (!customer) throw new AppError('Invalid email or password', 401);
+  if (customer.isBanned) {
+    throw new AppError(
+      'Your account has been suspended. Contact support@vula24.co.za',
+      403
+    );
+  }
   const ok = await bcrypt.compare(password, customer.password);
   if (!ok) throw new AppError('Invalid email or password', 401);
   const token = signCustomerToken(customer.id);
@@ -95,6 +114,7 @@ async function registerLocksmith(req, res) {
   }
 
   const hash = await bcrypt.hash(password, 12);
+  const walletMinimum = accountType === 'BUSINESS' ? 500 : 200;
   const locksmith = await prisma.$transaction(async (tx) => {
     const l = await tx.locksmith.create({
       data: {
@@ -104,6 +124,7 @@ async function registerLocksmith(req, res) {
         password: hash,
         accountType,
         businessName: businessName || null,
+        walletMinimum,
         idPhotoUrl: idPhotoUrl || null,
         selfiePhotoUrl: selfiePhotoUrl || null,
         toolsPhotoUrl: toolsPhotoUrl || null,
@@ -115,7 +136,11 @@ async function registerLocksmith(req, res) {
       },
     });
     await tx.wallet.create({
-      data: { locksithId: l.id, balance: 0 },
+      data: {
+        locksithId: l.id,
+        balance: 0,
+        minimumBalance: walletMinimum,
+      },
     });
     return l;
   });

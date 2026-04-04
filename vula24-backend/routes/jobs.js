@@ -118,6 +118,50 @@ router.post(
 );
 
 router.post(
+  '/:id/set-payment-method',
+  authenticateLocksmith,
+  [
+    param('id').isUUID(),
+    body('paymentMethod').isIn(['APP', 'CASH']),
+  ],
+  handleValidationErrors,
+  asyncHandler(jobs.setPaymentMethod)
+);
+
+router.post(
+  '/:id/cash-collected',
+  authenticateLocksmith,
+  [
+    param('id').isUUID(),
+    body('cashCollected').isFloat({ gt: 0 }),
+  ],
+  handleValidationErrors,
+  asyncHandler(jobs.recordCashCollected)
+);
+
+router.post(
+  '/:id/dispute',
+  authenticateCustomer,
+  [
+    param('id').isUUID(),
+    body('reason').trim().notEmpty(),
+  ],
+  handleValidationErrors,
+  asyncHandler(jobs.raiseDispute)
+);
+
+router.post(
+  '/:id/dispute/proof',
+  authenticateLocksmith,
+  [
+    param('id').isUUID(),
+    body('disputeProofUrl').trim().notEmpty(),
+  ],
+  handleValidationErrors,
+  asyncHandler(jobs.submitDisputeProof)
+);
+
+router.post(
   '/:id/cancel',
   authenticateJobParticipant,
   [param('id').isUUID()],

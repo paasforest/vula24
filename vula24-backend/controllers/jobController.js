@@ -852,15 +852,270 @@ async function toggleLocksmithOnline(req, res) {
   const id = req.locksmith.id;
   const current = await prisma.locksmith.findUnique({
     where: { id },
-    select: { isOnline: true },
+    select: { isOnline: true, walletMinimum: true },
   });
   if (!current) throw new AppError('Locksmith not found', 404);
   const nextOnline = !current.isOnline;
+
+  if (nextOnline) {
+    const wallet = await prisma.wallet.findUnique({
+      where: { locksithId: id },
+    });
+    if (!wallet) throw new AppError('Wallet not found', 404);
+    if (wallet.balance < current.walletMinimum) {
+      return res.status(403).json({
+        error: 'Insufficient wallet balance',
+        message: `Minimum balance required: R${current.walletMinimum.toFixed(2)}. Current balance: R${wallet.balance.toFixed(2)}. Please top up.`,
+        walletBalance: wallet.balance,
+        minimumRequired: current.walletMinimum,
+      });
+    }
+  }
+
   await prisma.locksmith.update({
     where: { id },
     data: { isOnline: nextOnline },
   });
   res.json({ isOnline: nextOnline });
+}
+
+async function setPaymentMethod(req, res) {
+  const jobId = req.params.id;
+  const locksmithId = req.locksmith.id;
+  const { paymentMethod } = req.body;
+
+  if (paymentMethod !== 'APP' && paymentMethod !== 'CASH') {
+    throw new AppError('Invalid paymentMethod', 400);
+  }
+
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job) throw new AppError('Job not found', 404);
+  if (job.locksithId !== locksmithId) {
+    throw new AppError('This job is not assigned to you', 403);
+  }
+  if (job.status !== 'ACCEPTED') {
+    throw new AppError(
+      'Payment method can only be set when job status is ACCEPTED',
+      400
+    );
+  }
+
+  const updated = await prisma.job.update({
+    where: { id: jobId },
+    data: { paymentMethod },
+  });
+  res.json({ job: updated });
+}
+
+async function recordCashCollected(req, res) {
+  const jobId = req.params.id;
+  const locksmithId = req.locksmith.id;
+  const { cashCollected } = req.body;
+
+  if (typeof cashCollected !== 'number' || cashCollected <= 0) {
+    throw new AppError('cashCollected must be greater than 0', 400);
+  }
+
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job) throw new AppError('Job not found', 404);
+  if (job.locksithId !== locksmithId) {
+    throw new AppError('This job is not assigned to you', 403);
+  }
+  if (job.status !== 'COMPLETED') {
+    throw new AppError(
+      'Cash can only be recorded when job status is COMPLETED',
+      400
+    );
+  }
+
+  const commission = job.platformFee;
+
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.job.update({
+      where: { id: jobId },
+      data: { cashCollected },
+    });
+
+    const wallet = await tx.wallet.findUnique({
+      where: { locksithId: locksmithId },
+    });
+    if (!wallet) throw new AppError('Wallet not found', 404);
+
+    const locksmith = await tx.locksmith.findUnique({
+      where: { id: locksmithId },
+      select: { isOnline: true, walletMinimum: true },
+    });
+    if (!locksmith) throw new AppError('Locksmith not found', 404);
+
+    const updatedWallet = await tx.wallet.update({
+      where: { id: wallet.id },
+      data: { balance: { decrement: commission } },
+    });
+
+    await tx.transaction.create({
+      data: {
+        walletId: wallet.id,
+        amount: commission,
+        type: 'DEBIT',
+        description: `Commission on cash job - ${job.serviceType}`,
+        jobId: job.id,
+      },
+    });
+
+    const newBalance = updatedWallet.balance;
+
+    if (newBalance < 0) {
+      await tx.notification.create({
+        data: {
+          recipientId: locksmithId,
+          recipientType: 'LOCKSMITH',
+          title: 'Wallet balance',
+          message:
+            'Your wallet is negative. Top up to continue receiving jobs.',
+        },
+      });
+    }
+
+    let isOnline = locksmith.isOnline;
+    if (newBalance < locksmith.walletMinimum) {
+      await tx.locksmith.update({
+        where: { id: locksmithId },
+        data: { isOnline: false },
+      });
+      isOnline = false;
+      await tx.notification.create({
+        data: {
+          recipientId: locksmithId,
+          recipientType: 'LOCKSMITH',
+          title: 'Set offline',
+          message: `You have been set offline. Minimum wallet balance is R${locksmith.walletMinimum.toFixed(2)}. Please top up.`,
+        },
+      });
+    }
+
+    return { walletBalance: newBalance, isOnline };
+  });
+
+  res.json({
+    success: true,
+    walletBalance: result.walletBalance,
+    isOnline: result.isOnline,
+  });
+}
+
+async function raiseDispute(req, res) {
+  const jobId = req.params.id;
+  const customerId = req.customer.id;
+  const { reason } = req.body;
+
+  if (!reason || typeof reason !== 'string' || !reason.trim()) {
+    throw new AppError('reason is required', 400);
+  }
+
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: { customer: true },
+  });
+  if (!job) throw new AppError('Job not found', 404);
+  if (job.customerId !== customerId) throw new AppError('Forbidden', 403);
+  if (job.status !== 'COMPLETED') {
+    throw new AppError('Disputes can only be raised for completed jobs', 400);
+  }
+  if (!job.completedAt) {
+    throw new AppError('Job completion time missing', 400);
+  }
+
+  const hoursSince =
+    (Date.now() - job.completedAt.getTime()) / (1000 * 60 * 60);
+  if (hoursSince > 24) {
+    throw new AppError(
+      'Disputes can only be raised within 24 hours of completion',
+      400
+    );
+  }
+
+  if (job.isDisputed) {
+    throw new AppError('This job is already disputed', 400);
+  }
+
+  const adminRecipientId =
+    process.env.ADMIN_NOTIFICATION_RECIPIENT_ID || 'admin';
+
+  await prisma.$transaction(async (tx) => {
+    await tx.job.update({
+      where: { id: jobId },
+      data: {
+        isDisputed: true,
+        disputeReason: reason.trim(),
+      },
+    });
+
+    await tx.notification.create({
+      data: {
+        recipientId: adminRecipientId,
+        recipientType: 'CUSTOMER',
+        title: 'New dispute',
+        message: `New dispute raised for job ${jobId} by customer ${job.customer.name}`,
+      },
+    });
+
+    if (job.locksithId) {
+      await tx.notification.create({
+        data: {
+          recipientId: job.locksithId,
+          recipientType: 'LOCKSMITH',
+          title: 'Dispute raised',
+          message:
+            'A dispute has been raised for your job. Please submit proof of completion.',
+        },
+      });
+    }
+  });
+
+  res.json({
+    success: true,
+    message: 'Dispute raised. Our team will review within 24 hours.',
+  });
+}
+
+async function submitDisputeProof(req, res) {
+  const jobId = req.params.id;
+  const locksmithId = req.locksmith.id;
+  const { disputeProofUrl } = req.body;
+
+  if (!disputeProofUrl || typeof disputeProofUrl !== 'string') {
+    throw new AppError('disputeProofUrl is required', 400);
+  }
+
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job) throw new AppError('Job not found', 404);
+  if (job.locksithId !== locksmithId) {
+    throw new AppError('This job is not assigned to you', 403);
+  }
+  if (!job.isDisputed) {
+    throw new AppError('Job is not under dispute', 400);
+  }
+
+  const adminRecipientId =
+    process.env.ADMIN_NOTIFICATION_RECIPIENT_ID || 'admin';
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const j = await tx.job.update({
+      where: { id: jobId },
+      data: { disputeProofUrl },
+    });
+    await tx.notification.create({
+      data: {
+        recipientId: adminRecipientId,
+        recipientType: 'CUSTOMER',
+        title: 'Dispute proof submitted',
+        message: `Locksmith submitted dispute proof for job ${jobId}`,
+      },
+    });
+    return j;
+  });
+
+  res.json({ job: updated });
 }
 
 async function addTeamMember(req, res) {
@@ -974,6 +1229,10 @@ module.exports = {
   listMemberCompletedJobs,
   updateLocksmithProfile,
   toggleLocksmithOnline,
+  setPaymentMethod,
+  recordCashCollected,
+  raiseDispute,
+  submitDisputeProof,
   addTeamMember,
   listTeamMembers,
   deactivateTeamMember,
