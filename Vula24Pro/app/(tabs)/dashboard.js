@@ -81,6 +81,12 @@ export default function DashboardScreen() {
     }
   };
 
+  useEffect(() => {
+    if (!online) return;
+    const interval = setInterval(postLocationIfPossible, 30000);
+    return () => clearInterval(interval);
+  }, [online]);
+
   useFocusEffect(
     useCallback(() => {
       loadProfile();

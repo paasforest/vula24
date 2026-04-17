@@ -30,6 +30,65 @@ function stripLocksmithPublic(l) {
   return rest;
 }
 
+async function getNearbyLocksmiths(req, res) {
+  const lat = parseFloat(req.query.lat, 10);
+  const lng = parseFloat(req.query.lng, 10);
+  const rawType = req.query.serviceType;
+
+  const typesToSearch =
+    rawType !== undefined && rawType !== null && String(rawType).trim() !== ''
+      ? [String(rawType)]
+      : SERVICE_TYPES;
+
+  const byId = new Map();
+
+  for (const st of typesToSearch) {
+    const list = await findLocksmithsByDistance({
+      customerLat: lat,
+      customerLng: lng,
+      serviceType: st,
+      maxKm: 20,
+    });
+    for (const row of list) {
+      const id = row.locksmith.id;
+      const prev = byId.get(id);
+      if (!prev || row.distanceKm < prev) {
+        byId.set(id, row.distanceKm);
+      }
+    }
+  }
+
+  const ids = [...byId.keys()];
+  if (ids.length === 0) {
+    return res.json({ locksmiths: [] });
+  }
+
+  const rows = await prisma.locksmith.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      currentLat: true,
+      currentLng: true,
+      servicePricing: {
+        where: { isOffered: true, basePrice: { gt: 0 } },
+        select: { serviceType: true },
+      },
+    },
+  });
+
+  const locksmiths = rows
+    .map((lm) => ({
+      id: lm.id,
+      distanceKm: byId.get(lm.id),
+      currentLat: lm.currentLat,
+      currentLng: lm.currentLng,
+      serviceTypes: lm.servicePricing.map((p) => p.serviceType),
+    }))
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+
+  res.json({ locksmiths });
+}
+
 async function createEmergencyJob(req, res) {
   const customerId = req.customer.id;
   const {
@@ -1292,6 +1351,7 @@ async function deactivateTeamMember(req, res) {
 
 module.exports = {
   createEmergencyJob,
+  getNearbyLocksmiths,
   getJobById,
   getLocksmithJobById,
   listOpenScheduledJobsForLocksmith,

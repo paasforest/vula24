@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { body, param } = require('express-validator');
+const { body, param, query } = require('express-validator');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { handleValidationErrors } = require('../middleware/validate');
 const {
@@ -75,6 +75,18 @@ router.get(
   [param('id').isUUID()],
   handleValidationErrors,
   asyncHandler(jobs.getLocksmithJobById)
+);
+
+router.get(
+  '/nearby',
+  authenticateCustomer,
+  [
+    query('lat').isFloat({ min: -90, max: 90 }),
+    query('lng').isFloat({ min: -180, max: 180 }),
+    query('serviceType').optional().isIn(serviceTypes),
+  ],
+  handleValidationErrors,
+  asyncHandler(jobs.getNearbyLocksmiths)
 );
 
 router.get(
