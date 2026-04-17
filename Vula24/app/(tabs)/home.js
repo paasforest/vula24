@@ -15,6 +15,7 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
+import { DARK_MAP_STYLE } from '../../constants/mapStyle';
 import api from '../../lib/api';
 import { getUser } from '../../lib/storage';
 
@@ -142,13 +143,22 @@ export default function HomeScreen() {
         <Text style={styles.sub}>What do you need help with?</Text>
       </View>
 
+      <View style={styles.mapSection}>
+        <Text style={styles.mapSectionTitle}>Near you</Text>
+        <Text style={styles.mapSectionSub}>
+          Locksmiths on the map when location is on
+        </Text>
+      </View>
       <View style={styles.mapWrap}>
         <MapView
           style={styles.map}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          customMapStyle={Platform.OS === 'android' ? DARK_MAP_STYLE : undefined}
           region={region}
           showsUserLocation={false}
           showsMyLocationButton={false}
+          rotateEnabled={false}
+          pitchEnabled={false}
         >
           <Marker
             coordinate={{
@@ -211,8 +221,22 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingBottom: 12 },
   greet: { color: COLORS.text, fontSize: 22, fontWeight: '700' },
   sub: { color: COLORS.textMuted, marginTop: 6, fontSize: 16 },
+  mapSection: {
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+  mapSectionTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  mapSectionSub: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    marginTop: 4,
+  },
   mapWrap: {
-    height: 220,
+    height: 200,
     marginHorizontal: 16,
     borderRadius: 16,
     overflow: 'hidden',

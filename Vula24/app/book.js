@@ -24,6 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FormInput } from '../components/FormInput';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
+import { DARK_MAP_STYLE } from '../constants/mapStyle';
 import api from '../lib/api';
 
 function readPlaceLatLng(details) {
@@ -237,6 +238,7 @@ export default function BookScreen() {
             <MapView
               style={styles.map}
               provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+              customMapStyle={Platform.OS === 'android' ? DARK_MAP_STYLE : undefined}
               region={{
                 latitude: lat,
                 longitude: lng,
@@ -354,6 +356,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   placesInput: {
+    backgroundColor: COLORS.inputBg,
     color: COLORS.text,
     fontSize: 16,
     height: 44,
