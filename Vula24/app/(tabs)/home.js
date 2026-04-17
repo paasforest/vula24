@@ -15,7 +15,11 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
+import api from '../../lib/api';
 import { getUser } from '../../lib/storage';
+
+const FALLBACK_LAT = -26.2041;
+const FALLBACK_LNG = 28.0473;
 
 const { width } = Dimensions.get('window');
 const CARD_W = width * 0.42;
@@ -68,6 +72,7 @@ export default function HomeScreen() {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
+  const [nearbyLocksmiths, setNearbyLocksmiths] = useState([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,6 +104,33 @@ export default function HomeScreen() {
     })();
   }, []);
 
+  useEffect(() => {
+    const isFallback =
+      region.latitude === FALLBACK_LAT && region.longitude === FALLBACK_LNG;
+    if (isFallback) {
+      setNearbyLocksmiths([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get('/api/jobs/nearby', {
+          params: { lat: region.latitude, lng: region.longitude },
+        });
+        if (!cancelled) {
+          setNearbyLocksmiths(data.locksmiths || []);
+        }
+      } catch {
+        if (!cancelled) {
+          setNearbyLocksmiths([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [region.latitude, region.longitude]);
+
   const name = user?.name?.split(' ')[0] || 'there';
 
   return (
@@ -127,6 +159,20 @@ export default function HomeScreen() {
           >
             <View style={styles.goldPin} />
           </Marker>
+          {nearbyLocksmiths.map((lm) =>
+            lm.currentLat != null && lm.currentLng != null ? (
+              <Marker
+                key={lm.id}
+                coordinate={{
+                  latitude: lm.currentLat,
+                  longitude: lm.currentLng,
+                }}
+                tracksViewChanges={false}
+              >
+                <View style={styles.bluePin} />
+              </Marker>
+            ) : null
+          )}
         </MapView>
       </View>
 
@@ -191,6 +237,14 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     backgroundColor: COLORS.accent,
     borderWidth: 3,
+    borderColor: '#fff',
+  },
+  bluePin: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#1a73e8',
+    borderWidth: 1.5,
     borderColor: '#fff',
   },
   card: {
