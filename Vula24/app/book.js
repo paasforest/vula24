@@ -56,11 +56,13 @@ export default function BookScreen() {
   const [photoUri, setPhotoUri] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // Places + Geocoding: prefer env, then app.config extra, then Android Maps key from app.json
   const placesApiKey =
     (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
       ? String(process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY).trim()
       : '') ||
     Constants.expoConfig?.extra?.googlePlacesApiKey ||
+    Constants.expoConfig?.android?.config?.googleMaps?.apiKey ||
     '';
 
   const reverseGeocode = useCallback(
