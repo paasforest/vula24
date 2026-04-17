@@ -12,7 +12,11 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import PlacesAutocompletePkg from 'react-native-google-places-autocomplete';
+
+const { GooglePlacesAutocomplete } = PlacesAutocompletePkg;
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -21,6 +25,15 @@ import { FormInput } from '../components/FormInput';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
 import api from '../lib/api';
+
+function readPlaceLatLng(details) {
+  if (!details?.geometry?.location) return null;
+  const loc = details.geometry.location;
+  const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+  const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+  if (lat == null || lng == null) return null;
+  return { lat: Number(lat), lng: Number(lng) };
+}
 
 export default function BookScreen() {
   const { serviceType: st } = useLocalSearchParams();
@@ -38,6 +51,13 @@ export default function BookScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [photoUri, setPhotoUri] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const placesApiKey =
+    (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
+      ? String(process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY).trim()
+      : '') ||
+    Constants.expoConfig?.extra?.googlePlacesApiKey ||
+    '';
 
   const reverseGeocode = useCallback(async (latitude, longitude) => {
     try {
@@ -155,7 +175,10 @@ export default function BookScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
           <TouchableOpacity style={styles.back} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color={COLORS.accent} />
             <Text style={styles.backText}>Back</Text>
@@ -164,6 +187,51 @@ export default function BookScreen() {
             {isEmergency ? 'Emergency booking' : 'Schedule a service'}
           </Text>
           <Text style={styles.meta}>{serviceType?.replace(/_/g, ' ')}</Text>
+
+          {placesApiKey ? (
+            <View style={styles.placesWrap}>
+              <GooglePlacesAutocomplete
+                placeholder="Search for an address"
+                fetchDetails
+                enablePoweredByContainer={false}
+                debounce={300}
+                minLength={2}
+                keepResultsAfterBlur={false}
+                predefinedPlaces={[]}
+                textInputProps={{
+                  placeholderTextColor: COLORS.textMuted,
+                  returnKeyType: 'search',
+                }}
+                onPress={(data, details = null) => {
+                  const coords = readPlaceLatLng(details);
+                  if (!coords) return;
+                  setLat(coords.lat);
+                  setLng(coords.lng);
+                  setAddress(
+                    details?.formatted_address || data.description || ''
+                  );
+                }}
+                query={{
+                  key: placesApiKey,
+                  language: 'en',
+                }}
+                styles={{
+                  container: styles.placesContainer,
+                  textInputContainer: styles.placesInputContainer,
+                  textInput: styles.placesInput,
+                  listView: styles.placesList,
+                  row: styles.placesRow,
+                  separator: styles.placesSeparator,
+                  description: styles.placesDescription,
+                }}
+              />
+            </View>
+          ) : (
+            <Text style={styles.placesHint}>
+              Add EXPO_PUBLIC_GOOGLE_PLACES_API_KEY to use address search, or drag
+              the pin on the map.
+            </Text>
+          )}
 
           <View style={styles.mapWrap}>
             <MapView
@@ -271,6 +339,53 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   meta: { color: COLORS.textMuted, marginTop: 4, marginBottom: 16 },
+  placesWrap: {
+    marginBottom: 12,
+    zIndex: 2,
+    elevation: 4,
+  },
+  placesContainer: {
+    flex: 0,
+  },
+  placesInputContainer: {
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  placesInput: {
+    color: COLORS.text,
+    fontSize: 16,
+    height: 44,
+    paddingHorizontal: 12,
+  },
+  placesList: {
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 12,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    maxHeight: 200,
+  },
+  placesRow: {
+    backgroundColor: COLORS.inputBg,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  placesSeparator: {
+    height: 1,
+    backgroundColor: COLORS.border,
+  },
+  placesDescription: {
+    color: COLORS.text,
+    fontSize: 14,
+  },
+  placesHint: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    marginBottom: 12,
+    lineHeight: 18,
+  },
   mapWrap: {
     height: 240,
     borderRadius: 16,
