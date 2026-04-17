@@ -15,7 +15,6 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
-import { DARK_MAP_STYLE } from '../../constants/mapStyle';
 import api from '../../lib/api';
 import { getUser } from '../../lib/storage';
 
@@ -152,8 +151,8 @@ export default function HomeScreen() {
       <View style={styles.mapWrap}>
         <MapView
           style={styles.map}
+          mapType="standard"
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          customMapStyle={Platform.OS === 'android' ? DARK_MAP_STYLE : undefined}
           region={region}
           showsUserLocation={false}
           showsMyLocationButton={false}

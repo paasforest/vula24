@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,8 +24,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { FormInput } from '../components/FormInput';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
-import { DARK_MAP_STYLE } from '../constants/mapStyle';
 import api from '../lib/api';
+import {
+  reverseGeocodeFormatted,
+  formatExpoReversePlace,
+} from '../lib/googleGeocoding';
 
 function readPlaceLatLng(details) {
   if (!details?.geometry?.location) return null;
@@ -60,24 +63,48 @@ export default function BookScreen() {
     Constants.expoConfig?.extra?.googlePlacesApiKey ||
     '';
 
-  const reverseGeocode = useCallback(async (latitude, longitude) => {
-    try {
-      const [place] = await Location.reverseGeocodeAsync({
-        latitude,
-        longitude,
-      });
-      if (place) {
-        const line = [place.name, place.street, place.city, place.region]
-          .filter(Boolean)
-          .join(', ');
-        setAddress(line || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
-      } else {
+  const reverseGeocode = useCallback(
+    async (latitude, longitude) => {
+      if (placesApiKey) {
+        try {
+          const formatted = await reverseGeocodeFormatted(
+            latitude,
+            longitude,
+            placesApiKey
+          );
+          if (formatted) {
+            setAddress(formatted);
+            return;
+          }
+        } catch {
+          /* fall through */
+        }
+      }
+      try {
+        const [place] = await Location.reverseGeocodeAsync({
+          latitude,
+          longitude,
+        });
+        const line = formatExpoReversePlace(place);
+        setAddress(
+          line || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+        );
+      } catch {
         setAddress(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
       }
-    } catch {
-      setAddress(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
-    }
-  }, []);
+    },
+    [placesApiKey]
+  );
+
+  const placesQuery = useMemo(
+    () => ({
+      key: placesApiKey,
+      language: 'en',
+      location: `${lat},${lng}`,
+      radius: 50000,
+    }),
+    [placesApiKey, lat, lng]
+  );
 
   useEffect(() => {
     (async () => {
@@ -192,7 +219,7 @@ export default function BookScreen() {
           {placesApiKey ? (
             <View style={styles.placesWrap}>
               <GooglePlacesAutocomplete
-                placeholder="Search for an address"
+                placeholder="Search address, suburb, or landmark"
                 fetchDetails
                 enablePoweredByContainer={false}
                 debounce={300}
@@ -202,6 +229,7 @@ export default function BookScreen() {
                 textInputProps={{
                   placeholderTextColor: COLORS.textMuted,
                   returnKeyType: 'search',
+                  selectionColor: COLORS.accent,
                 }}
                 onPress={(data, details = null) => {
                   const coords = readPlaceLatLng(details);
@@ -212,10 +240,7 @@ export default function BookScreen() {
                     details?.formatted_address || data.description || ''
                   );
                 }}
-                query={{
-                  key: placesApiKey,
-                  language: 'en',
-                }}
+                query={placesQuery}
                 styles={{
                   container: styles.placesContainer,
                   textInputContainer: styles.placesInputContainer,
@@ -237,13 +262,13 @@ export default function BookScreen() {
           <View style={styles.mapWrap}>
             <MapView
               style={styles.map}
+              mapType="standard"
               provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-              customMapStyle={Platform.OS === 'android' ? DARK_MAP_STYLE : undefined}
               region={{
                 latitude: lat,
                 longitude: lng,
-                latitudeDelta: 0.02,
-                longitudeDelta: 0.02,
+                latitudeDelta: 0.015,
+                longitudeDelta: 0.015,
               }}
             >
               <Marker
@@ -256,7 +281,7 @@ export default function BookScreen() {
               </Marker>
             </MapView>
           </View>
-          <Text style={styles.addrLabel}>Detected address</Text>
+          <Text style={styles.addrLabel}>Address (from map or search)</Text>
           <Text style={styles.addr}>{address || 'Locating…'}</Text>
 
           {isEmergency ? (
