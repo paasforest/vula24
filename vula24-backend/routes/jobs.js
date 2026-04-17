@@ -94,6 +94,14 @@ router.post(
 );
 
 router.post(
+  '/:id/dispatch',
+  authenticateCustomer,
+  [param('id').isUUID()],
+  handleValidationErrors,
+  asyncHandler(jobs.dispatchJob)
+);
+
+router.post(
   '/:id/arrived',
   authenticateLocksmith,
   [param('id').isUUID()],

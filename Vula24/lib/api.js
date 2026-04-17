@@ -21,8 +21,10 @@ function getBaseURL() {
 
   const hostUri =
     Constants.expoConfig?.hostUri ||
+    Constants.expoGoConfig?.debuggerHost ||
     Constants.manifest?.debuggerHost ||
-    Constants.manifest2?.extra?.expoGo?.debuggerHost;
+    Constants.manifest2?.extra?.expoGo?.debuggerHost ||
+    Constants.manifest2?.extra?.expoClient?.hostUri;
   if (typeof hostUri === 'string' && hostUri.length > 0) {
     const host = hostUri.split(':')[0];
     if (host && host !== '127.0.0.1' && host !== 'localhost') {
@@ -44,6 +46,11 @@ const api = axios.create({
   },
 });
 
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  // eslint-disable-next-line no-console
+  console.log('[Vula24 api] base URL:', getBaseURL());
+}
+
 api.interceptors.request.use(async (config) => {
   const token = await getToken();
   if (token) {
@@ -52,5 +59,25 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+/**
+ * Clear message when signup/login fails (network vs misconfigured production API).
+ */
+function formatAuthError(error) {
+  const base = getBaseURL();
+  if (!error.response) {
+    const hint =
+      error.code === 'ECONNABORTED'
+        ? 'Request timed out.'
+        : 'Cannot reach the server.';
+    return `${hint}\n\nAPI: ${base}\nSame Wi‑Fi as your PC? For a phone, set EXPO_PUBLIC_API_URL to http://<your-computer-LAN-IP>:3000 in Vula24/.env`;
+  }
+  const status = error.response.status;
+  const serverMsg = error.response.data?.error;
+  if (status === 500 && serverMsg === 'Internal server error') {
+    return `Server error from:\n${base}\n\nIf this is Railway/production, run database migrations there (e.g. npx prisma migrate deploy) and check deploy logs. For local backend, set EXPO_PUBLIC_API_URL=http://<LAN-IP>:3000.`;
+  }
+  return serverMsg || error.message || 'Request failed.';
+}
+
 export default api;
-export { getBaseURL };
+export { getBaseURL, formatAuthError };

@@ -15,7 +15,7 @@ import { VulaLogo } from '../components/VulaLogo';
 import { FormInput } from '../components/FormInput';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
-import api from '../lib/api';
+import api, { formatAuthError } from '../lib/api';
 import { saveToken, saveUser } from '../lib/storage';
 
 export default function RegisterScreen() {
@@ -51,11 +51,7 @@ export default function RegisterScreen() {
       await saveUser(data.customer);
       router.replace('/(tabs)/home');
     } catch (e) {
-      const msg =
-        e.response?.data?.error ||
-        e.message ||
-        'Registration failed. Please try again.';
-      Alert.alert('Error', msg);
+      Alert.alert('Error', formatAuthError(e));
     } finally {
       setLoading(false);
     }

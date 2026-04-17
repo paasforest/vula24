@@ -104,6 +104,13 @@ export default function TrackingScreen() {
 
   const banner = () => {
     const s = job?.status;
+    if (s === 'DISPATCHED' || s === 'ACCEPTED') {
+      return (
+        <View style={styles.bannerDark}>
+          <Text style={styles.bannerText}>Locksmith is on the way</Text>
+        </View>
+      );
+    }
     if (s === 'ARRIVED') {
       return (
         <View style={styles.bannerGold}>

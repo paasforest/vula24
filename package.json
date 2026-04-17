@@ -7,7 +7,8 @@
   "scripts": {
     "postinstall": "npm install --prefix ./vula24-backend && npm run prisma:generate --prefix ./vula24-backend",
     "start": "npm run start --prefix ./vula24-backend",
-    "start:pro": "expo start Vula24Pro",
-    "start:customer": "expo start Vula24"
+    "start:client": "npx expo start ./Vula24",
+    "start:customer": "npm run start:client",
+    "start:pro": "npx expo start ./Vula24Pro"
   }
 }

@@ -49,7 +49,7 @@ export default function WaitingScreen() {
         if (status === 'ACCEPTED') {
           clearInterval(id);
           router.replace({
-            pathname: '/tracking',
+            pathname: '/payment',
             params: { jobId },
           });
         }

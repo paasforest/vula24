@@ -19,6 +19,8 @@ const morgan = require('morgan');
 
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const prisma = require('./lib/prisma');
+const { expireAcceptedJobs } = require('./controllers/jobController');
+const { releasePendingPayouts } = require('./controllers/paymentController');
 
 const authRoutes = require('./routes/auth');
 const jobRoutes = require('./routes/jobs');
@@ -82,6 +84,15 @@ app.use('/api/notifications', notificationRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
+
+setInterval(() => {
+  expireAcceptedJobs().catch((err) =>
+    console.error('expireAcceptedJobs', err)
+  );
+  releasePendingPayouts().catch((err) =>
+    console.error('releasePendingPayouts', err)
+  );
+}, 60000);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Vula24 API listening on 0.0.0.0:${PORT}`);

@@ -117,7 +117,14 @@ async function arrivedJob(req, res) {
   if (job.locksithId !== locksmithId) {
     throw new AppError('This job is not assigned to you', 403);
   }
-  if (job.status !== 'ACCEPTED') {
+  if (job.mode === 'EMERGENCY') {
+    if (job.status !== 'DISPATCHED') {
+      throw new AppError(
+        'Wait for customer payment before marking arrived.',
+        400
+      );
+    }
+  } else if (job.status !== 'ACCEPTED') {
     throw new AppError('Job must be accepted before marking arrived', 400);
   }
 
@@ -126,6 +133,82 @@ async function arrivedJob(req, res) {
     data: { status: 'ARRIVED' },
   });
   res.json({ job: updated });
+}
+
+async function dispatchJob(req, res) {
+  const jobId = req.params.id;
+  const customerId = req.customer.id;
+
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job) throw new AppError('Job not found', 404);
+  if (job.customerId !== customerId) throw new AppError('Forbidden', 403);
+  if (job.mode !== 'EMERGENCY') {
+    throw new AppError(
+      'Only emergency jobs use this dispatch step.',
+      400
+    );
+  }
+  if (job.status !== 'ACCEPTED') {
+    throw new AppError('Job must be accepted before dispatch.', 400);
+  }
+  if (!job.depositPaid) {
+    throw new AppError('Payment is required before dispatch.', 400);
+  }
+
+  const updated = await prisma.job.update({
+    where: { id: jobId },
+    data: { status: 'DISPATCHED' },
+  });
+
+  if (job.locksithId) {
+    await prisma.notification.create({
+      data: {
+        recipientId: job.locksithId,
+        recipientType: 'LOCKSMITH',
+        title: 'Customer has paid',
+        message: 'Customer has paid — head to them now',
+      },
+    });
+  }
+
+  res.json({ job: updated });
+}
+
+async function expireAcceptedJobs() {
+  // Compare in UTC: Prisma/Postgres store DateTime in UTC; JS Date is UTC internally.
+  // Jobs with updatedAt older than 5 minutes (still unpaid) are expired.
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const stale = await prisma.job.findMany({
+    where: {
+      mode: 'EMERGENCY',
+      status: 'ACCEPTED',
+      depositPaid: false,
+      updatedAt: { lt: fiveMinutesAgo },
+    },
+  });
+
+  for (const job of stale) {
+    await prisma.$transaction(async (tx) => {
+      await tx.job.update({
+        where: { id: job.id },
+        data: {
+          status: 'PENDING',
+          locksithId: null,
+          acceptedAt: null,
+        },
+      });
+      if (job.locksithId) {
+        await tx.notification.create({
+          data: {
+            recipientId: job.locksithId,
+            recipientType: 'LOCKSMITH',
+            title: 'Job unassigned',
+            message: 'Job was unassigned — customer did not pay',
+          },
+        });
+      }
+    });
+  }
 }
 
 async function startJob(req, res) {
@@ -745,7 +828,14 @@ async function memberArrivedJob(req, res) {
   if (job.locksithId !== businessId || job.teamMemberId !== memberId) {
     throw new AppError('This job is not assigned to you', 403);
   }
-  if (job.status !== 'ACCEPTED') {
+  if (job.mode === 'EMERGENCY') {
+    if (job.status !== 'DISPATCHED') {
+      throw new AppError(
+        'Wait for customer payment before marking arrived.',
+        400
+      );
+    }
+  } else if (job.status !== 'ACCEPTED') {
     throw new AppError('Job must be accepted before marking arrived', 400);
   }
 
@@ -1207,6 +1297,8 @@ module.exports = {
   listOpenScheduledJobsForLocksmith,
   getLocksmithProfile,
   acceptJob,
+  dispatchJob,
+  expireAcceptedJobs,
   arrivedJob,
   startJob,
   completeJob,

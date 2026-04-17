@@ -59,8 +59,17 @@ export default function ActiveJobScreen() {
 
   useEffect(() => {
     const s = job?.status;
-    const active = s === 'ACCEPTED' || s === 'ARRIVED' || s === 'IN_PROGRESS';
-    if (!active) {
+    const mode = job?.mode;
+    let shouldPing = false;
+    if (mode === 'EMERGENCY') {
+      shouldPing =
+        s === 'DISPATCHED' || s === 'ARRIVED' || s === 'IN_PROGRESS';
+    } else {
+      shouldPing =
+        s === 'ACCEPTED' || s === 'ARRIVED' || s === 'IN_PROGRESS';
+    }
+
+    if (!shouldPing) {
       if (locInterval.current) {
         clearInterval(locInterval.current);
         locInterval.current = null;
@@ -73,7 +82,7 @@ export default function ActiveJobScreen() {
       if (locInterval.current) clearInterval(locInterval.current);
       locInterval.current = null;
     };
-  }, [job?.status, sendLocation]);
+  }, [job?.status, job?.mode, sendLocation]);
 
   const action = async (path) => {
     if (!jobId) return;
@@ -102,13 +111,18 @@ export default function ActiveJobScreen() {
           longitudeDelta: 0.1,
         };
 
-  const status = job?.status;
+  const jobStatus = job?.status;
+  const jobMode = job?.mode;
   let primary = null;
-  if (status === 'ACCEPTED') {
+  if (jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY') {
+    primary = null;
+  } else if (jobStatus === 'DISPATCHED') {
     primary = { label: 'I Have Arrived', onPress: () => action('/arrived') };
-  } else if (status === 'ARRIVED') {
+  } else if (jobStatus === 'ACCEPTED' && jobMode !== 'EMERGENCY') {
+    primary = { label: 'I Have Arrived', onPress: () => action('/arrived') };
+  } else if (jobStatus === 'ARRIVED') {
     primary = { label: 'Start Job', onPress: () => action('/start') };
-  } else if (status === 'IN_PROGRESS') {
+  } else if (jobStatus === 'IN_PROGRESS') {
     primary = { label: 'Complete Job', onPress: () => action('/complete') };
   }
 
@@ -129,7 +143,11 @@ export default function ActiveJobScreen() {
       </MapView>
 
       <SafeAreaView style={styles.topBar} edges={['top']}>
-        <Text style={styles.navHint}>Navigate to the customer pin</Text>
+        <Text style={styles.navHint}>
+          {jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY'
+            ? 'Waiting for customer payment…'
+            : 'Head out now — navigate to the customer pin'}
+        </Text>
       </SafeAreaView>
 
       <SafeAreaView style={styles.cardWrap} edges={['bottom']}>
@@ -140,6 +158,10 @@ export default function ActiveJobScreen() {
           ) : null}
           <Text style={styles.svc}>{job?.serviceType?.replace(/_/g, ' ')}</Text>
           <Text style={styles.addr}>{job?.customerAddress}</Text>
+
+          {jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY' ? (
+            <Text style={styles.waitPay}>Waiting for customer payment…</Text>
+          ) : null}
 
           {primary ? (
             <GoldButton title={primary.label} onPress={primary.onPress} />
@@ -204,6 +226,13 @@ const styles = StyleSheet.create({
   note: { color: COLORS.textMuted, marginTop: 8, fontSize: 15 },
   svc: { color: COLORS.accent, marginTop: 12, fontSize: 17, fontWeight: '700' },
   addr: { color: COLORS.textMuted, marginTop: 8, marginBottom: 16, fontSize: 15 },
+  waitPay: {
+    color: COLORS.accent,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
   call: {
     flexDirection: 'row',
     alignItems: 'center',

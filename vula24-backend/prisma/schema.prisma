@@ -28,6 +28,7 @@ enum JobMode {
 enum JobStatus {
   PENDING
   ACCEPTED
+  DISPATCHED
   ARRIVED
   IN_PROGRESS
   COMPLETED
@@ -109,6 +110,7 @@ model Locksmith {
   quotes         Quote[]
   reviews        Review[]
   wallet         Wallet?
+  pendingPayouts PendingPayout[]
 }
 
 model TeamMember {
@@ -173,9 +175,10 @@ model Job {
   completedAt       DateTime?
   updatedAt         DateTime    @updatedAt
 
-  quotes       Quote[]
-  review       Review?
-  transactions Transaction[] @relation("JobWalletTx")
+  quotes         Quote[]
+  review         Review?
+  transactions   Transaction[] @relation("JobWalletTx")
+  pendingPayout  PendingPayout?
 }
 
 model Quote {
@@ -238,4 +241,18 @@ model Notification {
   message       String
   isRead        Boolean       @default(false)
   createdAt     DateTime      @default(now())
+}
+
+model PendingPayout {
+  id           String    @id @default(uuid())
+  jobId        String    @unique
+  job          Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  locksithId   String
+  locksmith    Locksmith @relation(fields: [locksithId], references: [id], onDelete: Cascade)
+  amount       Float
+  releaseAfter DateTime
+  released     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  @@map("pending_payouts")
 }

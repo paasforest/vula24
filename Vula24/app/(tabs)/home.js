@@ -13,7 +13,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
 import { getUser } from '../../lib/storage';
@@ -96,21 +95,6 @@ export default function HomeScreen() {
         });
       } catch {
         /* keep default */
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'default',
-          importance: Notifications.AndroidImportance.DEFAULT,
-        });
-      }
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        /* optional */
       }
     })();
   }, []);

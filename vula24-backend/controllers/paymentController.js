@@ -195,27 +195,20 @@ async function payfastWebhook(req, res) {
         data: { depositPaid: true, finalPaid: true },
       });
 
-      const wallet = await tx.wallet.findUnique({
-        where: { locksithId: job.locksithId },
-      });
-      if (!wallet) {
-        throw new Error('Wallet missing for locksmith');
-      }
-
       const credit = job.locksithEarning;
-      await tx.wallet.update({
-        where: { id: wallet.id },
-        data: { balance: { increment: credit } },
+      const existingPending = await tx.pendingPayout.findUnique({
+        where: { jobId: job.id },
       });
-      await tx.transaction.create({
-        data: {
-          walletId: wallet.id,
-          amount: credit,
-          type: 'CREDIT',
-          description: `Payment for job ${job.id}`,
-          jobId: job.id,
-        },
-      });
+      if (!existingPending) {
+        await tx.pendingPayout.create({
+          data: {
+            jobId: job.id,
+            locksithId: job.locksithId,
+            amount: credit,
+            releaseAfter: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          },
+        });
+      }
 
       const serviceLabel = String(job.serviceType).replace(/_/g, ' ');
       await tx.notification.create({
@@ -223,7 +216,7 @@ async function payfastWebhook(req, res) {
           recipientId: job.locksithId,
           recipientType: 'LOCKSMITH',
           title: 'Payment received',
-          message: `Payment received for ${serviceLabel} job. You earned R${credit.toFixed(2)}`,
+          message: `Payment received for ${serviceLabel} job. R${credit.toFixed(2)} will be released to your wallet after 24 hours if no dispute.`,
         },
       });
     });
@@ -249,32 +242,78 @@ async function payfastWebhook(req, res) {
         data: { finalPaid: true, depositPaid: true },
       });
 
-      const wallet = await tx.wallet.findUnique({
-        where: { locksithId: job.locksithId },
-      });
-      if (!wallet) {
-        throw new Error('Wallet missing for locksmith');
-      }
-
       const credit = job.locksithEarning;
-      await tx.wallet.update({
-        where: { id: wallet.id },
-        data: { balance: { increment: credit } },
+      const existingPending = await tx.pendingPayout.findUnique({
+        where: { jobId: job.id },
       });
-      await tx.transaction.create({
-        data: {
-          walletId: wallet.id,
-          amount: credit,
-          type: 'CREDIT',
-          description: `Payment for job ${job.id} (final)`,
-          jobId: job.id,
-        },
-      });
+      if (!existingPending) {
+        await tx.pendingPayout.create({
+          data: {
+            jobId: job.id,
+            locksithId: job.locksithId,
+            amount: credit,
+            releaseAfter: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          },
+        });
+      }
     });
     return res.status(200).send('OK');
   }
 
   return res.status(200).send('OK');
+}
+
+async function releasePendingPayouts() {
+  const due = await prisma.pendingPayout.findMany({
+    where: {
+      released: false,
+      releaseAfter: { lte: new Date() },
+    },
+  });
+
+  for (const p of due) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const payout = await tx.pendingPayout.findUnique({
+          where: { id: p.id },
+        });
+        if (!payout || payout.released) {
+          return;
+        }
+
+        const wallet = await tx.wallet.findUnique({
+          where: { locksithId: payout.locksithId },
+        });
+        if (!wallet) {
+          await tx.pendingPayout.update({
+            where: { id: payout.id },
+            data: { released: true },
+          });
+          return;
+        }
+
+        await tx.wallet.update({
+          where: { id: wallet.id },
+          data: { balance: { increment: payout.amount } },
+        });
+        await tx.transaction.create({
+          data: {
+            walletId: wallet.id,
+            amount: payout.amount,
+            type: 'CREDIT',
+            description: `Payment for job ${payout.jobId}`,
+            jobId: payout.jobId,
+          },
+        });
+        await tx.pendingPayout.update({
+          where: { id: payout.id },
+          data: { released: true },
+        });
+      });
+    } catch (err) {
+      console.error('releasePendingPayouts', p.id, err);
+    }
+  }
 }
 
 async function withdraw(req, res) {
@@ -333,6 +372,7 @@ module.exports = {
   createFinalPayment,
   createWalletTopup,
   payfastWebhook,
+  releasePendingPayouts,
   withdraw,
   paymentReturn,
   paymentCancel,
