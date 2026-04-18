@@ -64,6 +64,7 @@ model Customer {
   phone        String   @unique
   email        String   @unique
   password     String
+  pushToken    String?
   profilePhoto String?
   strikeCount  Int      @default(0)
   isBanned     Boolean  @default(false)
@@ -82,6 +83,7 @@ model Locksmith {
   phone             String      @unique
   email             String      @unique
   password          String
+  pushToken         String?
   accountType       AccountType
   businessName      String?
   psiraNumber       String?

@@ -9,6 +9,7 @@ const {
   getNearestLocksmith,
 } = require('../utils/locksmithSearch');
 const bcrypt = require('bcrypt');
+const { sendPushNotification } = require('../utils/pushNotifications');
 
 const SERVICE_TYPES = [
   'CAR_LOCKOUT',
@@ -137,6 +138,24 @@ async function createEmergencyJob(req, res) {
     },
   });
 
+  const svcLabel = String(serviceType).replace(/_/g, ' ');
+  const msgDb = `New ${svcLabel} job — ${customerAddress}`;
+  const msgPush = `New ${svcLabel} — ${customerAddress}`;
+  await prisma.notification.create({
+    data: {
+      recipientId: locksmith.id,
+      recipientType: 'LOCKSMITH',
+      title: 'New job nearby',
+      message: msgDb,
+    },
+  });
+  sendPushNotification(
+    locksmith.pushToken,
+    'New job nearby',
+    msgPush,
+    { jobId: String(job.id) }
+  );
+
   res.status(201).json({
     job: {
       ...job,
@@ -164,6 +183,27 @@ async function acceptJob(req, res) {
     where: { id: jobId },
     data: { status: 'ACCEPTED', acceptedAt: new Date() },
   });
+
+  const customer = await prisma.customer.findUnique({
+    where: { id: job.customerId },
+    select: { pushToken: true },
+  });
+  await prisma.notification.create({
+    data: {
+      recipientId: job.customerId,
+      recipientType: 'CUSTOMER',
+      title: 'Locksmith found',
+      message:
+        'A locksmith has accepted your job. Please complete payment to confirm.',
+    },
+  });
+  sendPushNotification(
+    customer?.pushToken,
+    'Locksmith found',
+    'A locksmith accepted your job. Complete payment to confirm.',
+    { jobId: String(jobId) }
+  );
+
   res.json({ job: updated });
 }
 
@@ -191,6 +231,26 @@ async function arrivedJob(req, res) {
     where: { id: jobId },
     data: { status: 'ARRIVED' },
   });
+
+  const customer = await prisma.customer.findUnique({
+    where: { id: job.customerId },
+    select: { pushToken: true },
+  });
+  await prisma.notification.create({
+    data: {
+      recipientId: job.customerId,
+      recipientType: 'CUSTOMER',
+      title: 'Locksmith arrived',
+      message: 'Your locksmith has arrived at your location.',
+    },
+  });
+  sendPushNotification(
+    customer?.pushToken,
+    'Locksmith arrived',
+    'Your locksmith has arrived at your location.',
+    { jobId: String(jobId) }
+  );
+
   res.json({ job: updated });
 }
 
@@ -219,7 +279,16 @@ async function dispatchJob(req, res) {
     data: { status: 'DISPATCHED' },
   });
 
+  const customer = await prisma.customer.findUnique({
+    where: { id: job.customerId },
+    select: { pushToken: true },
+  });
+
   if (job.locksithId) {
+    const ls = await prisma.locksmith.findUnique({
+      where: { id: job.locksithId },
+      select: { pushToken: true },
+    });
     await prisma.notification.create({
       data: {
         recipientId: job.locksithId,
@@ -228,7 +297,29 @@ async function dispatchJob(req, res) {
         message: 'Customer has paid — head to them now',
       },
     });
+    sendPushNotification(
+      ls?.pushToken,
+      'Customer has paid',
+      'Customer has paid — head to them now',
+      { jobId: String(jobId) }
+    );
   }
+
+  await prisma.notification.create({
+    data: {
+      recipientId: job.customerId,
+      recipientType: 'CUSTOMER',
+      title: 'Locksmith on the way',
+      message:
+        'Your locksmith has been dispatched and is heading to you now.',
+    },
+  });
+  sendPushNotification(
+    customer?.pushToken,
+    'Locksmith on the way',
+    'Your locksmith is heading to you now.',
+    { jobId: String(jobId) }
+  );
 
   res.json({ job: updated });
 }
@@ -315,6 +406,25 @@ async function completeJob(req, res) {
     return j;
   });
 
+  const customer = await prisma.customer.findUnique({
+    where: { id: job.customerId },
+    select: { pushToken: true },
+  });
+  await prisma.notification.create({
+    data: {
+      recipientId: job.customerId,
+      recipientType: 'CUSTOMER',
+      title: 'Job complete',
+      message: 'Your job has been completed. Thank you for using Vula24.',
+    },
+  });
+  sendPushNotification(
+    customer?.pushToken,
+    'Job complete',
+    'Your job has been completed. Thank you!',
+    { jobId: String(jobId) }
+  );
+
   res.json({ job: updated });
 }
 
@@ -366,6 +476,25 @@ async function cancelJob(req, res) {
         message: 'No alternative locksmith found; job cancelled',
       });
     }
+
+    const previousLocksmith = await prisma.locksmith.findUnique({
+      where: { id: req.locksmith.id },
+      select: { pushToken: true },
+    });
+    await prisma.notification.create({
+      data: {
+        recipientId: req.locksmith.id,
+        recipientType: 'LOCKSMITH',
+        title: 'Job reassigned',
+        message: 'A job has been reassigned away from you.',
+      },
+    });
+    sendPushNotification(
+      previousLocksmith?.pushToken,
+      'Job reassigned',
+      'A job has been reassigned away from you.',
+      { jobId: String(job.id) }
+    );
 
     const pricing = calculateJobPrice(next.basePrice, next.distanceKm);
     const updated = await prisma.job.update({
@@ -1349,6 +1478,18 @@ async function deactivateTeamMember(req, res) {
   res.json({ member: updated });
 }
 
+async function updateLocksmithPushToken(req, res) {
+  const { pushToken } = req.body;
+  if (pushToken != null && typeof pushToken !== 'string') {
+    throw new AppError('Invalid pushToken', 400);
+  }
+  await prisma.locksmith.update({
+    where: { id: req.locksmith.id },
+    data: { pushToken: pushToken || null },
+  });
+  res.json({ success: true });
+}
+
 module.exports = {
   createEmergencyJob,
   getNearbyLocksmiths,
@@ -1388,4 +1529,5 @@ module.exports = {
   addTeamMember,
   listTeamMembers,
   deactivateTeamMember,
+  updateLocksmithPushToken,
 };

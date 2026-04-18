@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { COLORS } from '../../constants/theme';
 import api from '../../lib/api';
 import { getUser } from '../../lib/storage';
@@ -64,6 +66,36 @@ function greeting() {
   return 'Good evening';
 }
 
+async function registerPushToken() {
+  try {
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let finalStatus = existing;
+    if (existing !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') return;
+    const token = await Notifications.getExpoPushTokenAsync({
+      projectId: Constants.expoConfig?.extra?.eas?.projectId,
+    });
+    if (token?.data) {
+      await api.put('/api/customer/push-token', {
+        pushToken: token.data,
+      });
+    }
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#D4A017',
+      });
+    }
+  } catch {
+    /* ignore — never block home load */
+  }
+}
+
 export default function HomeScreen() {
   const [user, setUser] = useState(null);
   const [region, setRegion] = useState({
@@ -73,6 +105,29 @@ export default function HomeScreen() {
     longitudeDelta: 0.05,
   });
   const [nearbyLocksmiths, setNearbyLocksmiths] = useState([]);
+  const pushRegisteredRef = useRef(false);
+
+  useEffect(() => {
+    if (pushRegisteredRef.current) return;
+    pushRegisteredRef.current = true;
+    registerPushToken();
+  }, []);
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data;
+        const jobId = data?.jobId;
+        if (jobId) {
+          router.push({
+            pathname: '/tracking',
+            params: { jobId: String(jobId) },
+          });
+        }
+      }
+    );
+    return () => sub.remove();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -153,6 +208,9 @@ export default function HomeScreen() {
           style={styles.map}
           mapType="standard"
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          googleRenderer="LATEST"
+          loadingEnabled={Platform.OS === 'android'}
+          loadingBackgroundColor="#E8EAED"
           region={region}
           showsUserLocation={false}
           showsMyLocationButton={false}
@@ -165,23 +223,19 @@ export default function HomeScreen() {
               longitude: region.longitude,
             }}
             tracksViewChanges={false}
-          >
-            <View style={styles.goldPin} />
-          </Marker>
-          {nearbyLocksmiths.map((lm) =>
-            lm.currentLat != null && lm.currentLng != null ? (
-              <Marker
-                key={lm.id}
-                coordinate={{
-                  latitude: lm.currentLat,
-                  longitude: lm.currentLng,
-                }}
-                tracksViewChanges={false}
-              >
-                <View style={styles.bluePin} />
-              </Marker>
-            ) : null
-          )}
+          />
+          {nearbyLocksmiths.map((lm) => (
+            <Marker
+              key={lm.id}
+              coordinate={{
+                latitude: lm.currentLat,
+                longitude: lm.currentLng,
+              }}
+              tracksViewChanges={false}
+            >
+              <View style={styles.bluePin} />
+            </Marker>
+          ))}
         </MapView>
       </View>
 
@@ -253,14 +307,6 @@ const styles = StyleSheet.create({
   cardsRow: {
     paddingHorizontal: 16,
     paddingBottom: 24,
-  },
-  goldPin: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: COLORS.accent,
-    borderWidth: 3,
-    borderColor: '#fff',
   },
   bluePin: {
     width: 12,

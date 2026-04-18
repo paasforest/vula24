@@ -31,6 +31,7 @@ const walletRoutes = require('./routes/wallet');
 const adminRoutes = require('./routes/admin');
 const reviewRoutes = require('./routes/reviews');
 const notificationRoutes = require('./routes/notifications');
+const customerRoutes = require('./routes/customer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -73,6 +74,7 @@ app.use(
 );
 
 app.use('/api/auth', authRoutes);
+app.use('/api/customer', customerRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/member', jobMemberRoutes);
 app.use('/api/payments', paymentRoutes);

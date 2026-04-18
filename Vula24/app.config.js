@@ -10,33 +10,26 @@ const appJson = require('./app.json');
 
 module.exports = () => {
   const mapsOverride = process.env.GOOGLE_MAPS_ANDROID_KEY?.trim();
+  const androidMapsApiKey =
+    mapsOverride || appJson.expo?.android?.config?.googleMaps?.apiKey || '';
   const placesKey =
-    process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY?.trim() ||
-    appJson.expo?.android?.config?.googleMaps?.apiKey ||
-    '';
+    process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY?.trim() || androidMapsApiKey || '';
 
+  /** Always set native Android Maps key here so EAS/prebuild never relies on a partial merge. */
   const expo = {
     ...appJson.expo,
+    android: {
+      ...appJson.expo.android,
+      config: {
+        ...appJson.expo.android?.config,
+        googleMaps: { apiKey: androidMapsApiKey },
+      },
+    },
     extra: {
       ...(appJson.expo.extra || {}),
       googlePlacesApiKey: placesKey,
     },
   };
 
-  if (!mapsOverride) {
-    return { expo };
-  }
-
-  return {
-    expo: {
-      ...expo,
-      android: {
-        ...expo.android,
-        config: {
-          ...expo.android.config,
-          googleMaps: { apiKey: mapsOverride },
-        },
-      },
-    },
-  };
+  return { expo };
 };

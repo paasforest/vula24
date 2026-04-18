@@ -1,8 +1,13 @@
 {
   "expo": {
     "name": "Vula24",
-    "slug": "vula24-customer",
+    "slug": "vula24",
     "scheme": "vula24",
+    "extra": {
+      "eas": {
+        "projectId": "1b85a0e6-6a6e-4272-8f29-833b888673ca"
+      }
+    },
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",

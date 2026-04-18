@@ -8,7 +8,12 @@
     "postinstall": "npm install --prefix ./vula24-backend && npm run prisma:generate --prefix ./vula24-backend",
     "start": "node vula24-backend/scripts/start.js",
     "start:client": "npx expo start ./Vula24",
+    "start:client:dev": "npx expo start ./Vula24 --dev-client",
+    "eas:build:dev": "cd Vula24 && eas build --profile development --platform android",
     "start:customer": "npm run start:client",
     "start:pro": "npx expo start ./Vula24Pro"
+  },
+  "dependencies": {
+    "expo-dev-client": "~55.0.27"
   }
 }

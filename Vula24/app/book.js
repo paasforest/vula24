@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,12 @@ import {
   Alert,
   TouchableOpacity,
   Image,
+  TextInput,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import PlacesAutocompletePkg from 'react-native-google-places-autocomplete';
 
 const { GooglePlacesAutocomplete } = PlacesAutocompletePkg;
@@ -39,7 +40,10 @@ function readPlaceLatLng(details) {
   return { lat: Number(lat), lng: Number(lng) };
 }
 
+const MAP_DELTA = { latitudeDelta: 0.005, longitudeDelta: 0.005 };
+
 export default function BookScreen() {
+  const insets = useSafeAreaInsets();
   const { serviceType: st } = useLocalSearchParams();
   const serviceType = Array.isArray(st) ? st[0] : st;
 
@@ -48,7 +52,10 @@ export default function BookScreen() {
 
   const [lat, setLat] = useState(-26.2041);
   const [lng, setLng] = useState(28.0473);
+  const [placesBiasLat, setPlacesBiasLat] = useState(-26.2041);
+  const [placesBiasLng, setPlacesBiasLng] = useState(28.0473);
   const [address, setAddress] = useState('');
+  const [addressResolving, setAddressResolving] = useState(false);
   const [note, setNote] = useState('');
   const [description, setDescription] = useState('');
   const [scheduledAt, setScheduledAt] = useState(new Date(Date.now() + 3600000));
@@ -56,7 +63,6 @@ export default function BookScreen() {
   const [photoUri, setPhotoUri] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Places + Geocoding: prefer env, then app.config extra, then Android Maps key from app.json
   const placesApiKey =
     (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
       ? String(process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY).trim()
@@ -65,34 +71,62 @@ export default function BookScreen() {
     Constants.expoConfig?.android?.config?.googleMaps?.apiKey ||
     '';
 
+  const reverseGeocodeSeqRef = useRef(0);
+  const placesPickGenerationRef = useRef(0);
+  const mapRef = useRef(null);
+  const placesRef = useRef(null);
+  const skipReverseOnNextRegionCompleteRef = useRef(false);
+  const initialGpsDoneRef = useRef(false);
+  const userChosePlaceBeforeGpsRef = useRef(false);
+
   const reverseGeocode = useCallback(
     async (latitude, longitude) => {
-      if (placesApiKey) {
+      const pickBaseline = placesPickGenerationRef.current;
+      const seq = ++reverseGeocodeSeqRef.current;
+      const stillOwnsAddressLine = () =>
+        placesPickGenerationRef.current === pickBaseline &&
+        seq === reverseGeocodeSeqRef.current;
+
+      setAddressResolving(true);
+      try {
+        if (placesApiKey) {
+          try {
+            const formatted = await reverseGeocodeFormatted(
+              latitude,
+              longitude,
+              placesApiKey
+            );
+            if (!stillOwnsAddressLine()) return;
+            if (formatted) {
+              setAddress(formatted);
+              return;
+            }
+          } catch {
+            /* fall through */
+          }
+        }
+        if (!stillOwnsAddressLine()) return;
         try {
-          const formatted = await reverseGeocodeFormatted(
+          const [place] = await Location.reverseGeocodeAsync({
             latitude,
             longitude,
-            placesApiKey
+          });
+          if (!stillOwnsAddressLine()) return;
+          const line = formatExpoReversePlace(place);
+          setAddress(
+            line || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
           );
-          if (formatted) {
-            setAddress(formatted);
-            return;
-          }
         } catch {
-          /* fall through */
+          if (!stillOwnsAddressLine()) return;
+          setAddress(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
         }
-      }
-      try {
-        const [place] = await Location.reverseGeocodeAsync({
-          latitude,
-          longitude,
-        });
-        const line = formatExpoReversePlace(place);
-        setAddress(
-          line || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
-        );
-      } catch {
-        setAddress(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+      } finally {
+        if (
+          placesPickGenerationRef.current === pickBaseline &&
+          seq === reverseGeocodeSeqRef.current
+        ) {
+          setAddressResolving(false);
+        }
       }
     },
     [placesApiKey]
@@ -102,29 +136,79 @@ export default function BookScreen() {
     () => ({
       key: placesApiKey,
       language: 'en',
-      location: `${lat},${lng}`,
+      location: `${placesBiasLat},${placesBiasLng}`,
       radius: 50000,
     }),
-    [placesApiKey, lat, lng]
+    [placesApiKey, placesBiasLat, placesBiasLng]
+  );
+
+  const animateMapTo = useCallback((latitude, longitude) => {
+    mapRef.current?.animateToRegion(
+      {
+        latitude,
+        longitude,
+        ...MAP_DELTA,
+      },
+      450
+    );
+  }, []);
+
+  const onRegionChangeComplete = useCallback(
+    (region) => {
+      const { latitude, longitude } = region;
+      setLat(latitude);
+      setLng(longitude);
+
+      if (skipReverseOnNextRegionCompleteRef.current) {
+        skipReverseOnNextRegionCompleteRef.current = false;
+        return;
+      }
+      reverseGeocode(latitude, longitude);
+    },
+    [reverseGeocode]
   );
 
   useEffect(() => {
+    if (initialGpsDoneRef.current) return;
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
       const loc = await Location.getCurrentPositionAsync({});
-      setLat(loc.coords.latitude);
-      setLng(loc.coords.longitude);
-      reverseGeocode(loc.coords.latitude, loc.coords.longitude);
+      if (userChosePlaceBeforeGpsRef.current) {
+        initialGpsDoneRef.current = true;
+        return;
+      }
+      initialGpsDoneRef.current = true;
+      const { latitude, longitude } = loc.coords;
+      setPlacesBiasLat(latitude);
+      setPlacesBiasLng(longitude);
+      setLat(latitude);
+      setLng(longitude);
+      animateMapTo(latitude, longitude);
     })();
-  }, [reverseGeocode]);
+  }, [animateMapTo]);
 
-  const onMarkerDragEnd = (e) => {
-    const { latitude, longitude } = e.nativeEvent.coordinate;
-    setLat(latitude);
-    setLng(longitude);
-    reverseGeocode(latitude, longitude);
-  };
+  const onPlaceSelected = useCallback(
+    (data, details = null) => {
+      userChosePlaceBeforeGpsRef.current = true;
+      placesPickGenerationRef.current += 1;
+      const coords = readPlaceLatLng(details);
+      if (!coords) return;
+      const line =
+        details?.formatted_address || data.description || '';
+      setAddress(line);
+      setAddressResolving(false);
+      setLat(coords.lat);
+      setLng(coords.lng);
+      setPlacesBiasLat(coords.lat);
+      setPlacesBiasLng(coords.lng);
+      skipReverseOnNextRegionCompleteRef.current = true;
+      animateMapTo(coords.lat, coords.lng);
+      placesRef.current?.setAddressText('');
+      placesRef.current?.blur();
+    },
+    [animateMapTo]
+  );
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -143,7 +227,10 @@ export default function BookScreen() {
 
   const submitEmergency = async () => {
     if (!address.trim()) {
-      Alert.alert('Address', 'Could not resolve address. Move the pin or try again.');
+      Alert.alert(
+        'Address',
+        'Move the map until the pin is on your location, or search for an address.'
+      );
       return;
     }
     setLoading(true);
@@ -171,7 +258,10 @@ export default function BookScreen() {
 
   const submitScheduled = async () => {
     if (!address.trim()) {
-      Alert.alert('Address', 'Set your location on the map.');
+      Alert.alert(
+        'Address',
+        'Move the map or search for your address, then try again.'
+      );
       return;
     }
     setLoading(true);
@@ -199,49 +289,84 @@ export default function BookScreen() {
     }
   };
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-        >
-          <TouchableOpacity style={styles.back} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color={COLORS.accent} />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>
-            {isEmergency ? 'Emergency booking' : 'Schedule a service'}
-          </Text>
-          <Text style={styles.meta}>{serviceType?.replace(/_/g, ' ')}</Text>
+  const searchTop = Math.max(insets.top, 8) + 52;
 
-          {placesApiKey ? (
-            <View style={styles.placesWrap}>
+  return (
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <View style={styles.root}>
+        <MapView
+          ref={mapRef}
+          style={styles.mapFill}
+          mapType="standard"
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          googleRenderer="LATEST"
+          loadingEnabled={Platform.OS === 'android'}
+          loadingBackgroundColor="#E8EAED"
+          initialRegion={{
+            latitude: lat,
+            longitude: lng,
+            ...MAP_DELTA,
+          }}
+          onRegionChangeComplete={onRegionChangeComplete}
+          rotateEnabled={false}
+          pitchEnabled={false}
+          scrollEnabled
+          zoomEnabled
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+        />
+
+        <View style={styles.pinOverlay} pointerEvents="none">
+          <View style={styles.pinHalo} />
+          <Ionicons
+            name="location-sharp"
+            size={48}
+            color={COLORS.accent}
+            style={styles.pinIcon}
+          />
+        </View>
+
+        <View
+          style={[
+            styles.searchRow,
+            { top: searchTop, left: 16, right: 16 },
+          ]}
+          pointerEvents="box-none"
+        >
+          <TouchableOpacity
+            style={styles.backCircle}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
+            <Ionicons name="arrow-back" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+
+          <View style={styles.searchCard}>
+            {placesApiKey ? (
               <GooglePlacesAutocomplete
-                placeholder="Search address, suburb, or landmark"
+                ref={placesRef}
+                placeholder="Where do you need help?"
                 fetchDetails
                 enablePoweredByContainer={false}
                 debounce={300}
                 minLength={2}
                 keepResultsAfterBlur={false}
+                keyboardShouldPersistTaps="handled"
                 predefinedPlaces={[]}
+                GooglePlacesDetailsQuery={{
+                  fields: 'geometry,formatted_address,name',
+                }}
                 textInputProps={{
                   placeholderTextColor: COLORS.textMuted,
                   returnKeyType: 'search',
                   selectionColor: COLORS.accent,
                 }}
-                onPress={(data, details = null) => {
-                  const coords = readPlaceLatLng(details);
-                  if (!coords) return;
-                  setLat(coords.lat);
-                  setLng(coords.lng);
-                  setAddress(
-                    details?.formatted_address || data.description || ''
-                  );
-                }}
+                onPress={onPlaceSelected}
                 query={placesQuery}
                 styles={{
                   container: styles.placesContainer,
@@ -253,149 +378,199 @@ export default function BookScreen() {
                   description: styles.placesDescription,
                 }}
               />
-            </View>
-          ) : (
-            <Text style={styles.placesHint}>
-              Add EXPO_PUBLIC_GOOGLE_PLACES_API_KEY to use address search, or drag
-              the pin on the map.
-            </Text>
-          )}
-
-          <View style={styles.mapWrap}>
-            <MapView
-              style={styles.map}
-              mapType="standard"
-              provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-              region={{
-                latitude: lat,
-                longitude: lng,
-                latitudeDelta: 0.015,
-                longitudeDelta: 0.015,
-              }}
-            >
-              <Marker
-                coordinate={{ latitude: lat, longitude: lng }}
-                draggable
-                onDragEnd={onMarkerDragEnd}
-                tracksViewChanges={false}
-              >
-                <View style={styles.goldPin} />
-              </Marker>
-            </MapView>
+            ) : (
+              <TextInput
+                style={styles.fallbackInput}
+                value={address}
+                editable={false}
+                placeholder="Pan the map — pin shows where help goes"
+                placeholderTextColor={COLORS.textMuted}
+              />
+            )}
           </View>
-          <Text style={styles.addrLabel}>Address (from map or search)</Text>
-          <Text style={styles.addr}>{address || 'Locating…'}</Text>
+        </View>
 
-          {isEmergency ? (
-            <>
-              <FormInput
-                label="Add a note (optional)"
-                value={note}
-                onChangeText={setNote}
-                placeholder='e.g. "Blue Toyota, Level 2 parking"'
-              />
-              <GoldButton
-                title="Find Locksmith Near Me"
-                onPress={submitEmergency}
-                loading={loading}
-              />
-            </>
-          ) : (
-            <>
-              <FormInput
-                label="Describe the job"
-                value={description}
-                onChangeText={setDescription}
-                placeholder="What needs to be done?"
-                multiline
-                numberOfLines={4}
-              />
-              <TouchableOpacity style={styles.photoBtn} onPress={pickImage}>
-                <Ionicons name="camera" size={22} color={COLORS.accent} style={styles.photoIcon} />
-                <Text style={styles.photoBtnText}>Add a photo of your lock</Text>
-              </TouchableOpacity>
-              {photoUri ? (
-                <Image source={{ uri: photoUri }} style={styles.preview} />
-              ) : null}
+        <View
+          style={[
+            styles.bottomSheet,
+            { paddingBottom: Math.max(insets.bottom, 16) },
+          ]}
+        >
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            <Text style={styles.serviceLabel}>Service</Text>
+            <Text style={styles.serviceType}>
+              {serviceType?.replace(/_/g, ' ') || '—'}
+            </Text>
 
-              <Text style={styles.dtLabel}>When do you need this done?</Text>
-              <TouchableOpacity
-                style={styles.dtBtn}
-                onPress={() => setShowPicker(true)}
-              >
-                <Text style={styles.dtText}>
-                  {scheduledAt.toLocaleString()}
-                </Text>
-              </TouchableOpacity>
-              {showPicker && (
-                <DateTimePicker
-                  value={scheduledAt}
-                  mode="datetime"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, d) => {
-                    if (Platform.OS === 'android') {
-                      setShowPicker(false);
-                    }
-                    if (d) setScheduledAt(d);
-                    if (Platform.OS === 'ios' && event?.type === 'dismissed') {
-                      setShowPicker(false);
-                    }
-                  }}
+            <Text style={styles.sheetAddrLabel}>Pickup / service address</Text>
+            <Text style={styles.sheetAddress} numberOfLines={4}>
+              {addressResolving && !address.trim()
+                ? 'Locating…'
+                : address.trim() || 'Locating…'}
+            </Text>
+
+            {isEmergency ? (
+              <View style={styles.sheetSection}>
+                <FormInput
+                  label="Note (optional)"
+                  value={note}
+                  onChangeText={setNote}
+                  placeholder='e.g. "Blue Toyota, Level 2 parking"'
                 />
-              )}
-              <GoldButton
-                title="Request Quotes"
-                onPress={submitScheduled}
-                loading={loading}
-              />
-            </>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+                <View style={styles.sheetBtnWrap}>
+                  <GoldButton
+                    title="Find Locksmith Near Me"
+                    onPress={submitEmergency}
+                    loading={loading}
+                  />
+                </View>
+              </View>
+            ) : (
+              <View style={styles.sheetSection}>
+                <FormInput
+                  label="Describe the job"
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="What needs to be done?"
+                  multiline
+                  numberOfLines={4}
+                />
+                <TouchableOpacity style={styles.photoBtn} onPress={pickImage}>
+                  <Ionicons
+                    name="camera"
+                    size={22}
+                    color={COLORS.accent}
+                    style={styles.photoIcon}
+                  />
+                  <Text style={styles.photoBtnText}>Add a photo of your lock</Text>
+                </TouchableOpacity>
+                {photoUri ? (
+                  <Image source={{ uri: photoUri }} style={styles.preview} />
+                ) : null}
+
+                <Text style={styles.dtLabel}>When do you need this done?</Text>
+                <TouchableOpacity
+                  style={styles.dtBtn}
+                  onPress={() => setShowPicker(true)}
+                >
+                  <Text style={styles.dtText}>
+                    {scheduledAt.toLocaleString()}
+                  </Text>
+                </TouchableOpacity>
+                {showPicker && (
+                  <DateTimePicker
+                    value={scheduledAt}
+                    mode="datetime"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, d) => {
+                      if (Platform.OS === 'android') {
+                        setShowPicker(false);
+                      }
+                      if (d) setScheduledAt(d);
+                      if (Platform.OS === 'ios' && event?.type === 'dismissed') {
+                        setShowPicker(false);
+                      }
+                    }}
+                  />
+                )}
+                <View style={styles.sheetBtnWrap}>
+                  <GoldButton
+                    title="Request Quotes"
+                    onPress={submitScheduled}
+                    loading={loading}
+                  />
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  flex: { flex: 1 },
-  scroll: { padding: 20, paddingBottom: 40 },
-  back: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  backText: { color: COLORS.accent, marginLeft: 8, fontSize: 16 },
-  title: {
-    color: COLORS.text,
-    fontSize: 22,
-    fontWeight: '700',
+  root: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
   },
-  meta: { color: COLORS.textMuted, marginTop: 4, marginBottom: 16 },
-  placesWrap: {
-    marginBottom: 12,
-    zIndex: 2,
+  mapFill: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  pinOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 48,
+  },
+  pinHalo: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.bg,
+    opacity: 0.85,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  pinIcon: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
     elevation: 4,
+  },
+  searchRow: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    zIndex: 20,
+    elevation: 8,
+  },
+  backCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.inputBg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  searchCard: {
+    flex: 1,
+    borderRadius: 16,
+    backgroundColor: COLORS.inputBg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'visible',
   },
   placesContainer: {
     flex: 0,
   },
   placesInputContainer: {
-    backgroundColor: COLORS.inputBg,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
   },
   placesInput: {
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: 'transparent',
     color: COLORS.text,
     fontSize: 16,
-    height: 44,
-    paddingHorizontal: 12,
+    height: 48,
+    paddingHorizontal: 14,
   },
   placesList: {
     backgroundColor: COLORS.inputBg,
     borderRadius: 12,
-    marginTop: 4,
+    marginTop: 6,
     borderWidth: 1,
     borderColor: COLORS.border,
-    maxHeight: 200,
+    maxHeight: 220,
   },
   placesRow: {
     backgroundColor: COLORS.inputBg,
@@ -410,34 +585,58 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 14,
   },
-  placesHint: {
+  fallbackInput: {
+    color: COLORS.textMuted,
+    fontSize: 15,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    minHeight: 48,
+  },
+  bottomSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    maxHeight: '46%',
+    borderTopWidth: 1,
+    borderColor: COLORS.border,
+  },
+  serviceLabel: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
+  serviceType: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  sheetAddrLabel: {
     color: COLORS.textMuted,
     fontSize: 13,
-    marginBottom: 12,
-    lineHeight: 18,
+    marginBottom: 6,
   },
-  mapWrap: {
-    height: 240,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+  sheetAddress: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+    marginBottom: 16,
   },
-  map: { flex: 1 },
-  goldPin: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: COLORS.accent,
-    borderWidth: 3,
-    borderColor: '#fff',
+  sheetSection: {
+    paddingBottom: 8,
   },
-  addrLabel: {
-    color: COLORS.textMuted,
-    marginTop: 12,
-    fontSize: 13,
+  sheetBtnWrap: {
+    marginTop: 8,
   },
-  addr: { color: COLORS.text, fontSize: 15, marginBottom: 8 },
   photoIcon: { marginRight: 10 },
   photoBtn: {
     flexDirection: 'row',
@@ -447,13 +646,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
+    backgroundColor: COLORS.inputBg,
   },
   photoBtnText: { color: COLORS.text, fontSize: 15 },
   preview: {
     width: '100%',
-    height: 160,
+    height: 140,
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   dtLabel: { color: COLORS.textMuted, marginBottom: 8 },
   dtBtn: {
@@ -462,7 +662,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderRadius: 12,
     padding: 14,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   dtText: { color: COLORS.text, fontSize: 16 },
 });

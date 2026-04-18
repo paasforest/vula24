@@ -91,6 +91,14 @@ router.put(
   asyncHandler(jobs.toggleLocksmithOnline)
 );
 
+router.put(
+  '/push-token',
+  authenticateLocksmith,
+  [body('pushToken').optional().isString()],
+  handleValidationErrors,
+  asyncHandler(jobs.updateLocksmithPushToken)
+);
+
 router.post(
   '/team/add',
   authenticateLocksmith,

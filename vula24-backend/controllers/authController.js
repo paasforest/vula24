@@ -163,6 +163,18 @@ async function loginLocksmith(req, res) {
   res.json({ token, locksmith: stripLocksmith(locksmith) });
 }
 
+async function updateCustomerPushToken(req, res) {
+  const { pushToken } = req.body;
+  if (pushToken != null && typeof pushToken !== 'string') {
+    throw new AppError('Invalid pushToken', 400);
+  }
+  await prisma.customer.update({
+    where: { id: req.customer.id },
+    data: { pushToken: pushToken || null },
+  });
+  res.json({ success: true });
+}
+
 async function loginMember(req, res) {
   requireJwtSecret();
   const { appEmail, appPassword } = req.body;
@@ -190,4 +202,5 @@ module.exports = {
   registerLocksmith,
   loginLocksmith,
   loginMember,
+  updateCustomerPushToken,
 };

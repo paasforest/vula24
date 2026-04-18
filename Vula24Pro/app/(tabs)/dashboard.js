@@ -8,17 +8,50 @@ import {
   Switch,
   AppState,
   Alert,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { COLORS } from '../../constants/theme';
 import api from '../../lib/api';
 import { getUser, saveUser } from '../../lib/storage';
 
 const LAST_ONLINE_KEY = 'vula24pro_intent_online';
+
+async function registerPushToken() {
+  try {
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let finalStatus = existing;
+    if (existing !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') return;
+    const token = await Notifications.getExpoPushTokenAsync({
+      projectId: Constants.expoConfig?.extra?.eas?.projectId,
+    });
+    if (token?.data) {
+      await api.put('/api/locksmith/push-token', {
+        pushToken: token.data,
+      });
+    }
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#D4A017',
+      });
+    }
+  } catch {
+    /* ignore — never block dashboard load */
+  }
+}
 
 function startOfDay(d) {
   const x = new Date(d);
@@ -33,6 +66,7 @@ export default function DashboardScreen() {
   const [toggleLoading, setToggleLoading] = useState(false);
   const [online, setOnline] = useState(false);
   const pushedJobRef = useRef(null);
+  const pushRegisteredRef = useRef(false);
   const appStateRef = useRef(AppState.currentState);
 
   const loadProfile = useCallback(async () => {
@@ -86,6 +120,28 @@ export default function DashboardScreen() {
     const interval = setInterval(postLocationIfPossible, 30000);
     return () => clearInterval(interval);
   }, [online]);
+
+  useEffect(() => {
+    if (pushRegisteredRef.current) return;
+    pushRegisteredRef.current = true;
+    registerPushToken();
+  }, []);
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data;
+        const jobId = data?.jobId;
+        if (jobId) {
+          router.push({
+            pathname: '/job-request',
+            params: { jobId: String(jobId) },
+          });
+        }
+      }
+    );
+    return () => sub.remove();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
