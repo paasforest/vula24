@@ -3,7 +3,18 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { getToken } from './storage';
 
+/**
+ * API base URL (priority):
+ * 1) expo.extra.apiUrl — set in app.config.js from EXPO_PUBLIC_API_URL (reliable in dev client)
+ * 2) process.env.EXPO_PUBLIC_API_URL — inlined by Metro when present
+ * 3) Metro LAN host :3000 (local backend; fails for Railway if unset)
+ */
 function getBaseURL() {
+  const fromExtra = Constants.expoConfig?.extra?.apiUrl;
+  if (typeof fromExtra === 'string' && fromExtra.trim().length > 0) {
+    return fromExtra.trim().replace(/\/$/, '');
+  }
+
   const fromEnv =
     typeof process !== 'undefined' && process.env.EXPO_PUBLIC_API_URL
       ? process.env.EXPO_PUBLIC_API_URL
@@ -14,8 +25,10 @@ function getBaseURL() {
 
   const hostUri =
     Constants.expoConfig?.hostUri ||
+    Constants.expoGoConfig?.debuggerHost ||
     Constants.manifest?.debuggerHost ||
-    Constants.manifest2?.extra?.expoGo?.debuggerHost;
+    Constants.manifest2?.extra?.expoGo?.debuggerHost ||
+    Constants.manifest2?.extra?.expoClient?.hostUri;
   if (typeof hostUri === 'string' && hostUri.length > 0) {
     const host = hostUri.split(':')[0];
     if (host && host !== '127.0.0.1' && host !== 'localhost') {
@@ -30,7 +43,6 @@ function getBaseURL() {
 }
 
 const api = axios.create({
-  baseURL: getBaseURL(),
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -38,6 +50,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
+  config.baseURL = getBaseURL();
   const token = await getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -47,6 +60,11 @@ api.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  // eslint-disable-next-line no-console
+  console.log('[Vula24 Pro api] base URL:', getBaseURL());
+}
 
 export default api;
 export { getBaseURL };

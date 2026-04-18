@@ -1,5 +1,6 @@
 {
   "expo": {
+    "owner": "swiftdrop26",
     "name": "Vula24 Pro",
     "slug": "vula24-pro",
     "scheme": "vula24pro",
@@ -12,7 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#111111"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vula24.pro",
@@ -41,6 +44,7 @@
       }
     },
     "plugins": [
+      "expo-dev-client",
       "expo-router",
       [
         "expo-location",
@@ -71,6 +75,12 @@
     ],
     "experiments": {
       "typedRoutes": false
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2b51c42b-3b1c-4731-ba49-1c9b665fac36"
+      }
     }
   }
 }

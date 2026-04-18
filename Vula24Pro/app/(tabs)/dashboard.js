@@ -21,8 +21,6 @@ import { COLORS } from '../../constants/theme';
 import api from '../../lib/api';
 import { getUser, saveUser } from '../../lib/storage';
 
-const LAST_ONLINE_KEY = 'vula24pro_intent_online';
-
 async function registerPushToken() {
   try {
     const { status: existing } = await Notifications.getPermissionsAsync();
@@ -184,41 +182,18 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (next) => {
-      if (
-        appStateRef.current.match(/active/) &&
-        next.match(/inactive|background/)
-      ) {
-        const wasOnline = online;
-        await AsyncStorage.setItem(LAST_ONLINE_KEY, wasOnline ? '1' : '0');
-        if (wasOnline) {
-          try {
-            await api.put('/api/locksmith/toggle-online');
-            setOnline(false);
-            await loadProfile();
-          } catch {
-            /* ignore */
-          }
-        }
-      }
       if (appStateRef.current.match(/inactive|background/) && next === 'active') {
-        const intent = await AsyncStorage.getItem(LAST_ONLINE_KEY);
-        if (intent === '1') {
-          try {
-            const { data } = await api.get('/api/locksmith/profile');
-            if (!data.locksmith.isOnline) {
-              await api.put('/api/locksmith/toggle-online');
-              await postLocationIfPossible();
-            }
-            await loadProfile();
-          } catch {
-            /* ignore */
-          }
+        try {
+          await loadProfile();
+          await postLocationIfPossible();
+        } catch {
+          /* ignore */
         }
       }
       appStateRef.current = next;
     });
     return () => sub.remove();
-  }, [online, loadProfile]);
+  }, [loadProfile]);
 
   const onToggleOnline = async (value) => {
     setToggleLoading(true);

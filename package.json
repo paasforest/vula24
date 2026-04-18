@@ -10,8 +10,10 @@
     "start:client": "npx expo start ./Vula24",
     "start:client:dev": "npx expo start ./Vula24 --dev-client",
     "eas:build:dev": "cd Vula24 && eas build --profile development --platform android",
+    "eas:build:dev:pro": "cd Vula24Pro && eas build --profile development --platform android",
     "start:customer": "npm run start:client",
-    "start:pro": "npx expo start ./Vula24Pro"
+    "start:pro": "npx expo start ./Vula24Pro",
+    "start:pro:dev": "npx expo start ./Vula24Pro --dev-client --port 8082"
   },
   "dependencies": {
     "expo-dev-client": "~55.0.27"

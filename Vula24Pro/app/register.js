@@ -20,7 +20,7 @@ import { FormInput } from '../components/FormInput';
 import { GoldButton } from '../components/GoldButton';
 import { VulaLogoPro } from '../components/VulaLogoPro';
 import { COLORS } from '../constants/theme';
-import api from '../lib/api';
+import { getBaseURL } from '../lib/api';
 import { saveToken, saveUser } from '../lib/storage';
 
 function mimeFromUri(uri) {
@@ -160,17 +160,53 @@ export default function RegisterScreen() {
         });
       }
 
-      const { data } = await api.post('/api/auth/locksmith/register', form, {
-        timeout: 120000,
-      });
+      // Use fetch (not axios) for multipart — axios + FormData often yields bogus
+      // "Network Error" on React Native Android even when the API URL is correct.
+      const base = getBaseURL();
+      const controller = new AbortController();
+      const timeoutMs = 120000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      let res;
+      try {
+        res = await fetch(`${base}/api/auth/locksmith/register`, {
+          method: 'POST',
+          body: form,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      const text = await res.text();
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          text?.slice(0, 200) || `Invalid response (HTTP ${res.status})`
+        );
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || `Registration failed (HTTP ${res.status})`);
+      }
+
       await saveToken(data.token);
       await saveUser(data.locksmith);
       setSuccess(true);
     } catch (e) {
-      Alert.alert(
-        'Error',
-        e.response?.data?.error || e.message || 'Registration failed.'
-      );
+      const aborted = e?.name === 'AbortError';
+      const raw = String(e?.message || e || '');
+      let msg = aborted
+        ? 'Request timed out.'
+        : raw || 'Registration failed.';
+      if (
+        !aborted &&
+        /network request failed|network error|failed to connect/i.test(raw)
+      ) {
+        msg = `Cannot reach the API.\n\nUsing: ${getBaseURL()}\n\nTry mobile data vs Wi‑Fi, or open ${getBaseURL()}/health in the phone browser.`;
+      }
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
