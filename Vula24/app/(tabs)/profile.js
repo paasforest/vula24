@@ -24,7 +24,12 @@ export default function ProfileScreen() {
   );
 
   const onMenu = (key) => {
-    Alert.alert('Coming soon', 'This section will be available in a future update.');
+    if (key === 'notif') {
+      router.push('/notifications');
+      return;
+    }
+    Alert.alert('Coming soon', 
+      'This section will be available in a future update.');
   };
 
   const signOut = async () => {
