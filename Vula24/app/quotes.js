@@ -48,16 +48,10 @@ export default function QuotesScreen() {
     setAccepting(quoteId);
     try {
       await api.post(`/api/jobs/${jobId}/quote/${quoteId}/accept`);
-      Alert.alert('Accepted', 'Your locksmith has been selected.', [
-        {
-          text: 'OK',
-          onPress: () =>
-            router.replace({
-              pathname: '/tracking',
-              params: { jobId },
-            }),
-        },
-      ]);
+      router.replace({
+        pathname: '/payment',
+        params: { jobId },
+      });
     } catch (e) {
       Alert.alert(
         'Error',

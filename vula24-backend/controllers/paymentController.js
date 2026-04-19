@@ -6,6 +6,20 @@ function appBaseUrl() {
   return (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 }
 
+/** @param {'deposit' | 'final' | 'simulate'} paymentKind */
+function releaseAfterForPendingPayout(job, paymentKind) {
+  if (job.mode === 'EMERGENCY') {
+    return new Date(Date.now() + 24 * 60 * 60 * 1000);
+  }
+  if (job.mode === 'SCHEDULED') {
+    if (paymentKind === 'final') {
+      return new Date(Date.now() + 2 * 60 * 60 * 1000);
+    }
+    return new Date();
+  }
+  return new Date(Date.now() + 24 * 60 * 60 * 1000);
+}
+
 function parsePaymentRef(mPaymentId) {
   if (!mPaymentId || typeof mPaymentId !== 'string') return null;
   if (mPaymentId.startsWith('wallet-topup:')) {
@@ -51,7 +65,7 @@ async function simulatePayment(req, res) {
         jobId,
         locksithId: job.locksithId,
         amount: job.locksithEarning,
-        releaseAfter: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        releaseAfter: releaseAfterForPendingPayout(job, 'simulate'),
         released: false,
       },
       update: {},
@@ -245,7 +259,7 @@ async function payfastWebhook(req, res) {
             jobId: job.id,
             locksithId: job.locksithId,
             amount: credit,
-            releaseAfter: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            releaseAfter: releaseAfterForPendingPayout(job, 'deposit'),
           },
         });
       }
@@ -292,7 +306,7 @@ async function payfastWebhook(req, res) {
             jobId: job.id,
             locksithId: job.locksithId,
             amount: credit,
-            releaseAfter: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            releaseAfter: releaseAfterForPendingPayout(job, 'final'),
           },
         });
       }

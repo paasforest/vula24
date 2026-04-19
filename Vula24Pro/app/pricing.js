@@ -148,6 +148,10 @@ export default function PricingScreen() {
                     keyboardType="decimal-pad"
                     placeholder="0"
                   />
+                  <Text style={styles.priceHelper}>
+                    Set your price for this service. Include your callout fee, travel costs, and
+                    labour. Customers will see a final price that includes our service fee.
+                  </Text>
                   {preview ? (
                     <Text style={styles.customer}>
                       Customer pays (approx., 8km): R {preview.totalPrice.toFixed(2)}
@@ -186,5 +190,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   svc: { flex: 1, color: COLORS.text, fontSize: 17, fontWeight: '700', marginLeft: 12 },
+  priceHelper: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 4,
+  },
   customer: { color: COLORS.textMuted, fontSize: 14, marginTop: 4 },
 });

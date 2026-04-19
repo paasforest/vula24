@@ -114,7 +114,7 @@ async function createEmergencyJob(req, res) {
   }
 
   const { locksmith, distanceKm, basePrice: locksithBasePrice } = nearest;
-  const pricing = calculateJobPrice(locksithBasePrice, distanceKm);
+  const pricing = calculateJobPrice(locksithBasePrice);
 
   const job = await prisma.job.create({
     data: {
@@ -496,7 +496,7 @@ async function cancelJob(req, res) {
       { jobId: String(job.id) }
     );
 
-    const pricing = calculateJobPrice(next.basePrice, next.distanceKm);
+    const pricing = calculateJobPrice(next.basePrice);
     const updated = await prisma.job.update({
       where: { id: job.id },
       data: {
@@ -681,7 +681,7 @@ async function acceptQuote(req, res) {
   }
 
   const locksithBasePrice = quote.price;
-  const pricing = calculateJobPrice(locksithBasePrice, distanceKm);
+  const pricing = calculateJobPrice(quote.price);
 
   const updated = await prisma.$transaction(async (tx) => {
     await tx.quote.update({
@@ -707,6 +707,26 @@ async function acceptQuote(req, res) {
       include: { locksmith: true },
     });
   });
+
+  const customer = await prisma.customer.findUnique({
+    where: { id: job.customerId },
+    select: { pushToken: true },
+  });
+  await prisma.notification.create({
+    data: {
+      recipientId: job.customerId,
+      recipientType: 'CUSTOMER',
+      title: 'Quote accepted',
+      message:
+        'Your quote has been accepted. Please pay the deposit to confirm your booking.',
+    },
+  });
+  sendPushNotification(
+    customer?.pushToken,
+    'Quote accepted',
+    'Pay the deposit to confirm your booking.',
+    { jobId: String(jobId) }
+  );
 
   res.json({
     job: {

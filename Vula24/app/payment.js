@@ -48,7 +48,10 @@ export default function PaymentScreen() {
     setLoading(true);
     try {
       await api.post('/api/payments/simulate', { jobId });
-      await api.post(`/api/jobs/${jobId}/dispatch`);
+      const j = await load();
+      if (j?.mode === 'EMERGENCY') {
+        await api.post(`/api/jobs/${jobId}/dispatch`);
+      }
       router.replace({ pathname: '/tracking', params: { jobId } });
     } catch (e) {
       Alert.alert(

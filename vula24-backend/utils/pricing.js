@@ -1,20 +1,18 @@
 /**
  * @param {number} locksithBasePrice
- * @param {number} distanceKm
- * @returns {{ travelFee: number, platformFee: number, totalPrice: number, locksithEarning: number }}
+ * @returns {{ locksithBasePrice: number, travelFee: number, platformFee: number, totalPrice: number, locksithEarning: number }}
  */
-function calculateJobPrice(locksithBasePrice, distanceKm) {
-  const d = Number(distanceKm);
-  let travelFee = 0;
-  if (d > 5 && d <= 10) travelFee = 60;
-  else if (d > 10 && d <= 15) travelFee = 100;
-  else if (d > 15 && d <= 20) travelFee = 150;
-
-  const platformFee = locksithBasePrice * 0.25;
-  const totalPrice = locksithBasePrice + travelFee + platformFee;
-  const locksithEarning = locksithBasePrice + travelFee;
-
-  return { travelFee, platformFee, totalPrice, locksithEarning };
+function calculateJobPrice(locksithBasePrice) {
+  const platformFee = Math.round(locksithBasePrice * 0.25 * 100) / 100;
+  const totalPrice = Math.round((locksithBasePrice + platformFee) * 100) / 100;
+  const locksithEarning = locksithBasePrice;
+  return {
+    locksithBasePrice,
+    travelFee: 0,
+    platformFee,
+    totalPrice,
+    locksithEarning,
+  };
 }
 
 /**
