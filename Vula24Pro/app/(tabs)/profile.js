@@ -164,6 +164,18 @@ export default function ProfileScreen() {
     ...(isBusiness
       ? [{ key: 'team', label: 'Team Management', icon: 'people-outline', path: '/team' }]
       : []),
+    {
+      key: 'help',
+      label: 'Help & Support',
+      icon: 'help-circle-outline',
+      path: '/help',
+    },
+    {
+      key: 'terms',
+      label: 'Terms & Privacy',
+      icon: 'document-text-outline',
+      path: '/terms',
+    },
     { key: 'notif', label: 'Notifications', icon: 'notifications-outline', path: '/notifications' },
   ];
 

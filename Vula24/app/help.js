@@ -5,15 +5,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
 
-const WHATSAPP_URL = 'https://wa.me/27123456789';
+const WHATSAPP_URL = 'https://wa.me/27600000000';
 const EMAIL = 'mailto:support@vula24.com';
 
 const STEPS = [
-  'Choose your service',
-  'Confirm your location',
-  'Get matched to a locksmith',
-  'Pay securely after locksmith accepts',
-  'Track your locksmith in real time',
+  'Choose your service — car lockout, house lockout, or scheduled services like key duplication and lock repair.',
+  'Set your location — confirm where you are or search for an address.',
+  'Get matched — the nearest verified locksmith is notified and can accept your job.',
+  'Pay securely — once a locksmith accepts, pay through the app to confirm. No cash needed.',
+  'Track in real time — watch your locksmith on the map as they head to you.',
+  'Rate your experience — after the job, rate your locksmith to help others.',
 ];
 
 export default function HelpScreen() {

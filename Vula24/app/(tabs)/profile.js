@@ -40,6 +40,14 @@ export default function ProfileScreen() {
       router.push({ pathname: '/terms' });
       return;
     }
+    if (key === 'pay') {
+      Alert.alert(
+        'Payment Methods',
+        'Payments are processed securely through PayFast. No card details are stored in the app.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
     Alert.alert('Coming soon',
       'This section will be available in a future update.');
   };
