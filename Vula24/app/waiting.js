@@ -58,6 +58,22 @@ export default function WaitingScreen() {
           Alert.alert('Cancelled', 'This request was cancelled.');
           router.replace('/(tabs)/home');
         }
+        if (status === 'COMPLETED') {
+          clearInterval(id);
+          router.replace({
+            pathname: '/review',
+            params: { jobId },
+          });
+          return;
+        }
+        if (status === 'DISPATCHED') {
+          clearInterval(id);
+          router.replace({
+            pathname: '/tracking',
+            params: { jobId },
+          });
+          return;
+        }
       } catch {
         /* keep polling */
       }

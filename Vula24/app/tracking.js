@@ -94,6 +94,15 @@ export default function TrackingScreen() {
         };
 
   const banner = () => {
+    if (job?.isDisputed) {
+      return (
+        <View style={styles.disputeBanner}>
+          <Text style={styles.disputeBannerText}>
+            Dispute in progress — our team is reviewing your case
+          </Text>
+        </View>
+      );
+    }
     const s = job?.status;
     if (s === 'DISPATCHED' || s === 'ACCEPTED') {
       return (
@@ -194,6 +203,23 @@ export default function TrackingScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: COLORS.bg },
+  disputeBanner: {
+    position: 'absolute',
+    top: 48,
+    left: 16,
+    right: 16,
+    backgroundColor: '#2a1a00',
+    borderWidth: 1,
+    borderColor: '#ff9500',
+    borderRadius: 10,
+    padding: 12,
+  },
+  disputeBannerText: {
+    color: '#ff9500',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   pinGold: {
     width: 20,
     height: 20,

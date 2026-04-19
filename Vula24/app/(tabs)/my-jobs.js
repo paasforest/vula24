@@ -21,6 +21,8 @@ function statusStyle(status) {
       return { bg: '#3d3310', text: COLORS.accent, label: 'Completed' };
     case 'CANCELLED':
       return { bg: '#3a1515', text: '#ff8a80', label: 'Cancelled' };
+    case 'DISPUTED':
+      return { bg: '#2a1a00', text: '#ff9500', label: 'Disputed' };
     case 'IN_PROGRESS':
     case 'ARRIVED':
     case 'ACCEPTED':
@@ -39,15 +41,31 @@ function statusStyle(status) {
   }
 }
 
-function serviceIcon(type) {
-  const t = type || '';
-  if (t.includes('CAR')) return 'car';
-  if (t.includes('HOUSE')) return 'home';
-  if (t.includes('KEY')) return 'key-outline';
-  if (t.includes('REPLACEMENT')) return 'lock-closed';
-  if (t.includes('REPAIR')) return 'construct';
-  return 'key';
-}
+const serviceIcon = (type) => {
+  const icons = {
+    CAR_LOCKOUT: 'car',
+    HOUSE_LOCKOUT: 'home',
+    OFFICE_LOCKOUT: 'business',
+    KEY_DUPLICATION: 'key-outline',
+    CAR_KEY_PROGRAMMING: 'radio-outline',
+    CAR_KEY_CUTTING: 'cut-outline',
+    BROKEN_KEY_EXTRACTION: 'build-outline',
+    LOST_KEY_REPLACEMENT: 'search-outline',
+    IGNITION_REPAIR: 'flash-outline',
+    LOCK_REPLACEMENT: 'lock-closed',
+    LOCK_REPAIR: 'construct',
+    LOCK_UPGRADE: 'shield-checkmark-outline',
+    DEADLOCK_INSTALLATION: 'lock-open-outline',
+    SAFE_OPENING: 'cube-outline',
+    GATE_MOTOR_REPAIR: 'git-merge-outline',
+    ACCESS_CONTROL: 'finger-print-outline',
+    PADLOCK_REMOVAL: 'remove-circle-outline',
+    GARAGE_DOOR: 'home-outline',
+    SECURITY_GATE: 'shield-outline',
+    ELECTRIC_FENCE_GATE: 'flash',
+  };
+  return icons[type] || 'key-outline';
+};
 
 const ACTIVE_STATUSES = new Set([
   'PENDING',
@@ -55,6 +73,7 @@ const ACTIVE_STATUSES = new Set([
   'DISPATCHED',
   'ARRIVED',
   'IN_PROGRESS',
+  'DISPUTED',
 ]);
 const COMPLETED_TAB_STATUSES = new Set(['COMPLETED', 'CANCELLED']);
 

@@ -40,15 +40,22 @@ function readPlaceLatLng(details) {
   return { lat: Number(lat), lng: Number(lng) };
 }
 
+function mimeFromUri(uri) {
+  const u = String(uri).toLowerCase();
+  if (u.endsWith('.png')) return 'image/png';
+  if (u.endsWith('.webp')) return 'image/webp';
+  if (u.endsWith('.heic') || u.endsWith('.heif')) return 'image/heic';
+  return 'image/jpeg';
+}
+
 const MAP_DELTA = { latitudeDelta: 0.005, longitudeDelta: 0.005 };
 
 export default function BookScreen() {
   const insets = useSafeAreaInsets();
-  const { serviceType: st } = useLocalSearchParams();
+  const { serviceType: st, mode: modeParam } = useLocalSearchParams();
   const serviceType = Array.isArray(st) ? st[0] : st;
-
-  const isEmergency =
-    serviceType === 'CAR_LOCKOUT' || serviceType === 'HOUSE_LOCKOUT';
+  const mode = Array.isArray(modeParam) ? modeParam[0] : modeParam;
+  const isEmergency = mode === 'EMERGENCY';
 
   const [lat, setLat] = useState(-26.2041);
   const [lng, setLng] = useState(28.0473);
@@ -266,10 +273,21 @@ export default function BookScreen() {
     }
     setLoading(true);
     try {
+      let jobPhotoUrl;
+      if (photoUri) {
+        const form = new FormData();
+        form.append('photo', {
+          uri: photoUri,
+          type: mimeFromUri(photoUri),
+          name: 'job-photo.jpg',
+        });
+        const { data: upload } = await api.post('/api/customer/upload-photo', form);
+        jobPhotoUrl = upload.url;
+      }
       const { data } = await api.post('/api/jobs/scheduled/create', {
         serviceType,
         description: description.trim() || undefined,
-        jobPhotoUrl: undefined,
+        jobPhotoUrl: jobPhotoUrl || undefined,
         scheduledDate: scheduledAt.toISOString(),
         customerLat: lat,
         customerLng: lng,

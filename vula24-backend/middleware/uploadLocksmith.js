@@ -36,8 +36,11 @@ const profilePhotoUpload = upload.single('profilePhoto');
 /** Multipart: field `document` (image) + `documentType` in body */
 const locksmithDocumentUpload = upload.single('document');
 
+const customerPhotoUpload = upload.single('photo');
+
 module.exports = {
   locksmithRegisterMultipart,
   profilePhotoUpload,
   locksmithDocumentUpload,
+  customerPhotoUpload,
 };

@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { handleValidationErrors } = require('../middleware/validate');
 const { authenticateCustomer } = require('../middleware/auth');
+const { customerPhotoUpload } = require('../middleware/uploadLocksmith');
 const auth = require('../controllers/authController');
 
 const router = Router();
@@ -30,6 +31,13 @@ router.put(
   [body('pushToken').optional().isString()],
   handleValidationErrors,
   asyncHandler(auth.updateCustomerPushToken)
+);
+
+router.post(
+  '/upload-photo',
+  authenticateCustomer,
+  customerPhotoUpload,
+  asyncHandler(auth.uploadCustomerPhoto)
 );
 
 module.exports = router;

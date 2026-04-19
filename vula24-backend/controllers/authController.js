@@ -239,6 +239,15 @@ async function updateCustomerProfile(req, res) {
   res.json({ customer });
 }
 
+async function uploadCustomerPhoto(req, res) {
+  const file = req.file;
+  if (!file?.buffer?.length) {
+    throw new AppError('photo image file is required', 400);
+  }
+  const url = await uploadLocksmithImage(req, file);
+  res.json({ url });
+}
+
 async function loginMember(req, res) {
   requireJwtSecret();
   const { appEmail, appPassword } = req.body;
@@ -269,4 +278,5 @@ module.exports = {
   updateCustomerPushToken,
   getCustomerProfile,
   updateCustomerProfile,
+  uploadCustomerPhoto,
 };
