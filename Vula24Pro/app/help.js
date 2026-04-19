@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/theme';
+import { COLORS } from '../constants/theme';
 
 const WHATSAPP_URL = 'https://wa.me/27729543821';
 const EMAIL = 'mailto:support@vula24.com';
