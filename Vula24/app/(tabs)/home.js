@@ -210,20 +210,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.header}>
-          <Text style={styles.greet}>
-            {greeting()}, {name}
-          </Text>
-          <Text style={styles.sub}>What do you need help with?</Text>
-        </View>
-
-        <View style={styles.mapSection}>
-          <Text style={styles.mapSectionTitle}>Near you</Text>
-          <Text style={styles.mapSectionSub}>
-            Locksmiths on the map when location is on
-          </Text>
-        </View>
-        <View style={styles.mapWrap}>
+        <View style={styles.mapContainer}>
           <MapView
             style={styles.map}
             mapType="standard"
@@ -243,7 +230,11 @@ export default function HomeScreen() {
                 longitude: region.longitude,
               }}
               tracksViewChanges={false}
-            />
+            >
+              <View style={styles.userPin}>
+                <View style={styles.userPinInner} />
+              </View>
+            </Marker>
             {nearbyLocksmiths.map((lm) => (
               <Marker
                 key={lm.id}
@@ -257,21 +248,48 @@ export default function HomeScreen() {
               </Marker>
             ))}
           </MapView>
+
+          <View style={styles.mapOverlay} pointerEvents="none">
+            <View style={styles.mapOverlayCard}>
+              <Text style={styles.greet}>
+                {greeting()}, {name}
+              </Text>
+              <Text style={styles.sub}>
+                What do you need help with?
+              </Text>
+              <View style={styles.availabilityRow}>
+                <View
+                  style={[
+                    styles.availabilityDot,
+                    {
+                      backgroundColor:
+                        nearbyLocksmiths.length > 0 ? '#34c759' : '#888',
+                    },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.availabilityText,
+                    {
+                      color:
+                        nearbyLocksmiths.length > 0
+                          ? '#34c759'
+                          : COLORS.textMuted,
+                    },
+                  ]}
+                >
+                  {nearbyLocksmiths.length > 0
+                    ? `${nearbyLocksmiths.length} locksmith${
+                        nearbyLocksmiths.length > 1 ? 's' : ''
+                      } available near you`
+                    : 'Searching for locksmiths...'}
+                </Text>
+              </View>
+            </View>
+          </View>
         </View>
 
         <View style={styles.servicesWrap}>
-          {/* Availability count */}
-          {nearbyLocksmiths.length > 0 ? (
-            <Text style={[styles.availabilityText, { color: COLORS.accent }]}>
-              {nearbyLocksmiths.length} locksmith
-              {nearbyLocksmiths.length !== 1 ? 's' : ''} available near you
-            </Text>
-          ) : (
-            <Text style={[styles.availabilityText, { color: COLORS.textMuted }]}>
-              Searching for locksmiths near you...
-            </Text>
-          )}
-
           {/* Emergency section */}
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderLeft}>
@@ -351,30 +369,64 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scrollContent: { paddingBottom: 32 },
-  header: { paddingHorizontal: 20, paddingBottom: 12 },
-  greet: { color: COLORS.text, fontSize: 22, fontWeight: '700' },
-  sub: { color: COLORS.textMuted, marginTop: 6, fontSize: 16 },
-  mapSection: {
-    paddingHorizontal: 20,
-    marginBottom: 8,
+  mapContainer: {
+    height: 260,
+    position: 'relative',
   },
-  mapSectionTitle: {
-    color: COLORS.text,
-    fontSize: 15,
-    fontWeight: '600',
+  mapOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
   },
-  mapSectionSub: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    marginTop: 4,
-  },
-  mapWrap: {
-    height: 200,
-    marginHorizontal: 16,
+  mapOverlayCard: {
+    backgroundColor: 'rgba(17,17,17,0.82)',
     borderRadius: 16,
-    overflow: 'hidden',
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  greet: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  sub: {
+    color: COLORS.textMuted,
+    marginTop: 4,
+    fontSize: 14,
+  },
+  availabilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  availabilityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  availabilityText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  userPin: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(212,160,23,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+  },
+  userPinInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.accent,
   },
   map: { flex: 1 },
   bluePin: {
@@ -386,12 +438,6 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   servicesWrap: { paddingHorizontal: 16, paddingBottom: 24 },
-  availabilityText: {
-    textAlign: 'center',
-    fontSize: 13,
-    marginBottom: 12,
-    marginTop: 4,
-  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
