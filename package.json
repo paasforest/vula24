@@ -16,6 +16,7 @@
     "start:pro:dev": "npx expo start ./Vula24Pro --dev-client --port 8082"
   },
   "dependencies": {
+    "canvas": "^3.2.3",
     "expo-dev-client": "~55.0.27"
   }
 }
