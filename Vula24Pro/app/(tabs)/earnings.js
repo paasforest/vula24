@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../../components/GoldButton';
 import { FormInput } from '../../components/FormInput';
 import { COLORS } from '../../constants/theme';
@@ -39,9 +38,18 @@ function startOfMonth(d) {
   return x;
 }
 
+function releaseCountdownLabel(releaseAfter) {
+  const ms = new Date(releaseAfter).getTime() - Date.now();
+  if (ms <= 0) return 'releasing soon';
+  const hours = Math.ceil(ms / (1000 * 60 * 60));
+  if (hours < 1) return 'releasing soon';
+  return `in ${hours} hours`;
+}
+
 export default function EarningsScreen() {
   const [wallet, setWallet] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [pendingPayouts, setPendingPayouts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [amount, setAmount] = useState('');
@@ -49,12 +57,14 @@ export default function EarningsScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [w, p] = await Promise.all([
+      const [w, p, pend] = await Promise.all([
         api.get('/api/wallet/my-wallet'),
         api.get('/api/locksmith/profile'),
+        api.get('/api/wallet/pending-payouts').catch(() => ({ data: { pendingPayouts: [] } })),
       ]);
       setWallet(w.data);
       setProfile(p.data.locksmith);
+      setPendingPayouts(pend.data?.pendingPayouts || []);
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'Could not load wallet.');
     }
@@ -86,6 +96,8 @@ export default function EarningsScreen() {
   const today = sumCredit(d0);
   const week = sumCredit(w0);
   const month = sumCredit(m0);
+  const totalEarned =
+    wallet?.totalEarned != null ? Number(wallet.totalEarned) : 0;
 
   const submitWithdraw = async () => {
     const n = parseFloat(String(amount).replace(',', '.'));
@@ -121,6 +133,30 @@ export default function EarningsScreen() {
           R {wallet?.balance != null ? Number(wallet.balance).toFixed(2) : '0.00'}
         </Text>
 
+        <View style={styles.pendingCard}>
+          <Text style={styles.pendingTitle}>Pending payouts</Text>
+          {pendingPayouts.length === 0 ? (
+            <Text style={styles.pendingEmpty}>No pending payouts.</Text>
+          ) : (
+            pendingPayouts.map((pp, idx) => (
+              <View
+                key={pp.id}
+                style={[styles.pendingRow, idx === 0 && styles.pendingRowFirst]}
+              >
+                <Text style={styles.pendingAmt}>
+                  R {Number(pp.amount).toFixed(2)}
+                </Text>
+                <Text style={styles.pendingRelease}>
+                  Releases: {releaseCountdownLabel(pp.releaseAfter)}
+                </Text>
+                <Text style={styles.pendingJob}>
+                  Job: {(pp.jobId || '').slice(0, 8)}…
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+
         <GoldButton title="Withdraw to Bank" onPress={() => setWithdrawOpen(true)} />
 
         <View style={styles.stats}>
@@ -135,6 +171,10 @@ export default function EarningsScreen() {
           <View style={styles.statCard}>
             <Text style={styles.statVal}>R {month.toFixed(2)}</Text>
             <Text style={styles.statLbl}>This month</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statVal}>R {totalEarned.toFixed(2)}</Text>
+            <Text style={styles.statLbl}>Total earned</Text>
           </View>
         </View>
 
@@ -197,14 +237,44 @@ const styles = StyleSheet.create({
   scroll: { padding: 20, paddingBottom: 40 },
   h1: { color: COLORS.text, fontSize: 24, fontWeight: '800', marginBottom: 16 },
   balanceLabel: { color: COLORS.textMuted, fontSize: 14 },
-  balance: { color: COLORS.accent, fontSize: 36, fontWeight: '900', marginBottom: 20 },
-  stats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 24, marginBottom: 8 },
+  balance: { color: COLORS.accent, fontSize: 36, fontWeight: '900', marginBottom: 16 },
+  pendingCard: {
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  pendingTitle: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  pendingEmpty: { color: COLORS.textMuted, fontSize: 14 },
+  pendingRow: {
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#2a2a2a',
+  },
+  pendingRowFirst: { borderTopWidth: 0, paddingTop: 0 },
+  pendingAmt: { color: COLORS.accent, fontSize: 18, fontWeight: '800' },
+  pendingRelease: { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
+  pendingJob: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
+  stats: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 8,
+    gap: 8,
+  },
   statCard: {
-    flex: 1,
+    width: '48%',
     backgroundColor: COLORS.inputBg,
     borderRadius: 12,
     padding: 12,
-    marginHorizontal: 4,
     borderWidth: 1,
     borderColor: '#2a2a2a',
   },

@@ -13,7 +13,7 @@ router.post(
   [
     body('jobId').isUUID(),
     body('rating').isInt({ min: 1, max: 5 }),
-    body('comment').optional().trim(),
+    body('comment').optional().isString().trim(),
   ],
   handleValidationErrors,
   asyncHandler(reviewController.createReview)

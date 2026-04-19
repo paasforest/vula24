@@ -18,6 +18,13 @@ import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
 import api from '../lib/api';
 
+function initialsFromName(name) {
+  if (!name?.trim()) return '?';
+  const p = name.trim().split(/\s+/);
+  if (p.length >= 2) return (p[0][0] + p[1][0]).toUpperCase();
+  return name.trim().slice(0, 2).toUpperCase();
+}
+
 export default function ReviewScreen() {
   const { jobId: jid } = useLocalSearchParams();
   const jobId = Array.isArray(jid) ? jid[0] : jid;
@@ -102,19 +109,32 @@ export default function ReviewScreen() {
     }
   };
 
-  const photo =
-    job?.locksmith?.selfiePhotoUrl || job?.locksmith?.idPhotoUrl || null;
+  const lock = job?.locksmith;
+  const photoUri =
+    lock?.profilePhoto?.trim() ||
+    lock?.selfiePhotoUrl ||
+    lock?.idPhotoUrl ||
+    null;
+  const vt = lock?.vehicleType?.trim();
+  const vc = lock?.vehicleColor?.trim();
+  const vehicleLine =
+    vt || vc ? [vc, vt].filter(Boolean).join(' ') : null;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.h1}>How was your experience?</Text>
-        <Text style={styles.name}>{job?.locksmith?.name || 'Locksmith'}</Text>
-        {photo ? (
-          <Image source={{ uri: photo }} style={styles.photo} />
+        <Text style={styles.name}>{lock?.name || 'Locksmith'}</Text>
+        {vehicleLine ? (
+          <Text style={styles.vehicleMeta}>{vehicleLine}</Text>
+        ) : null}
+        {photoUri ? (
+          <Image source={{ uri: photoUri }} style={styles.photo} />
         ) : (
-          <View style={styles.ph}>
-            <Ionicons name="person" size={48} color={COLORS.accent} />
+          <View style={styles.avatarInitials}>
+            <Text style={styles.avatarInitialsText}>
+              {initialsFromName(lock?.name)}
+            </Text>
           </View>
         )}
         <Text style={styles.label}>Your rating</Text>
@@ -197,7 +217,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 16,
   },
-  name: { color: COLORS.accent, fontSize: 20, fontWeight: '600', marginBottom: 12 },
+  name: { color: COLORS.accent, fontSize: 20, fontWeight: '600', marginBottom: 4 },
+  vehicleMeta: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginBottom: 12,
+  },
   photo: {
     width: 100,
     height: 100,
@@ -205,17 +230,20 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 16,
   },
-  ph: {
+  avatarInitials: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: COLORS.accent,
     alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: COLORS.accent,
+  },
+  avatarInitialsText: {
+    color: COLORS.bg,
+    fontSize: 32,
+    fontWeight: '800',
   },
   label: { color: COLORS.textMuted, marginBottom: 8 },
   stars: {

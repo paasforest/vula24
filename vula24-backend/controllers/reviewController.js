@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const { AppError } = require('../middleware/errorHandler');
+const { sendPushNotification } = require('../utils/pushNotifications');
 
 async function createReview(req, res) {
   const { jobId, comment } = req.body;
@@ -10,24 +11,34 @@ async function createReview(req, res) {
     throw new AppError('Rating must be an integer between 1 and 5', 400);
   }
 
-  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  const job = await prisma.job.findFirst({
+    where: {
+      id: jobId,
+      customerId,
+      status: 'COMPLETED',
+    },
+    include: {
+      locksmith: { select: { id: true, pushToken: true } },
+    },
+  });
+
   if (!job) throw new AppError('Job not found', 404);
-  if (job.customerId !== customerId) throw new AppError('Forbidden', 403);
-  if (job.status !== 'COMPLETED') {
-    throw new AppError('You can only review completed jobs', 400);
-  }
-  if (!job.locksithId) throw new AppError('Invalid job', 400);
+  if (!job.locksithId) throw new AppError('No locksmith', 400);
 
-  const existing = await prisma.review.findUnique({ where: { jobId } });
-  if (existing) throw new AppError('You have already reviewed this job', 409);
+  const existing = await prisma.review.findFirst({
+    where: { jobId, customerId },
+  });
+  if (existing) throw new AppError('Already reviewed', 400);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.review.create({
+  const clamped = Math.min(5, Math.max(1, rating));
+
+  const review = await prisma.$transaction(async (tx) => {
+    const created = await tx.review.create({
       data: {
         jobId,
         customerId,
         locksithId: job.locksithId,
-        rating,
+        rating: clamped,
         comment: comment?.trim() || null,
       },
     });
@@ -37,13 +48,33 @@ async function createReview(req, res) {
       _avg: { rating: true },
     });
 
+    const avgRating = agg._avg.rating ?? clamped;
+    const rounded = Math.round(avgRating * 10) / 10;
+
     await tx.locksmith.update({
       where: { id: job.locksithId },
-      data: { rating: agg._avg.rating ?? 5 },
+      data: { rating: rounded },
     });
+
+    return created;
   });
 
-  res.status(201).json({ success: true });
+  await prisma.notification.create({
+    data: {
+      recipientId: job.locksithId,
+      recipientType: 'LOCKSMITH',
+      title: 'New review',
+      message: `You received a ${clamped}-star review.`,
+    },
+  });
+
+  sendPushNotification(
+    job.locksmith?.pushToken,
+    'New review',
+    `You received a ${clamped}-star review.`
+  );
+
+  res.status(201).json({ review });
 }
 
 module.exports = { createReview };

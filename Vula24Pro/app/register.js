@@ -49,6 +49,9 @@ export default function RegisterScreen() {
   const [bankName, setBankName] = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [bankHolder, setBankHolder] = useState('');
+  const [vehicleType, setVehicleType] = useState('');
+  const [vehicleColor, setVehicleColor] = useState('');
+  const [vehiclePlateNumber, setVehiclePlateNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [camVisible, setCamVisible] = useState(false);
@@ -137,6 +140,9 @@ export default function RegisterScreen() {
       if (bankName.trim()) form.append('bankName', bankName.trim());
       if (bankAccount.trim()) form.append('bankAccountNumber', bankAccount.trim());
       if (bankHolder.trim()) form.append('bankAccountHolder', bankHolder.trim());
+      form.append('vehicleType', vehicleType.trim());
+      form.append('vehicleColor', vehicleColor.trim());
+      form.append('vehiclePlateNumber', vehiclePlateNumber.trim());
 
       if (idUri) {
         form.append('idPhoto', {
@@ -286,6 +292,30 @@ export default function RegisterScreen() {
           <FormInput label="Account Number" value={bankAccount} onChangeText={setBankAccount} keyboardType="number-pad" />
           <FormInput label="Account Holder Name" value={bankHolder} onChangeText={setBankHolder} autoCapitalize="words" />
 
+          <Text style={styles.section}>Vehicle Information</Text>
+          <FormInput
+            label="Vehicle type"
+            value={vehicleType}
+            onChangeText={setVehicleType}
+            placeholder="e.g. Sedan, Bakkie, SUV"
+          />
+          <FormInput
+            label="Vehicle colour"
+            value={vehicleColor}
+            onChangeText={setVehicleColor}
+            placeholder="e.g. White, Silver, Black"
+          />
+          <FormInput
+            label="Plate number"
+            value={vehiclePlateNumber}
+            onChangeText={setVehiclePlateNumber}
+            placeholder="e.g. CA 123-456"
+            autoCapitalize="characters"
+          />
+          <Text style={styles.vehicleHint}>
+            Customers use this to identify you when you arrive. You can update this later.
+          </Text>
+
           <GoldButton title="Submit Application" onPress={submit} loading={loading} />
           <TouchableOpacity style={styles.link} onPress={() => router.push('/login')}>
             <Text style={styles.muted}>Already registered? </Text>
@@ -331,6 +361,7 @@ const styles = StyleSheet.create({
   uploadText: { color: COLORS.text, fontSize: 15, flex: 1 },
   thumb: { width: '100%', height: 140, borderRadius: 12, marginBottom: 12 },
   hintGold: { color: COLORS.accent, fontSize: 13, marginBottom: 16, lineHeight: 20 },
+  vehicleHint: { fontSize: 12, color: COLORS.textMuted, marginBottom: 8, lineHeight: 18 },
   link: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
   muted: { color: COLORS.textMuted },
   linkC: { color: COLORS.accent, fontWeight: '700' },

@@ -6,5 +6,10 @@ const wallet = require('../controllers/walletController');
 const router = Router();
 
 router.get('/my-wallet', authenticateLocksmith, asyncHandler(wallet.getMyWallet));
+router.get(
+  '/pending-payouts',
+  authenticateLocksmith,
+  asyncHandler(wallet.getPendingPayouts)
+);
 
 module.exports = router;

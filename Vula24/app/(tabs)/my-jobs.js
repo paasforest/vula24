@@ -9,7 +9,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
@@ -24,6 +24,7 @@ function statusStyle(status) {
     case 'IN_PROGRESS':
     case 'ARRIVED':
     case 'ACCEPTED':
+    case 'DISPATCHED':
       return {
         bg: '#102a3a',
         text: '#64b5f6',
@@ -48,10 +49,37 @@ function serviceIcon(type) {
   return 'key';
 }
 
+const ACTIVE_STATUSES = new Set([
+  'PENDING',
+  'ACCEPTED',
+  'DISPATCHED',
+  'ARRIVED',
+  'IN_PROGRESS',
+]);
+const COMPLETED_TAB_STATUSES = new Set(['COMPLETED', 'CANCELLED']);
+
+function formatJobDetailDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const datePart = d.toLocaleDateString('en-ZA', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const timePart = d.toLocaleTimeString('en-ZA', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return `${datePart} at ${timePart}`;
+}
+
 export default function MyJobsScreen() {
   const [jobs, setJobs] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [filter, setFilter] = useState('all');
 
   const load = useCallback(async () => {
     try {
@@ -74,6 +102,12 @@ export default function MyJobsScreen() {
     setRefreshing(false);
   };
 
+  const filteredJobs = jobs.filter((j) => {
+    if (filter === 'all') return true;
+    if (filter === 'active') return ACTIVE_STATUSES.has(j.status);
+    return COMPLETED_TAB_STATUSES.has(j.status);
+  });
+
   const renderItem = ({ item }) => {
     const st = statusStyle(item.status);
     const dt = new Date(item.createdAt);
@@ -95,6 +129,11 @@ export default function MyJobsScreen() {
             <Text style={styles.addr} numberOfLines={2}>
               {item.customerAddress}
             </Text>
+            {item.locksithId && item.locksmith?.name ? (
+              <Text style={styles.locksmith} numberOfLines={1}>
+                Locksmith: {item.locksmith.name}
+              </Text>
+            ) : null}
           </View>
         </View>
         <View style={styles.cardBot}>
@@ -112,8 +151,31 @@ export default function MyJobsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <Text style={styles.h1}>My jobs</Text>
+      <View style={styles.filterRow}>
+        {[
+          { key: 'all', label: 'All' },
+          { key: 'active', label: 'Active' },
+          { key: 'completed', label: 'Completed' },
+        ].map(({ key, label }) => {
+          const on = filter === key;
+          return (
+            <TouchableOpacity
+              key={key}
+              style={[
+                styles.pill,
+                on ? styles.pillOn : styles.pillOff,
+              ]}
+              onPress={() => setFilter(key)}
+            >
+              <Text style={[styles.pillText, on ? styles.pillTextOn : styles.pillTextOff]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
       <FlatList
-        data={jobs}
+        data={filteredJobs}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.list}
@@ -121,7 +183,11 @@ export default function MyJobsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
         }
         ListEmptyComponent={
-          <Text style={styles.empty}>No jobs yet. Book from Home.</Text>
+          <Text style={styles.empty}>
+            {jobs.length === 0
+              ? 'No jobs yet. Book from Home.'
+              : 'No jobs in this filter.'}
+          </Text>
         }
       />
 
@@ -131,6 +197,18 @@ export default function MyJobsScreen() {
             <Text style={styles.modalTitle}>Job details</Text>
             {selected ? (
               <>
+                {selected.locksithId && selected.locksmith?.name ? (
+                  <View style={styles.modalRow}>
+                    <Text style={styles.muted}>Locksmith: </Text>
+                    <Text style={styles.modalVal}>{selected.locksmith.name}</Text>
+                  </View>
+                ) : null}
+                <View style={styles.modalRow}>
+                  <Text style={styles.muted}>Date: </Text>
+                  <Text style={styles.modalVal}>
+                    {formatJobDetailDate(selected.createdAt)}
+                  </Text>
+                </View>
                 <View style={styles.modalRow}>
                   <Text style={styles.muted}>Service: </Text>
                   <Text style={styles.modalVal}>
@@ -151,6 +229,21 @@ export default function MyJobsScreen() {
                     R {Number(selected.totalPrice || 0).toFixed(2)}
                   </Text>
                 </View>
+                {selected.status === 'CANCELLED' ? (
+                  <Text style={styles.cancelNote}>This job was cancelled</Text>
+                ) : null}
+                {selected.status === 'COMPLETED' ? (
+                  <TouchableOpacity
+                    style={styles.rateBtn}
+                    onPress={() => {
+                      const id = selected.id;
+                      setSelected(null);
+                      router.push({ pathname: '/review', params: { jobId: id } });
+                    }}
+                  >
+                    <Text style={styles.rateBtnText}>Rate this job</Text>
+                  </TouchableOpacity>
+                ) : null}
               </>
             ) : null}
             <TouchableOpacity style={styles.closeBtn} onPress={() => setSelected(null)}>
@@ -172,6 +265,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 12,
   },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  pill: {
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  pillOn: { backgroundColor: COLORS.accent },
+  pillOff: { backgroundColor: COLORS.inputBg },
+  pillText: { fontSize: 14, fontWeight: '600' },
+  pillTextOn: { color: COLORS.bg },
+  pillTextOff: { color: COLORS.textMuted },
   list: { paddingHorizontal: 16, paddingBottom: 24 },
   empty: { color: COLORS.textMuted, textAlign: 'center', marginTop: 40 },
   card: {
@@ -187,6 +297,7 @@ const styles = StyleSheet.create({
   service: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
   date: { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
   addr: { color: COLORS.textMuted, fontSize: 14, marginTop: 6 },
+  locksmith: { color: COLORS.textMuted, fontSize: 13, marginTop: 6, fontWeight: '600' },
   cardBot: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -224,4 +335,18 @@ const styles = StyleSheet.create({
   modalVal: { color: COLORS.text, flex: 1 },
   closeBtn: { marginTop: 16, alignSelf: 'flex-end' },
   closeText: { color: COLORS.accent, fontSize: 16, fontWeight: '600' },
+  cancelNote: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    marginTop: 12,
+    fontStyle: 'italic',
+  },
+  rateBtn: {
+    marginTop: 16,
+    backgroundColor: COLORS.accent,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  rateBtnText: { color: COLORS.bg, fontSize: 16, fontWeight: '700' },
 });

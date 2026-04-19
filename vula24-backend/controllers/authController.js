@@ -85,6 +85,9 @@ async function registerLocksmith(req, res) {
     bankName,
     bankAccountNumber,
     bankAccountHolder,
+    vehicleType,
+    vehicleColor,
+    vehiclePlateNumber,
   } = req.body;
 
   const files = req.files || {};
@@ -133,6 +136,9 @@ async function registerLocksmith(req, res) {
         bankName: bankName?.trim() || null,
         bankAccountNumber: bankAccountNumber?.trim() || null,
         bankAccountHolder: bankAccountHolder?.trim() || null,
+        vehicleType: vehicleType?.trim() || null,
+        vehicleColor: vehicleColor?.trim() || null,
+        vehiclePlateNumber: vehiclePlateNumber?.trim() || null,
       },
     });
     await tx.wallet.create({

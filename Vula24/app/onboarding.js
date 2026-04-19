@@ -17,18 +17,21 @@ const { width } = Dimensions.get('window');
 
 const SLIDES = [
   {
-    title: 'Always Available',
-    body: 'Find a verified locksmith near you, 24 hours a day',
+    title: 'Emergency locksmith, 24/7',
+    body:
+      'Locked out of your car or home? Get a verified locksmith to you fast, any time of day or night.',
     icon: 'construct',
   },
   {
-    title: 'Know The Price',
-    body: 'See the exact price before you confirm. No surprises.',
+    title: 'See the price upfront',
+    body:
+      'No surprises. You see the full price before you confirm. Pay securely through the app after your locksmith accepts.',
     icon: 'pricetag',
   },
   {
-    title: 'Track In Real Time',
-    body: 'Watch your locksmith travel to you live on the map',
+    title: 'Track your locksmith live',
+    body:
+      'See your locksmith on the map as they head to you. Know exactly when they will arrive.',
     icon: 'location',
   },
 ];
