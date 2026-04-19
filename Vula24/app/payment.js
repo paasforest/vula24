@@ -10,7 +10,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../components/GoldButton';
-import { PayFastWebView } from '../components/PayFastWebView';
 import { COLORS } from '../constants/theme';
 import api from '../lib/api';
 
@@ -20,12 +19,6 @@ export default function PaymentScreen() {
 
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [wv, setWv] = useState({
-    visible: false,
-    payUrl: '',
-    fields: null,
-  });
-  const payKindRef = useRef('');
   const sentToReviewRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -51,63 +44,17 @@ export default function PaymentScreen() {
     router.replace({ pathname: '/review', params: { jobId } });
   }, [jobId, job?.finalPaid, job?.status]);
 
-  const afterWebView = async () => {
-    setWv({ visible: false, payUrl: '', fields: null });
-    const kind = payKindRef.current;
-    payKindRef.current = '';
-
-    let j = null;
-    for (let i = 0; i < 25; i++) {
-      j = await load();
-      if (j?.finalPaid) break;
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-
-    if (!j?.finalPaid) {
-      Alert.alert(
-        'Payment',
-        'Could not confirm payment yet. Please try again shortly or contact support.'
-      );
-      return;
-    }
-
-    if (j.mode === 'EMERGENCY' && (j.status === 'ACCEPTED' || j.status === 'DISPATCHED')) {
-      try {
-        if (j.status === 'ACCEPTED') {
-          await api.post(`/api/jobs/${jobId}/dispatch`);
-        }
-        router.replace({ pathname: '/tracking', params: { jobId } });
-      } catch (e) {
-        Alert.alert(
-          'Error',
-          e.response?.data?.error || 'Could not start tracking.'
-        );
-      }
-      return;
-    }
-
-    if (j.finalPaid && j.status === 'COMPLETED') {
-      router.replace({ pathname: '/review', params: { jobId } });
-      return;
-    }
-
-    if (kind === 'final' && j?.finalPaid) {
-      router.replace({ pathname: '/review', params: { jobId } });
-    }
-  };
-
-  const openPay = async () => {
+  const simulateAndContinue = async () => {
     setLoading(true);
     try {
-      const { data } = await api.post('/api/payments/deposit', { jobId });
-      payKindRef.current = 'deposit';
-      setWv({
-        visible: true,
-        payUrl: data.payUrl,
-        fields: data.fields,
-      });
+      await api.post('/api/payments/simulate', { jobId });
+      await api.post(`/api/jobs/${jobId}/dispatch`);
+      router.replace({ pathname: '/tracking', params: { jobId } });
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Could not start payment.');
+      Alert.alert(
+        'Error',
+        e.response?.data?.error || 'Payment simulation or dispatch failed.'
+      );
     } finally {
       setLoading(false);
     }
@@ -118,11 +65,16 @@ export default function PaymentScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <View style={styles.testBanner}>
+        <Text style={styles.testBannerText}>
+          TEST MODE — PayFast not configured
+        </Text>
+      </View>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.h1}>Payment</Text>
         <Text style={styles.subtitle}>
-          Pay in full to confirm your locksmith. After payment succeeds, they can
-          head to you.
+          Development only: simulate a successful payment without PayFast. After
+          simulate, the job is dispatched and you go to tracking.
         </Text>
 
         <View style={styles.card}>
@@ -143,29 +95,36 @@ export default function PaymentScreen() {
             ) : (
               <View style={styles.stepDot} />
             )}
-            <Text style={styles.stepText}>Secure checkout (PayFast)</Text>
+            <Text style={styles.stepText}>Simulate payment (test mode)</Text>
           </View>
           {!paid ? (
-            <GoldButton title="Pay with PayFast" onPress={openPay} loading={loading} />
+            <GoldButton
+              title="Simulate Payment (Test Mode)"
+              onPress={simulateAndContinue}
+              loading={loading}
+            />
           ) : (
             <Text style={styles.paid}>Payment received — thank you</Text>
           )}
         </View>
       </ScrollView>
-
-      <PayFastWebView
-        visible={wv.visible}
-        payUrl={wv.payUrl}
-        fields={wv.fields}
-        onClose={afterWebView}
-        onReturnUrl={afterWebView}
-      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
+  testBanner: {
+    backgroundColor: '#8B0000',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  testBannerText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   scroll: { padding: 20, paddingBottom: 40 },
   h1: { color: COLORS.text, fontSize: 24, fontWeight: '700', marginBottom: 10 },
   subtitle: {

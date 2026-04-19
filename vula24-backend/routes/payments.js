@@ -8,6 +8,14 @@ const payments = require('../controllers/paymentController');
 const router = Router();
 
 router.post(
+  '/simulate',
+  authenticateCustomer,
+  [body('jobId').isUUID()],
+  handleValidationErrors,
+  asyncHandler(payments.simulatePayment)
+);
+
+router.post(
   '/deposit',
   authenticateCustomer,
   [body('jobId').isUUID()],

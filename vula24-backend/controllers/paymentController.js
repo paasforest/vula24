@@ -21,6 +21,46 @@ function parsePaymentRef(mPaymentId) {
   return { jobId, kind };
 }
 
+async function simulatePayment(req, res) {
+  const { jobId } = req.body;
+  const customerId = req.customer.id;
+
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: {
+      locksmith: { select: { id: true, pushToken: true } },
+      customer: { select: { id: true, pushToken: true } },
+    },
+  });
+
+  if (!job) throw new AppError('Job not found', 404);
+  if (job.customerId !== customerId) throw new AppError('Forbidden', 403);
+  if (!job.locksithId) {
+    throw new AppError('Job has no assigned locksmith', 400);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.job.update({
+      where: { id: jobId },
+      data: { depositPaid: true, finalPaid: true },
+    });
+
+    await tx.pendingPayout.upsert({
+      where: { jobId },
+      create: {
+        jobId,
+        locksithId: job.locksithId,
+        amount: job.locksithEarning,
+        releaseAfter: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        released: false,
+      },
+      update: {},
+    });
+  });
+
+  res.json({ success: true, message: 'Payment simulated' });
+}
+
 async function createDepositPayment(req, res) {
   const { jobId } = req.body;
   const customerId = req.customer.id;
@@ -368,6 +408,7 @@ async function paymentCancel(req, res) {
 }
 
 module.exports = {
+  simulatePayment,
   createDepositPayment,
   createFinalPayment,
   createWalletTopup,
