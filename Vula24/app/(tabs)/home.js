@@ -8,6 +8,7 @@ import {
   Dimensions,
   Alert,
   Platform,
+  Animated,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,40 +25,34 @@ const FALLBACK_LAT = -26.2041;
 const FALLBACK_LNG = 28.0473;
 
 const { width } = Dimensions.get('window');
-const CARD_W = width * 0.42;
+const SCHEDULED_CARD_W = (width - 48) / 2;
 
-const SERVICES = [
-  {
-    key: 'HOUSE_LOCKOUT',
-    label: 'House Lockout',
-    icon: 'home',
-    mode: 'EMERGENCY',
-  },
-  {
-    key: 'CAR_LOCKOUT',
-    label: 'Car Lockout',
-    icon: 'car',
-    mode: 'EMERGENCY',
-  },
-  {
-    key: 'KEY_DUPLICATION',
-    label: 'Key Duplication',
-    icon: 'key-outline',
-    mode: 'SCHEDULED',
-  },
-  {
-    key: 'LOCK_REPLACEMENT',
-    label: 'Lock Replacement',
-    icon: 'lock-closed',
-    mode: 'SCHEDULED',
-  },
-  {
-    key: 'LOCK_REPAIR',
-    label: 'Lock Repair',
-    icon: 'construct',
-    mode: 'SCHEDULED',
-  },
-];
+const SERVICES = {
+  emergency: [
+    { key: 'CAR_LOCKOUT', label: 'Car Lockout', icon: 'car' },
+    { key: 'HOUSE_LOCKOUT', label: 'House Lockout', icon: 'home' },
+    { key: 'OFFICE_LOCKOUT', label: 'Office Lockout', icon: 'business' },
+  ],
+  scheduled: [
+    { key: 'KEY_DUPLICATION', label: 'Key Duplication', icon: 'key-outline' },
+    { key: 'CAR_KEY_PROGRAMMING', label: 'Car Key Programming', icon: 'radio-outline' },
+    { key: 'CAR_KEY_CUTTING', label: 'Car Key Cutting', icon: 'cut-outline' },
+    { key: 'BROKEN_KEY_EXTRACTION', label: 'Broken Key Extraction', icon: 'build-outline' },
+    { key: 'LOST_KEY_REPLACEMENT', label: 'Lost Key Replacement', icon: 'search-outline' },
+    { key: 'IGNITION_REPAIR', label: 'Ignition Repair', icon: 'flash-outline' },
+    { key: 'LOCK_REPLACEMENT', label: 'Lock Replacement', icon: 'lock-closed' },
+    { key: 'LOCK_REPAIR', label: 'Lock Repair', icon: 'construct' },
+    { key: 'LOCK_UPGRADE', label: 'Lock Upgrade', icon: 'shield-checkmark-outline' },
+    { key: 'DEADLOCK_INSTALLATION', label: 'Deadlock Installation', icon: 'lock-open-outline' },
+    { key: 'SAFE_OPENING', label: 'Safe Opening', icon: 'cube-outline' },
+    { key: 'GATE_MOTOR_REPAIR', label: 'Gate Motor Repair', icon: 'git-merge-outline' },
+    { key: 'ACCESS_CONTROL', label: 'Access Control', icon: 'finger-print-outline' },
+    { key: 'PADLOCK_REMOVAL', label: 'Padlock Removal', icon: 'remove-circle-outline' },
+    { key: 'GARAGE_DOOR', label: 'Garage Door', icon: 'home-outline' },
+    { key: 'SECURITY_GATE', label: 'Security Gate', icon: 'shield-outline' },
+    { key: 'ELECTRIC_FENCE_GATE', label: 'Electric Fence/Gate', icon: 'flash' },
+  ],
+};
 
 function greeting() {
   const h = new Date().getHours();
@@ -98,6 +93,27 @@ async function registerPushToken() {
 
 export default function HomeScreen() {
   const [user, setUser] = useState(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.3,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulseAnim]);
+
   const [region, setRegion] = useState({
     latitude: -26.2041,
     longitude: 28.0473,
@@ -190,80 +206,143 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.greet}>
-          {greeting()}, {name}
-        </Text>
-        <Text style={styles.sub}>What do you need help with?</Text>
-      </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.header}>
+          <Text style={styles.greet}>
+            {greeting()}, {name}
+          </Text>
+          <Text style={styles.sub}>What do you need help with?</Text>
+        </View>
 
-      <View style={styles.mapSection}>
-        <Text style={styles.mapSectionTitle}>Near you</Text>
-        <Text style={styles.mapSectionSub}>
-          Locksmiths on the map when location is on
-        </Text>
-      </View>
-      <View style={styles.mapWrap}>
-        <MapView
-          style={styles.map}
-          mapType="standard"
-          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          googleRenderer="LATEST"
-          loadingEnabled={Platform.OS === 'android'}
-          loadingBackgroundColor="#E8EAED"
-          region={region}
-          showsUserLocation={false}
-          showsMyLocationButton={false}
-          rotateEnabled={false}
-          pitchEnabled={false}
-        >
-          <Marker
-            coordinate={{
-              latitude: region.latitude,
-              longitude: region.longitude,
-            }}
-            tracksViewChanges={false}
-          />
-          {nearbyLocksmiths.map((lm) => (
+        <View style={styles.mapSection}>
+          <Text style={styles.mapSectionTitle}>Near you</Text>
+          <Text style={styles.mapSectionSub}>
+            Locksmiths on the map when location is on
+          </Text>
+        </View>
+        <View style={styles.mapWrap}>
+          <MapView
+            style={styles.map}
+            mapType="standard"
+            provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+            googleRenderer="LATEST"
+            loadingEnabled={Platform.OS === 'android'}
+            loadingBackgroundColor="#E8EAED"
+            region={region}
+            showsUserLocation={false}
+            showsMyLocationButton={false}
+            rotateEnabled={false}
+            pitchEnabled={false}
+          >
             <Marker
-              key={lm.id}
               coordinate={{
-                latitude: lm.currentLat,
-                longitude: lm.currentLng,
+                latitude: region.latitude,
+                longitude: region.longitude,
               }}
               tracksViewChanges={false}
-            >
-              <View style={styles.bluePin} />
-            </Marker>
-          ))}
-        </MapView>
-      </View>
+            />
+            {nearbyLocksmiths.map((lm) => (
+              <Marker
+                key={lm.id}
+                coordinate={{
+                  latitude: lm.currentLat,
+                  longitude: lm.currentLng,
+                }}
+                tracksViewChanges={false}
+              >
+                <View style={styles.bluePin} />
+              </Marker>
+            ))}
+          </MapView>
+        </View>
 
-      <Text style={styles.sectionLabel}>Services</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.cardsRow}
-      >
-        {SERVICES.map((s) => (
-          <TouchableOpacity
-            key={s.key}
-            style={styles.card}
-            activeOpacity={0.9}
-            onPress={() =>
-              router.push({
-                pathname: '/book',
-                params: { serviceType: s.key, mode: s.mode },
-              })
-            }
-          >
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{s.mode}</Text>
+        <View style={styles.servicesWrap}>
+          {/* Availability count */}
+          {nearbyLocksmiths.length > 0 ? (
+            <Text style={[styles.availabilityText, { color: COLORS.accent }]}>
+              {nearbyLocksmiths.length} locksmith
+              {nearbyLocksmiths.length !== 1 ? 's' : ''} available near you
+            </Text>
+          ) : (
+            <Text style={[styles.availabilityText, { color: COLORS.textMuted }]}>
+              Searching for locksmiths near you...
+            </Text>
+          )}
+
+          {/* Emergency section */}
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderLeft}>
+              <Animated.View
+                style={[styles.emergencyDot, { opacity: pulseAnim }]}
+              />
+              <Text style={styles.sectionTitle}>Emergency</Text>
             </View>
-            <Ionicons name={s.icon} size={36} color={COLORS.accent} />
-            <Text style={styles.cardTitle}>{s.label}</Text>
-          </TouchableOpacity>
-        ))}
+            <Text style={[styles.sectionRight, { color: '#ff3b30' }]}>
+              Available 24/7
+            </Text>
+          </View>
+
+          <View style={styles.emergencyRow}>
+            {SERVICES.emergency.map((s) => (
+              <TouchableOpacity
+                key={s.key}
+                style={styles.emergencyCard}
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push({
+                    pathname: '/book',
+                    params: { serviceType: s.key, mode: 'EMERGENCY' },
+                  })
+                }
+              >
+                <View style={styles.emergencyIconWrap}>
+                  <Ionicons name={s.icon} size={26} color="#ff3b30" />
+                </View>
+                <Text style={styles.emergencyLabel}>{s.label}</Text>
+                <View style={styles.urgentBadge}>
+                  <Text style={styles.urgentText}>Urgent</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Scheduled section */}
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderLeft}>
+              <View style={styles.scheduledDot} />
+              <Text style={styles.sectionTitle}>Scheduled Services</Text>
+            </View>
+            <Text style={[styles.sectionRight, { color: COLORS.accent }]}>
+              Book ahead
+            </Text>
+          </View>
+
+          <View style={styles.scheduledGrid}>
+            {SERVICES.scheduled.map((s) => (
+              <TouchableOpacity
+                key={s.key}
+                style={[styles.scheduledCard, { width: SCHEDULED_CARD_W }]}
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push({
+                    pathname: '/book',
+                    params: { serviceType: s.key, mode: 'SCHEDULED' },
+                  })
+                }
+              >
+                <View style={styles.scheduledIconWrap}>
+                  <Ionicons name={s.icon} size={24} color={COLORS.accent} />
+                </View>
+                <Text style={styles.scheduledLabel} numberOfLines={2}>
+                  {s.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -271,6 +350,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
+  scrollContent: { paddingBottom: 32 },
   header: { paddingHorizontal: 20, paddingBottom: 12 },
   greet: { color: COLORS.text, fontSize: 22, fontWeight: '700' },
   sub: { color: COLORS.textMuted, marginTop: 6, fontSize: 16 },
@@ -297,17 +377,6 @@ const styles = StyleSheet.create({
     borderColor: '#2a2a2a',
   },
   map: { flex: 1 },
-  sectionLabel: {
-    color: COLORS.textMuted,
-    fontSize: 14,
-    marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 10,
-  },
-  cardsRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-  },
   bluePin: {
     width: 12,
     height: 12,
@@ -316,34 +385,92 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#fff',
   },
-  card: {
-    width: CARD_W,
-    backgroundColor: COLORS.bg,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+  servicesWrap: { paddingHorizontal: 16, paddingBottom: 24 },
+  availabilityText: {
+    textAlign: 'center',
+    fontSize: 13,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    marginTop: 20,
+  },
+  sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  sectionRight: { fontSize: 12 },
+  emergencyDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ff3b30',
+  },
+  scheduledDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.accent,
+  },
+  emergencyRow: { flexDirection: 'row', gap: 10 },
+  emergencyCard: {
+    flex: 1,
+    backgroundColor: '#1a0000',
+    borderWidth: 1.5,
+    borderColor: '#ff3b30',
     borderRadius: 16,
     padding: 16,
-    minHeight: 140,
-    marginRight: 12,
   },
-  badge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: COLORS.accent,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+  emergencyIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,59,48,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  badgeText: {
-    color: COLORS.bg,
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  cardTitle: {
-    color: COLORS.text,
-    fontSize: 15,
+  emergencyLabel: {
+    color: '#fff',
+    fontSize: 13,
     fontWeight: '600',
-    marginTop: 12,
+    marginTop: 10,
+  },
+  urgentBadge: {
+    backgroundColor: '#ff3b30',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  urgentText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  scheduledGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -5,
+  },
+  scheduledCard: {
+    backgroundColor: COLORS.inputBg,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    borderRadius: 14,
+    padding: 14,
+    margin: 5,
+  },
+  scheduledIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(212,160,23,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scheduledLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 10,
   },
 });

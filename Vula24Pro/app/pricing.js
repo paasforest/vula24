@@ -19,11 +19,26 @@ import { estimateCustomerPays } from '../lib/pricingPreview';
 import api from '../lib/api';
 
 const SERVICES = [
-  { key: 'CAR_LOCKOUT', label: 'Car lockout', icon: 'car' },
-  { key: 'HOUSE_LOCKOUT', label: 'House lockout', icon: 'home' },
-  { key: 'KEY_DUPLICATION', label: 'Key duplication', icon: 'key-outline' },
-  { key: 'LOCK_REPLACEMENT', label: 'Lock replacement', icon: 'lock-closed' },
-  { key: 'LOCK_REPAIR', label: 'Lock repair', icon: 'construct' },
+  { key: 'CAR_LOCKOUT', label: 'Car Lockout', icon: 'car' },
+  { key: 'HOUSE_LOCKOUT', label: 'House Lockout', icon: 'home' },
+  { key: 'OFFICE_LOCKOUT', label: 'Office Lockout', icon: 'business' },
+  { key: 'KEY_DUPLICATION', label: 'Key Duplication', icon: 'key-outline' },
+  { key: 'CAR_KEY_PROGRAMMING', label: 'Car Key Programming', icon: 'radio-outline' },
+  { key: 'CAR_KEY_CUTTING', label: 'Car Key Cutting', icon: 'cut-outline' },
+  { key: 'BROKEN_KEY_EXTRACTION', label: 'Broken Key Extraction', icon: 'build-outline' },
+  { key: 'LOST_KEY_REPLACEMENT', label: 'Lost Key Replacement', icon: 'search-outline' },
+  { key: 'IGNITION_REPAIR', label: 'Ignition Repair', icon: 'flash-outline' },
+  { key: 'LOCK_REPLACEMENT', label: 'Lock Replacement', icon: 'lock-closed' },
+  { key: 'LOCK_REPAIR', label: 'Lock Repair', icon: 'construct' },
+  { key: 'LOCK_UPGRADE', label: 'Lock Upgrade', icon: 'shield-checkmark-outline' },
+  { key: 'DEADLOCK_INSTALLATION', label: 'Deadlock Installation', icon: 'lock-open-outline' },
+  { key: 'SAFE_OPENING', label: 'Safe Opening', icon: 'cube-outline' },
+  { key: 'GATE_MOTOR_REPAIR', label: 'Gate Motor Repair', icon: 'git-merge-outline' },
+  { key: 'ACCESS_CONTROL', label: 'Access Control', icon: 'finger-print-outline' },
+  { key: 'PADLOCK_REMOVAL', label: 'Padlock Removal', icon: 'remove-circle-outline' },
+  { key: 'GARAGE_DOOR', label: 'Garage Door', icon: 'home-outline' },
+  { key: 'SECURITY_GATE', label: 'Security Gate', icon: 'shield-outline' },
+  { key: 'ELECTRIC_FENCE_GATE', label: 'Electric Fence/Gate', icon: 'flash' },
 ];
 
 export default function PricingScreen() {
