@@ -25,7 +25,7 @@ export default function ProfileScreen() {
 
   const onMenu = (key) => {
     if (key === 'notif') {
-      router.push('/notifications');
+      router.push({ pathname: '/notifications' });
       return;
     }
     Alert.alert('Coming soon', 

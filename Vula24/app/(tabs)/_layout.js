@@ -12,10 +12,11 @@ export default function TabsLayout() {
           borderTopColor: '#2a2a2a',
           borderTopWidth: 1,
           paddingTop: 8,
-          height: 64,
+          paddingBottom: 8,
+          height: 65,
         },
         tabBarActiveTintColor: COLORS.accent,
-        tabBarInactiveTintColor: '#777',
+        tabBarInactiveTintColor: '#888888',
         tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
       }}
     >
