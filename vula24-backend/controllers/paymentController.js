@@ -327,6 +327,12 @@ async function releasePendingPayouts() {
 
   for (const p of due) {
     try {
+      const jobCheck = await prisma.job.findUnique({
+        where: { id: p.jobId },
+        select: { isDisputed: true },
+      });
+      if (jobCheck?.isDisputed) continue;
+
       await prisma.$transaction(async (tx) => {
         const payout = await tx.pendingPayout.findUnique({
           where: { id: p.id },

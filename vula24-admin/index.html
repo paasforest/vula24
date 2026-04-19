@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vula24 Admin</title>
+  <style>
+    :root {
+      --bg: #111111;
+      --gold: #d4a017;
+      --text: #ffffff;
+      --muted: #aaaaaa;
+      --card: #1a1a1a;
+      --border: #2a2a2a;
+      --danger: #c62828;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.45;
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      gap: 20px;
+    }
+    h1 { font-size: 1.5rem; margin: 0 0 8px; color: var(--gold); }
+    h2 { font-size: 1.1rem; margin: 0 0 12px; color: var(--gold); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 1rem;
+    }
+    input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-gold { background: var(--gold); color: #111; }
+    .btn-red { background: var(--danger); color: #fff; }
+    .btn-ghost { background: transparent; color: var(--gold); border: 1px solid var(--gold); }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    .err { color: #ff8a80; font-size: 0.9rem; margin-top: 8px; }
+    .ok { color: #8bc34a; font-size: 0.9rem; margin-top: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { color: var(--gold); font-weight: 600; }
+    .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; word-break: break-all; }
+    .hidden { display: none !important; }
+    .login-card { max-width: 420px; margin: 40px auto; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 12px; }
+    .toolbar > div { flex: 1; min-width: 140px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+    .stat { background: var(--bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+    .stat b { display: block; color: var(--gold); font-size: 1.1rem; }
+    header.dashboard-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div id="login-view" class="wrap">
+    <div class="card login-card">
+      <h1>Vula24 Admin</h1>
+      <p style="color: var(--muted); font-size: 0.9rem;">Sign in with your admin secret. Use HTTPS API URL (CORS may block <code>file://</code>; run a local static server if needed).</p>
+      <label>API base URL</label>
+      <input id="api-base" type="url" placeholder="https://your-api.up.railway.app" />
+      <label style="margin-top: 12px;">Admin secret</label>
+      <input id="admin-secret" type="password" autocomplete="current-password" />
+      <div class="row-actions" style="margin-top: 16px;">
+        <button type="button" class="btn btn-gold" id="btn-login">Log in</button>
+      </div>
+      <div id="login-err" class="err hidden"></div>
+    </div>
+  </div>
+
+  <div id="dashboard" class="wrap hidden">
+    <header class="dashboard-header">
+      <h1>Vula24 Admin</h1>
+      <div class="row-actions">
+        <input id="api-base-dash" type="url" placeholder="API URL" style="min-width: 220px;" />
+        <button type="button" class="btn btn-ghost" id="btn-save-api">Save API URL</button>
+        <button type="button" class="btn btn-red" id="btn-logout">Log out</button>
+      </div>
+    </header>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>Wallet overview</h2>
+        <div class="stats-grid" id="stats-wallet"></div>
+        <div class="row-actions">
+          <button type="button" class="btn btn-ghost" id="btn-refresh-stats">Refresh</button>
+        </div>
+        <div id="stats-err" class="err hidden"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Pending locksmiths</h2>
+      <div class="toolbar">
+        <button type="button" class="btn btn-ghost" id="btn-refresh-pending">Refresh</button>
+      </div>
+      <div id="pending-table-wrap"></div>
+      <div id="pending-err" class="err hidden"></div>
+    </div>
+
+    <div class="card">
+      <h2>Active disputes</h2>
+      <div class="toolbar">
+        <button type="button" class="btn btn-ghost" id="btn-refresh-disputes">Refresh</button>
+      </div>
+      <div id="disputes-table-wrap"></div>
+      <div id="disputes-err" class="err hidden"></div>
+    </div>
+
+    <div class="card">
+      <h2>All jobs</h2>
+      <div class="toolbar">
+        <div>
+          <label>Status</label>
+          <select id="jobs-status-filter">
+            <option value="">All</option>
+            <option>PENDING</option>
+            <option>ACCEPTED</option>
+            <option>ARRIVED</option>
+            <option>IN_PROGRESS</option>
+            <option>COMPLETED</option>
+            <option>CANCELLED</option>
+            <option>DISPUTED</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-ghost" id="btn-refresh-jobs">Refresh</button>
+      </div>
+      <div id="jobs-table-wrap"></div>
+      <div id="jobs-err" class="err hidden"></div>
+    </div>
+
+    <div class="card">
+      <h2>Locksmiths</h2>
+      <div class="toolbar">
+        <button type="button" class="btn btn-ghost" id="btn-refresh-locksmiths">Refresh</button>
+      </div>
+      <div id="locksmiths-table-wrap"></div>
+      <div id="locksmiths-err" class="err hidden"></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const LS_TOKEN = 'vula24_admin_jwt';
+      const LS_API = 'vula24_admin_api_base';
+
+      function getApiBase() {
+        return (localStorage.getItem(LS_API) || '').replace(/\/$/, '');
+      }
+
+      function setApiBase(u) {
+        localStorage.setItem(LS_API, (u || '').replace(/\/$/, ''));
+      }
+
+      function getToken() {
+        return localStorage.getItem(LS_TOKEN) || '';
+      }
+
+      function setToken(t) {
+        if (t) localStorage.setItem(LS_TOKEN, t);
+        else localStorage.removeItem(LS_TOKEN);
+      }
+
+      function showLogin() {
+        document.getElementById('login-view').classList.remove('hidden');
+        document.getElementById('dashboard').classList.add('hidden');
+      }
+
+      function showDashboard() {
+        document.getElementById('login-view').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        document.getElementById('api-base-dash').value = getApiBase();
+      }
+
+      async function apiFetch(path, options = {}) {
+        const base = getApiBase();
+        if (!base) throw new Error('Set API base URL first');
+        const url = base + path;
+        const headers = Object.assign(
+          { 'Content-Type': 'application/json', Accept: 'application/json' },
+          options.headers || {}
+        );
+        const tok = getToken();
+        if (tok) headers['Authorization'] = 'Bearer ' + tok;
+        const res = await fetch(url, Object.assign({}, options, { headers }));
+        if (res.status === 401) {
+          setToken('');
+          showLogin();
+          throw new Error('Session expired — log in again');
+        }
+        const text = await res.text();
+        let data = null;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (_) {
+          data = { raw: text };
+        }
+        if (!res.ok) {
+          const msg = (data && data.error) || res.statusText || 'Request failed';
+          throw new Error(msg);
+        }
+        return data;
+      }
+
+      function elErr(id, msg) {
+        const n = document.getElementById(id);
+        if (!msg) {
+          n.classList.add('hidden');
+          n.textContent = '';
+        } else {
+          n.textContent = msg;
+          n.classList.remove('hidden');
+        }
+      }
+
+      function shortId(id) {
+        if (!id) return '—';
+        return id.length > 8 ? id.slice(0, 8) + '…' : id;
+      }
+
+      async function doLogin() {
+        const secret = document.getElementById('admin-secret').value.trim();
+        const baseInput = document.getElementById('api-base').value.trim();
+        elErr('login-err', '');
+        if (!baseInput) {
+          elErr('login-err', 'Enter API base URL');
+          return;
+        }
+        setApiBase(baseInput);
+        const btn = document.getElementById('btn-login');
+        btn.disabled = true;
+        try {
+          const base = getApiBase();
+          const res = await fetch(base + '/api/admin/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ secret }),
+          });
+          const text = await res.text();
+          let data = {};
+          try {
+            data = text ? JSON.parse(text) : {};
+          } catch (_) {}
+          if (!res.ok) {
+            throw new Error(data.error || 'Login failed');
+          }
+          if (!data.token) throw new Error('No token in response');
+          setToken(data.token);
+          document.getElementById('admin-secret').value = '';
+          showDashboard();
+          refreshAll();
+        } catch (e) {
+          elErr('login-err', e.message || String(e));
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function refreshStats() {
+        elErr('stats-err', '');
+        const btn = document.getElementById('btn-refresh-stats');
+        btn.disabled = true;
+        try {
+          const s = await apiFetch('/api/admin/stats');
+          const w = document.getElementById('stats-wallet');
+          w.innerHTML =
+            '<div class="stat"><span>Total jobs</span><b>' +
+            (s.totalJobs ?? '—') +
+            '</b></div>' +
+            '<div class="stat"><span>Platform fees (paid jobs)</span><b>R ' +
+            Number(s.totalRevenue || 0).toFixed(2) +
+            '</b></div>' +
+            '<div class="stat"><span>Locksmiths online</span><b>' +
+            (s.activeLocksmithsOnline ?? '—') +
+            '</b></div>' +
+            '<div class="stat"><span>Pending payouts</span><b>R ' +
+            Number(s.totalPendingPayouts || 0).toFixed(2) +
+            '</b></div>' +
+            '<div class="stat"><span>Released job credits (sum)</span><b>R ' +
+            Number(s.totalReleasedJobCredits || 0).toFixed(2) +
+            '</b></div>';
+        } catch (e) {
+          elErr('stats-err', e.message);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function refreshPending() {
+        elErr('pending-err', '');
+        const wrap = document.getElementById('pending-table-wrap');
+        wrap.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+        try {
+          const data = await apiFetch('/api/admin/pending-locksmiths');
+          const rows = data.locksmiths || [];
+          if (!rows.length) {
+            wrap.innerHTML = '<p style="color:var(--muted)">No pending applications.</p>';
+            return;
+          }
+          let html =
+            '<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+          for (const r of rows) {
+            html +=
+              '<tr><td>' +
+              escapeHtml(r.name) +
+              '</td><td>' +
+              escapeHtml(r.email) +
+              '</td><td>' +
+              escapeHtml(r.phone) +
+              '</td><td>' +
+              escapeHtml(r.accountType) +
+              '</td><td>' +
+              escapeHtml(fmtDate(r.createdAt)) +
+              '</td><td><div class="row-actions">' +
+              '<button type="button" class="btn btn-gold btn-sm-approve" data-id="' +
+              r.id +
+              '">Approve</button>' +
+              '<button type="button" class="btn btn-red btn-sm-reject" data-id="' +
+              r.id +
+              '">Reject</button></div></td></tr>';
+          }
+          html += '</tbody></table>';
+          wrap.innerHTML = html;
+          wrap.querySelectorAll('.btn-sm-approve').forEach(function (b) {
+            b.onclick = function () {
+              approveLocksmith(b.getAttribute('data-id'), b);
+            };
+          });
+          wrap.querySelectorAll('.btn-sm-reject').forEach(function (b) {
+            b.onclick = function () {
+              rejectLocksmith(b.getAttribute('data-id'), b);
+            };
+          });
+        } catch (e) {
+          wrap.innerHTML = '';
+          elErr('pending-err', e.message);
+        }
+      }
+
+      async function approveLocksmith(id, btn) {
+        btn.disabled = true;
+        try {
+          await apiFetch('/api/admin/locksmith/' + encodeURIComponent(id) + '/approve', {
+            method: 'POST',
+          });
+          await refreshPending();
+        } catch (e) {
+          alert(e.message);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function rejectLocksmith(id, btn) {
+        const reason = window.prompt('Reject reason', 'Does not meet requirements');
+        if (reason === null) return;
+        btn.disabled = true;
+        try {
+          await apiFetch('/api/admin/locksmith/' + encodeURIComponent(id) + '/reject', {
+            method: 'POST',
+            body: JSON.stringify({ reason: reason || 'Does not meet requirements' }),
+          });
+          await refreshPending();
+        } catch (e) {
+          alert(e.message);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function refreshDisputes() {
+        elErr('disputes-err', '');
+        const wrap = document.getElementById('disputes-table-wrap');
+        wrap.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+        try {
+          const data = await apiFetch('/api/admin/disputes');
+          const rows = data.jobs || [];
+          if (!rows.length) {
+            wrap.innerHTML = '<p style="color:var(--muted)">No active disputes.</p>';
+            return;
+          }
+          let html =
+            '<table><thead><tr><th>Job</th><th>Customer</th><th>Locksmith</th><th>Reason</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+          for (const j of rows) {
+            html +=
+              '<tr><td class="mono">' +
+              shortId(j.id) +
+              '</td><td>' +
+              escapeHtml(j.customer?.name || '—') +
+              '</td><td>' +
+              escapeHtml(j.locksmith?.name || '—') +
+              '</td><td>' +
+              escapeHtml((j.disputeReason || '').slice(0, 80)) +
+              '</td><td>' +
+              escapeHtml(fmtDate(j.createdAt)) +
+              '</td><td><div class="row-actions">' +
+              '<button type="button" class="btn btn-gold btn-d-lm" data-id="' +
+              j.id +
+              '">Favour locksmith</button>' +
+              '<button type="button" class="btn btn-red btn-d-cu" data-id="' +
+              j.id +
+              '">Favour customer</button></div></td></tr>';
+          }
+          html += '</tbody></table>';
+          wrap.innerHTML = html;
+          wrap.querySelectorAll('.btn-d-lm').forEach(function (b) {
+            b.onclick = function () {
+              resolveDispute(b.getAttribute('data-id'), 'locksmith', b);
+            };
+          });
+          wrap.querySelectorAll('.btn-d-cu').forEach(function (b) {
+            b.onclick = function () {
+              resolveDispute(b.getAttribute('data-id'), 'customer', b);
+            };
+          });
+        } catch (e) {
+          wrap.innerHTML = '';
+          elErr('disputes-err', e.message);
+        }
+      }
+
+      async function resolveDispute(jobId, winner, btn) {
+        const notes = window.prompt('Resolution notes', 'Resolved by admin');
+        if (notes === null || !String(notes).trim()) {
+          alert('Notes are required');
+          return;
+        }
+        btn.disabled = true;
+        try {
+          await apiFetch(
+            '/api/admin/jobs/' + encodeURIComponent(jobId) + '/dispute/resolve',
+            {
+              method: 'POST',
+              body: JSON.stringify({ winner: winner, notes: String(notes).trim() }),
+            }
+          );
+          await refreshDisputes();
+        } catch (e) {
+          alert(e.message);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      let allJobsCache = [];
+
+      async function refreshJobs() {
+        elErr('jobs-err', '');
+        const wrap = document.getElementById('jobs-table-wrap');
+        wrap.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+        try {
+          const status = document.getElementById('jobs-status-filter').value;
+          const q = status ? '?status=' + encodeURIComponent(status) : '';
+          const data = await apiFetch('/api/admin/jobs' + q);
+          allJobsCache = data.jobs || [];
+          renderJobsTable();
+        } catch (e) {
+          wrap.innerHTML = '';
+          elErr('jobs-err', e.message);
+        }
+      }
+
+      function renderJobsTable() {
+        const wrap = document.getElementById('jobs-table-wrap');
+        const rows = allJobsCache.slice(0, 20);
+        if (!rows.length) {
+          wrap.innerHTML = '<p style="color:var(--muted)">No jobs.</p>';
+          return;
+        }
+        let html =
+          '<p style="color:var(--muted);font-size:0.85rem">Showing ' +
+          rows.length +
+          ' of ' +
+          allJobsCache.length +
+          '</p><table><thead><tr><th>ID</th><th>Service</th><th>Status</th><th>Total</th><th>Created</th></tr></thead><tbody>';
+        for (const j of rows) {
+          html +=
+            '<tr><td class="mono">' +
+            shortId(j.id) +
+            '</td><td>' +
+            escapeHtml(j.serviceType) +
+            '</td><td>' +
+            escapeHtml(j.status) +
+            '</td><td>R ' +
+            Number(j.totalPrice || 0).toFixed(2) +
+            '</td><td>' +
+            escapeHtml(fmtDate(j.createdAt)) +
+            '</td></tr>';
+        }
+        html += '</tbody></table>';
+        wrap.innerHTML = html;
+      }
+
+      var locksmithDetailById = {};
+
+      async function refreshLocksmiths() {
+        elErr('locksmiths-err', '');
+        const wrap = document.getElementById('locksmiths-table-wrap');
+        wrap.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+        try {
+          const data = await apiFetch('/api/admin/locksmiths');
+          const rows = data.locksmiths || [];
+          locksmithDetailById = {};
+          if (!rows.length) {
+            wrap.innerHTML = '<p style="color:var(--muted)">No locksmiths.</p>';
+            return;
+          }
+          rows.forEach(function (r) {
+            locksmithDetailById[r.id] = r;
+          });
+          let html =
+            '<table><thead><tr><th>Name</th><th>Email</th><th>Online</th><th>Verified</th><th>Suspended</th><th>Wallet</th><th>Actions</th></tr></thead><tbody>';
+          for (const r of rows) {
+            const bal = r.wallet?.balance != null ? Number(r.wallet.balance).toFixed(2) : '—';
+            const sus = r.isSuspended ? 'Yes' : 'No';
+            html +=
+              '<tr><td>' +
+              escapeHtml(r.name) +
+              '</td><td>' +
+              escapeHtml(r.email) +
+              '</td><td>' +
+              (r.isOnline ? 'Yes' : 'No') +
+              '</td><td>' +
+              (r.isVerified ? 'Yes' : 'No') +
+              '</td><td>' +
+              sus +
+              '</td><td>R ' +
+              bal +
+              '</td><td><div class="row-actions">' +
+              '<button type="button" class="btn btn-ghost btn-lm-view" data-id="' +
+              r.id +
+              '">View</button>' +
+              (r.isSuspended
+                ? '<button type="button" class="btn btn-gold btn-lm-unsus" data-id="' +
+                  r.id +
+                  '">Unsuspend</button>'
+                : '<button type="button" class="btn btn-red btn-lm-sus" data-id="' +
+                  r.id +
+                  '">Suspend</button>') +
+              '</div></td></tr>';
+          }
+          html += '</tbody></table>';
+          wrap.innerHTML = html;
+          wrap.querySelectorAll('.btn-lm-sus').forEach(function (b) {
+            b.onclick = function () {
+              setSuspended(b.getAttribute('data-id'), true, b);
+            };
+          });
+          wrap.querySelectorAll('.btn-lm-unsus').forEach(function (b) {
+            b.onclick = function () {
+              setSuspended(b.getAttribute('data-id'), false, b);
+            };
+          });
+          wrap.querySelectorAll('.btn-lm-view').forEach(function (b) {
+            b.onclick = function () {
+              const id = b.getAttribute('data-id');
+              const row = locksmithDetailById[id];
+              if (row) alert(JSON.stringify(row, null, 2));
+            };
+          });
+        } catch (e) {
+          wrap.innerHTML = '';
+          elErr('locksmiths-err', e.message);
+        }
+      }
+
+      async function setSuspended(id, suspended, btn) {
+        btn.disabled = true;
+        try {
+          await apiFetch('/api/admin/locksmith/' + encodeURIComponent(id) + '/suspend', {
+            method: 'PUT',
+            body: JSON.stringify({ suspended: suspended }),
+          });
+          await refreshLocksmiths();
+        } catch (e) {
+          alert(e.message);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      function escapeHtml(s) {
+        if (s == null) return '';
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function fmtDate(d) {
+        if (!d) return '—';
+        try {
+          return new Date(d).toLocaleString();
+        } catch (_) {
+          return String(d);
+        }
+      }
+
+      function refreshAll() {
+        refreshStats();
+        refreshPending();
+        refreshDisputes();
+        refreshJobs();
+        refreshLocksmiths();
+      }
+
+      document.getElementById('btn-login').onclick = doLogin;
+      document.getElementById('btn-logout').onclick = function () {
+        setToken('');
+        showLogin();
+      };
+      document.getElementById('btn-save-api').onclick = function () {
+        setApiBase(document.getElementById('api-base-dash').value.trim());
+        alert('API URL saved');
+      };
+      document.getElementById('btn-refresh-stats').onclick = refreshStats;
+      document.getElementById('btn-refresh-pending').onclick = refreshPending;
+      document.getElementById('btn-refresh-disputes').onclick = refreshDisputes;
+      document.getElementById('btn-refresh-jobs').onclick = refreshJobs;
+      document.getElementById('jobs-status-filter').onchange = refreshJobs;
+      document.getElementById('btn-refresh-locksmiths').onclick = refreshLocksmiths;
+
+      document.getElementById('api-base').value = getApiBase();
+
+      if (getToken() && getApiBase()) {
+        showDashboard();
+        refreshAll();
+      } else {
+        showLogin();
+      }
+    })();
+  </script>
+</body>
+</html>

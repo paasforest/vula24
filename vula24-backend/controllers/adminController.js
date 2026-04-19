@@ -1,5 +1,16 @@
 const prisma = require('../lib/prisma');
 const { AppError } = require('../middleware/errorHandler');
+const { signAdminToken } = require('../utils/jwt');
+const { sendPushNotification } = require('../utils/pushNotifications');
+
+async function adminLogin(req, res) {
+  const { secret } = req.body;
+  if (!secret || String(secret) !== String(process.env.ADMIN_SECRET || '')) {
+    throw new AppError('Invalid admin secret', 401);
+  }
+  const token = signAdminToken();
+  res.json({ token });
+}
 
 async function listPendingLocksmiths(req, res) {
   const locksmiths = await prisma.locksmith.findMany({
@@ -100,6 +111,32 @@ async function suspendLocksmith(req, res) {
   res.json({ locksmith: updated });
 }
 
+async function setLocksmithSuspended(req, res) {
+  const { id } = req.params;
+  const { suspended } = req.body;
+  const locksmith = await prisma.locksmith.findUnique({ where: { id } });
+  if (!locksmith) throw new AppError('Locksmith not found', 404);
+
+  const updated = await prisma.locksmith.update({
+    where: { id },
+    data: {
+      isSuspended: suspended,
+      ...(suspended ? { isOnline: false } : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      email: true,
+      isSuspended: true,
+      isOnline: true,
+      isVerified: true,
+    },
+  });
+
+  res.json({ locksmith: updated });
+}
+
 async function listAllJobs(req, res) {
   const { status, dateFrom, dateTo } = req.query;
 
@@ -130,8 +167,50 @@ async function listAllJobs(req, res) {
   res.json({ jobs });
 }
 
+async function listDisputes(req, res) {
+  const jobs = await prisma.job.findMany({
+    where: {
+      isDisputed: true,
+      disputeResolvedAt: null,
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: 200,
+    include: {
+      customer: { select: { id: true, name: true, email: true } },
+      locksmith: { select: { id: true, name: true, email: true } },
+    },
+  });
+  res.json({ jobs });
+}
+
+async function listLocksmithsAdmin(req, res) {
+  const locksmiths = await prisma.locksmith.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      isOnline: true,
+      isVerified: true,
+      isSuspended: true,
+      accountType: true,
+      businessName: true,
+      createdAt: true,
+      wallet: { select: { id: true, balance: true } },
+    },
+  });
+  res.json({ locksmiths });
+}
+
 async function getStats(req, res) {
-  const [totalJobs, revenueAgg, activeOnline] = await Promise.all([
+  const [
+    totalJobs,
+    revenueAgg,
+    activeOnline,
+    pendingPayoutAgg,
+    jobCreditsAgg,
+  ] = await Promise.all([
     prisma.job.count(),
     prisma.job.aggregate({
       where: { finalPaid: true },
@@ -140,12 +219,25 @@ async function getStats(req, res) {
     prisma.locksmith.count({
       where: { isOnline: true, isSuspended: false, isVerified: true },
     }),
+    prisma.pendingPayout.aggregate({
+      where: { released: false },
+      _sum: { amount: true },
+    }),
+    prisma.transaction.aggregate({
+      where: {
+        type: 'CREDIT',
+        jobId: { not: null },
+      },
+      _sum: { amount: true },
+    }),
   ]);
 
   res.json({
     totalJobs,
     totalRevenue: revenueAgg._sum.platformFee || 0,
     activeLocksmithsOnline: activeOnline,
+    totalPendingPayouts: pendingPayoutAgg._sum.amount || 0,
+    totalReleasedJobCredits: jobCreditsAgg._sum.amount || 0,
   });
 }
 
@@ -202,7 +294,14 @@ async function resolveDispute(req, res) {
 
   const job = await prisma.job.findUnique({
     where: { id: jobId },
-    include: { customer: true, locksmith: true },
+    include: {
+      locksmith: {
+        select: { id: true, pushToken: true },
+      },
+      customer: {
+        select: { id: true, pushToken: true },
+      },
+    },
   });
   if (!job) throw new AppError('Job not found', 404);
   if (!job.isDisputed) throw new AppError('Job is not under dispute', 400);
@@ -216,27 +315,29 @@ async function resolveDispute(req, res) {
       await tx.job.update({
         where: { id: jobId },
         data: {
+          isDisputed: false,
           disputeResolvedAt: new Date(),
           disputeNotes: notes.trim(),
         },
       });
 
-      const wallet = job.locksithId
-        ? await tx.wallet.findUnique({ where: { locksithId: job.locksithId } })
-        : null;
-
-      if (!existingCredit && wallet && job.locksithId && job.locksithEarning > 0) {
-        await tx.wallet.update({
-          where: { id: wallet.id },
-          data: { balance: { increment: job.locksithEarning } },
-        });
-        await tx.transaction.create({
-          data: {
-            walletId: wallet.id,
+      if (
+        !existingCredit &&
+        job.locksithId &&
+        job.locksithEarning > 0
+      ) {
+        await tx.pendingPayout.upsert({
+          where: { jobId },
+          create: {
+            jobId,
+            locksithId: job.locksithId,
             amount: job.locksithEarning,
-            type: 'CREDIT',
-            description: `Dispute resolved — payment for job ${job.id}`,
-            jobId: job.id,
+            releaseAfter: new Date(),
+            released: false,
+          },
+          update: {
+            releaseAfter: new Date(),
+            released: false,
           },
         });
       }
@@ -261,11 +362,25 @@ async function resolveDispute(req, res) {
         },
       });
     });
+
+    sendPushNotification(
+      job.locksmith?.pushToken,
+      'Dispute resolved',
+      'Resolved in your favour. Payment releasing shortly.',
+      { jobId: String(jobId) }
+    );
+    sendPushNotification(
+      job.customer?.pushToken,
+      'Dispute resolved',
+      'Dispute resolved. No refund will be issued.',
+      { jobId: String(jobId) }
+    );
   } else {
     await prisma.$transaction(async (tx) => {
       await tx.job.update({
         where: { id: jobId },
         data: {
+          isDisputed: false,
           disputeResolvedAt: new Date(),
           disputeNotes: notes.trim(),
         },
@@ -290,6 +405,11 @@ async function resolveDispute(req, res) {
           },
         });
       }
+
+      await tx.pendingPayout.updateMany({
+        where: { jobId, released: false },
+        data: { released: true },
+      });
 
       await tx.notification.create({
         data: {
@@ -322,6 +442,19 @@ async function resolveDispute(req, res) {
         });
       }
     });
+
+    sendPushNotification(
+      job.customer?.pushToken,
+      'Dispute resolved',
+      'Resolved in your favour. Refund within 3 business days.',
+      { jobId: String(jobId) }
+    );
+    sendPushNotification(
+      job.locksmith?.pushToken,
+      'Dispute resolved',
+      'Resolved in favour of customer. No payment released.',
+      { jobId: String(jobId) }
+    );
   }
 
   const updatedJob = await prisma.job.findUnique({ where: { id: jobId } });
@@ -329,11 +462,15 @@ async function resolveDispute(req, res) {
 }
 
 module.exports = {
+  adminLogin,
   listPendingLocksmiths,
   approveLocksmith,
   rejectLocksmith,
   suspendLocksmith,
+  setLocksmithSuspended,
   listAllJobs,
+  listDisputes,
+  listLocksmithsAdmin,
   getStats,
   strikeCustomer,
   resolveDispute,

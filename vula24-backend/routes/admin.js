@@ -7,6 +7,13 @@ const admin = require('../controllers/adminController');
 
 const router = Router();
 
+router.post(
+  '/auth',
+  [body('secret').trim().notEmpty()],
+  handleValidationErrors,
+  asyncHandler(admin.adminLogin)
+);
+
 router.use(authenticateAdmin);
 
 router.get('/pending-locksmiths', asyncHandler(admin.listPendingLocksmiths));
@@ -35,6 +42,16 @@ router.post(
   asyncHandler(admin.suspendLocksmith)
 );
 
+router.put(
+  '/locksmith/:id/suspend',
+  [
+    param('id').isUUID(),
+    body('suspended').isBoolean(),
+  ],
+  handleValidationErrors,
+  asyncHandler(admin.setLocksmithSuspended)
+);
+
 router.get(
   '/jobs',
   [
@@ -53,6 +70,10 @@ router.get(
   handleValidationErrors,
   asyncHandler(admin.listAllJobs)
 );
+
+router.get('/disputes', asyncHandler(admin.listDisputes));
+
+router.get('/locksmiths', asyncHandler(admin.listLocksmithsAdmin));
 
 router.get('/stats', asyncHandler(admin.getStats));
 
