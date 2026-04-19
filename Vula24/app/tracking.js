@@ -7,6 +7,7 @@ import {
   Alert,
   TouchableOpacity,
   Platform,
+  Image,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -30,6 +31,24 @@ function etaMinutes(distanceKm) {
   const speed = 30;
   const hours = distanceKm / speed;
   return Math.max(1, Math.round(hours * 60));
+}
+
+function initialsFromName(name) {
+  if (!name?.trim()) return '?';
+  const p = name.trim().split(/\s+/);
+  if (p.length >= 2) return (p[0][0] + p[1][0]).toUpperCase();
+  return name.trim().slice(0, 2).toUpperCase();
+}
+
+function vehicleLine(lock) {
+  if (!lock) return null;
+  const c = lock.vehicleColor?.trim();
+  const t = lock.vehicleType?.trim();
+  const plate = lock.vehiclePlateNumber?.trim();
+  if (!c && !t && !plate) return null;
+  const left = [c, t].filter(Boolean).join(' ');
+  if (left && plate) return `${left} — ${plate}`;
+  return left || plate || null;
 }
 
 export default function TrackingScreen() {
@@ -151,21 +170,35 @@ export default function TrackingScreen() {
 
       <SafeAreaView style={styles.cardWrap} edges={['bottom']}>
         <View style={styles.card}>
-          <Text style={styles.name}>{lock?.name || 'Locksmith'}</Text>
-          <View style={styles.stars}>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Ionicons
-                key={i}
-                name={i <= Math.round(lock?.rating || 5) ? 'star' : 'star-outline'}
-                size={18}
-                color={COLORS.accent}
-              />
-            ))}
-          </View>
-          <Text style={styles.eta}>
-            {minutes != null ? `Arriving in ~${minutes} minutes` : 'Calculating arrival…'}
-          </Text>
-          <View style={styles.row}>
+          <View style={styles.cardTop}>
+            {lock?.profilePhoto ? (
+              <Image source={{ uri: lock.profilePhoto }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarInitials}>
+                <Text style={styles.avatarInitialsText}>
+                  {initialsFromName(lock?.name)}
+                </Text>
+              </View>
+            )}
+            <View style={styles.cardMid}>
+              <Text style={styles.name}>{lock?.name || 'Locksmith'}</Text>
+              <View style={styles.stars}>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Ionicons
+                    key={i}
+                    name={i <= Math.round(lock?.rating || 5) ? 'star' : 'star-outline'}
+                    size={18}
+                    color={COLORS.accent}
+                  />
+                ))}
+              </View>
+              {vehicleLine(lock) ? (
+                <Text style={styles.vehicle}>{vehicleLine(lock)}</Text>
+              ) : null}
+              <Text style={styles.eta}>
+                {minutes != null ? `Arriving in ~${minutes} minutes` : 'Calculating arrival…'}
+              </Text>
+            </View>
             <TouchableOpacity
               style={styles.iconBtn}
               onPress={() => {
@@ -175,13 +208,10 @@ export default function TrackingScreen() {
             >
               <Ionicons name="call" size={26} color={COLORS.bg} />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.sos}
-              onPress={() => Linking.openURL('tel:10111')}
-            >
-              <Text style={styles.sosText}>SOS</Text>
-            </TouchableOpacity>
           </View>
+          <TouchableOpacity style={styles.sos} onPress={() => Linking.openURL('tel:10111')}>
+            <Text style={styles.sosText}>SOS</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </View>
@@ -242,25 +272,53 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2a2a2a',
   },
-  name: { color: COLORS.text, fontSize: 20, fontWeight: '700' },
-  stars: { flexDirection: 'row', marginTop: 8 },
-  eta: { color: COLORS.textMuted, marginTop: 8, fontSize: 15 },
-  row: {
+  cardTop: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 16,
+    alignItems: 'flex-start',
   },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+  },
+  avatarInitials: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitialsText: {
+    color: COLORS.bg,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  cardMid: { flex: 1, marginLeft: 12, marginRight: 8, minWidth: 0 },
+  name: { color: COLORS.text, fontSize: 20, fontWeight: '700' },
+  stars: { flexDirection: 'row', marginTop: 6 },
+  vehicle: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  eta: { color: COLORS.textMuted, marginTop: 8, fontSize: 15 },
   iconBtn: {
     backgroundColor: COLORS.accent,
     padding: 14,
     borderRadius: 12,
-    marginRight: 12,
+    alignSelf: 'flex-start',
   },
   sos: {
     backgroundColor: COLORS.error,
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
+    marginTop: 14,
+    alignItems: 'center',
   },
   sosText: { color: '#fff', fontWeight: '800', fontSize: 16 },
 });

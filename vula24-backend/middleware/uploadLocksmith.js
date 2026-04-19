@@ -31,4 +31,6 @@ function locksmithRegisterMultipart(req, res, next) {
   next();
 }
 
-module.exports = { locksmithRegisterMultipart };
+const profilePhotoUpload = upload.single('profilePhoto');
+
+module.exports = { locksmithRegisterMultipart, profilePhotoUpload };

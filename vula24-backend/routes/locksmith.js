@@ -3,6 +3,7 @@ const { body, param } = require('express-validator');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { handleValidationErrors } = require('../middleware/validate');
 const { authenticateLocksmith } = require('../middleware/auth');
+const { profilePhotoUpload } = require('../middleware/uploadLocksmith');
 const jobs = require('../controllers/jobController');
 
 const router = Router();
@@ -30,6 +31,13 @@ router.get(
   '/profile',
   authenticateLocksmith,
   asyncHandler(jobs.getLocksmithProfile)
+);
+
+router.post(
+  '/profile/photo',
+  authenticateLocksmith,
+  profilePhotoUpload,
+  asyncHandler(jobs.uploadLocksmithProfilePhoto)
 );
 
 router.get(
@@ -80,6 +88,10 @@ router.put(
     body('selfiePhotoUrl').optional().isString().trim(),
     body('toolsPhotoUrl').optional().isString().trim(),
     body('proofOfAddressUrl').optional().isString().trim(),
+    body('profilePhoto').optional().isString().trim(),
+    body('vehicleType').optional().isString().trim(),
+    body('vehicleColor').optional().isString().trim(),
+    body('vehiclePlateNumber').optional().isString().trim(),
   ],
   handleValidationErrors,
   asyncHandler(jobs.updateLocksmithProfile)

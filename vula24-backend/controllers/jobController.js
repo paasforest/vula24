@@ -10,6 +10,7 @@ const {
 } = require('../utils/locksmithSearch');
 const bcrypt = require('bcrypt');
 const { sendPushNotification } = require('../utils/pushNotifications');
+const { uploadLocksmithImage } = require('../lib/locksmithUploads');
 
 const SERVICE_TYPES = [
   'CAR_LOCKOUT',
@@ -792,6 +793,10 @@ async function getJobById(req, res) {
           currentLng: true,
           idPhotoUrl: true,
           selfiePhotoUrl: true,
+          profilePhoto: true,
+          vehicleType: true,
+          vehicleColor: true,
+          vehiclePlateNumber: true,
         },
       },
       teamMember: {
@@ -922,6 +927,10 @@ async function getLocksmithProfile(req, res) {
       bankName: true,
       bankAccountNumber: true,
       bankAccountHolder: true,
+      profilePhoto: true,
+      vehicleType: true,
+      vehicleColor: true,
+      vehiclePlateNumber: true,
       createdAt: true,
     },
   });
@@ -1118,6 +1127,15 @@ async function listMemberCompletedJobs(req, res) {
   res.json({ jobs });
 }
 
+async function uploadLocksmithProfilePhoto(req, res) {
+  const file = req.file;
+  if (!file?.buffer?.length) {
+    throw new AppError('profilePhoto image file is required', 400);
+  }
+  const profilePhoto = await uploadLocksmithImage(req, file);
+  res.json({ profilePhoto });
+}
+
 async function updateLocksmithProfile(req, res) {
   const id = req.locksmith.id;
   const allowed = [
@@ -1129,6 +1147,10 @@ async function updateLocksmithProfile(req, res) {
     'selfiePhotoUrl',
     'toolsPhotoUrl',
     'proofOfAddressUrl',
+    'profilePhoto',
+    'vehicleType',
+    'vehicleColor',
+    'vehiclePlateNumber',
   ];
   const data = {};
   for (const key of allowed) {
@@ -1517,6 +1539,7 @@ module.exports = {
   getLocksmithJobById,
   listOpenScheduledJobsForLocksmith,
   getLocksmithProfile,
+  uploadLocksmithProfilePhoto,
   acceptJob,
   dispatchJob,
   expireAcceptedJobs,
