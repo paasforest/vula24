@@ -28,7 +28,19 @@ export default function ProfileScreen() {
       router.push({ pathname: '/notifications' });
       return;
     }
-    Alert.alert('Coming soon', 
+    if (key === 'edit') {
+      router.push({ pathname: '/edit-profile' });
+      return;
+    }
+    if (key === 'help') {
+      router.push({ pathname: '/help' });
+      return;
+    }
+    if (key === 'terms') {
+      router.push({ pathname: '/terms' });
+      return;
+    }
+    Alert.alert('Coming soon',
       'This section will be available in a future update.');
   };
 

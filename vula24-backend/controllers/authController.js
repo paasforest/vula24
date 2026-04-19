@@ -175,6 +175,64 @@ async function updateCustomerPushToken(req, res) {
   res.json({ success: true });
 }
 
+const customerProfileSelect = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  profilePhoto: true,
+  createdAt: true,
+};
+
+async function getCustomerProfile(req, res) {
+  const customer = await prisma.customer.findUnique({
+    where: { id: req.customer.id },
+    select: customerProfileSelect,
+  });
+  if (!customer) throw new AppError('Customer not found', 404);
+  res.json({ customer });
+}
+
+async function updateCustomerProfile(req, res) {
+  const { name, phone } = req.body;
+  const data = {};
+  if (name !== undefined) data.name = String(name).trim();
+  if (phone !== undefined) data.phone = String(phone).trim();
+
+  if (data.name !== undefined && data.name === '') {
+    throw new AppError('Name cannot be empty', 400);
+  }
+  if (data.phone !== undefined && data.phone === '') {
+    throw new AppError('Phone cannot be empty', 400);
+  }
+
+  if (data.phone !== undefined) {
+    const taken = await prisma.customer.findFirst({
+      where: {
+        phone: data.phone,
+        id: { not: req.customer.id },
+      },
+    });
+    if (taken) throw new AppError('Phone already in use', 409);
+  }
+
+  if (Object.keys(data).length === 0) {
+    const customer = await prisma.customer.findUnique({
+      where: { id: req.customer.id },
+      select: customerProfileSelect,
+    });
+    if (!customer) throw new AppError('Customer not found', 404);
+    return res.json({ customer });
+  }
+
+  const customer = await prisma.customer.update({
+    where: { id: req.customer.id },
+    data,
+    select: customerProfileSelect,
+  });
+  res.json({ customer });
+}
+
 async function loginMember(req, res) {
   requireJwtSecret();
   const { appEmail, appPassword } = req.body;
@@ -203,4 +261,6 @@ module.exports = {
   loginLocksmith,
   loginMember,
   updateCustomerPushToken,
+  getCustomerProfile,
+  updateCustomerProfile,
 };

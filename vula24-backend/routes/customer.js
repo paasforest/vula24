@@ -7,6 +7,23 @@ const auth = require('../controllers/authController');
 
 const router = Router();
 
+router.get(
+  '/profile',
+  authenticateCustomer,
+  asyncHandler(auth.getCustomerProfile)
+);
+
+router.put(
+  '/profile',
+  authenticateCustomer,
+  [
+    body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
+    body('phone').optional().trim(),
+  ],
+  handleValidationErrors,
+  asyncHandler(auth.updateCustomerProfile)
+);
+
 router.put(
   '/push-token',
   authenticateCustomer,
