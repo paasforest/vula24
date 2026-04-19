@@ -797,6 +797,7 @@ async function getJobById(req, res) {
           vehicleType: true,
           vehicleColor: true,
           vehiclePlateNumber: true,
+          totalJobs: true,
         },
       },
       teamMember: {
@@ -1172,10 +1173,19 @@ async function toggleLocksmithOnline(req, res) {
   const id = req.locksmith.id;
   const current = await prisma.locksmith.findUnique({
     where: { id },
-    select: { isOnline: true, walletMinimum: true },
+    select: {
+      isOnline: true,
+      walletMinimum: true,
+      profilePhoto: true,
+      vehicleType: true,
+      vehicleColor: true,
+      vehiclePlateNumber: true,
+    },
   });
   if (!current) throw new AppError('Locksmith not found', 404);
   const nextOnline = !current.isOnline;
+
+  const profileFieldPresent = (v) => v != null && String(v).trim() !== '';
 
   if (nextOnline) {
     const wallet = await prisma.wallet.findUnique({
@@ -1188,6 +1198,19 @@ async function toggleLocksmithOnline(req, res) {
         message: `Minimum balance required: R${current.walletMinimum.toFixed(2)}. Current balance: R${wallet.balance.toFixed(2)}. Please top up.`,
         walletBalance: wallet.balance,
         minimumRequired: current.walletMinimum,
+      });
+    }
+    if (
+      !profileFieldPresent(current.profilePhoto) ||
+      !profileFieldPresent(current.vehicleType) ||
+      !profileFieldPresent(current.vehicleColor) ||
+      !profileFieldPresent(current.vehiclePlateNumber)
+    ) {
+      return res.status(400).json({
+        error: 'Profile incomplete',
+        message:
+          'Please complete your profile before going online. Add your profile photo and vehicle information.',
+        incomplete: true,
       });
     }
   }

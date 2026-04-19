@@ -121,7 +121,7 @@ export default function ProfileScreen() {
         vehiclePlateNumber: vehiclePlateNumber.trim() || null,
       };
       await saveUser(merged);
-      setUser(merged);
+      await load();
       Alert.alert('Saved', 'Vehicle information updated.');
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'Could not save vehicle info.');
@@ -146,6 +146,11 @@ export default function ProfileScreen() {
 
   const isBusiness = user?.accountType === 'BUSINESS';
 
+  const vehAllSet =
+    vehicleType.trim().length > 0 &&
+    vehicleColor.trim().length > 0 &&
+    vehiclePlateNumber.trim().length > 0;
+
   const items = [
     {
       key: 'sched',
@@ -168,26 +173,47 @@ export default function ProfileScreen() {
         <Text style={styles.h1}>Profile</Text>
 
         <View style={styles.photoSection}>
-          <TouchableOpacity
-            style={styles.photoWrap}
-            onPress={pickAndUploadPhoto}
-            disabled={photoUploading}
-            activeOpacity={0.85}
-          >
-            {photoUploading ? (
-              <ActivityIndicator color={COLORS.accent} style={styles.photoLoader} />
-            ) : user?.profilePhoto ? (
-              <Image source={{ uri: user.profilePhoto }} style={styles.photoImg} />
-            ) : (
-              <View style={styles.initialsCircle}>
-                <Text style={styles.initialsText}>{initialsFromName(user?.name)}</Text>
+          <View style={styles.photoWrap}>
+            <TouchableOpacity
+              style={styles.photoTouchable}
+              onPress={pickAndUploadPhoto}
+              disabled={photoUploading}
+              activeOpacity={0.85}
+            >
+              {photoUploading ? (
+                <ActivityIndicator color={COLORS.accent} style={styles.photoLoader} />
+              ) : user?.profilePhoto ? (
+                <Image source={{ uri: user.profilePhoto }} style={styles.photoImg} />
+              ) : (
+                <View style={styles.initialsCircle}>
+                  <Text style={styles.initialsText}>{initialsFromName(user?.name)}</Text>
+                </View>
+              )}
+              <View style={styles.photoHint}>
+                <Ionicons name="camera" size={16} color={COLORS.bg} />
               </View>
-            )}
-            <View style={styles.photoHint}>
-              <Ionicons name="camera" size={16} color={COLORS.bg} />
+            </TouchableOpacity>
+            <View
+              style={[
+                styles.photoCompleteBadge,
+                { backgroundColor: user?.profilePhoto ? COLORS.success : COLORS.error },
+              ]}
+            >
+              <Ionicons
+                name={user?.profilePhoto ? 'checkmark' : 'alert'}
+                size={16}
+                color="#fff"
+              />
             </View>
-          </TouchableOpacity>
-          <Text style={styles.photoHintLabel}>Tap to change photo</Text>
+          </View>
+          <Text
+            style={[
+              styles.photoStatusLine,
+              { color: user?.profilePhoto ? COLORS.success : COLORS.error },
+            ]}
+          >
+            {user?.profilePhoto ? 'Profile photo added' : 'Add profile photo — required'}
+          </Text>
         </View>
 
         <View style={styles.header}>
@@ -226,29 +252,42 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.vehicleCard}>
+          <Text
+            style={[
+              styles.vehicleCompletionStatus,
+              { color: vehAllSet ? COLORS.success : COLORS.error },
+            ]}
+          >
+            {vehAllSet
+              ? 'Vehicle info complete'
+              : 'Vehicle info required to go online'}
+          </Text>
           <Text style={styles.vehicleTitle}>Vehicle information</Text>
           <Text style={styles.inputLabel}>Vehicle type</Text>
+          <Text style={styles.inputHint}>e.g. Sedan, Bakkie, SUV</Text>
           <TextInput
             style={styles.input}
             value={vehicleType}
             onChangeText={setVehicleType}
-            placeholder="e.g. Sedan, Bakkie, SUV"
+            placeholder="Sedan, Bakkie, SUV…"
             placeholderTextColor="#666"
           />
-          <Text style={styles.inputLabel}>Vehicle color</Text>
+          <Text style={styles.inputLabel}>Vehicle colour</Text>
+          <Text style={styles.inputHint}>e.g. White, Silver, Black</Text>
           <TextInput
             style={styles.input}
             value={vehicleColor}
             onChangeText={setVehicleColor}
-            placeholder="e.g. White, Silver, Black"
+            placeholder="White, Silver, Black…"
             placeholderTextColor="#666"
           />
           <Text style={styles.inputLabel}>Plate number</Text>
+          <Text style={styles.inputHint}>e.g. CA 123-456</Text>
           <TextInput
             style={styles.input}
             value={vehiclePlateNumber}
             onChangeText={setVehiclePlateNumber}
-            placeholder="e.g. CA 123-456"
+            placeholder="CA 123-456"
             placeholderTextColor="#666"
             autoCapitalize="characters"
           />
@@ -275,7 +314,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   photoSection: { alignItems: 'center', marginBottom: 16 },
-  photoWrap: { position: 'relative' },
+  photoWrap: { position: 'relative', alignSelf: 'center' },
+  photoTouchable: { position: 'relative' },
+  photoCompleteBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.bg,
+  },
+  photoStatusLine: { fontSize: 14, fontWeight: '600', marginTop: 10, textAlign: 'center' },
   photoImg: {
     width: 96,
     height: 96,
@@ -308,7 +361,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.bg,
   },
-  photoHintLabel: { color: COLORS.textMuted, fontSize: 12, marginTop: 8 },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -370,13 +422,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2a2a2a',
   },
+  vehicleCompletionStatus: { fontSize: 14, fontWeight: '700', marginBottom: 10 },
   vehicleTitle: {
     color: COLORS.accent,
     fontSize: 17,
     fontWeight: '700',
     marginBottom: 12,
   },
-  inputLabel: { color: COLORS.textMuted, fontSize: 13, marginBottom: 6 },
+  inputLabel: { color: COLORS.text, fontSize: 14, fontWeight: '600', marginBottom: 4 },
+  inputHint: { color: COLORS.textMuted, fontSize: 12, marginBottom: 6 },
   input: {
     backgroundColor: COLORS.bg,
     borderWidth: 1,

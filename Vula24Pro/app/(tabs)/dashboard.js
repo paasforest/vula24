@@ -208,7 +208,22 @@ export default function DashboardScreen() {
       }
       await loadProfile();
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Could not update status.');
+      const data = e.response?.data;
+      if (e.response?.status === 400 && data?.incomplete) {
+        Alert.alert(
+          'Profile incomplete',
+          'Add your profile photo and vehicle details before going online.',
+          [
+            {
+              text: 'Complete Profile',
+              onPress: () => router.push('/(tabs)/profile'),
+            },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+      } else {
+        Alert.alert('Error', data?.error || data?.message || 'Could not update status.');
+      }
     } finally {
       setToggleLoading(false);
     }
@@ -238,10 +253,27 @@ export default function DashboardScreen() {
 
   const recent = jobs.slice(0, 5);
 
+  const profileComplete =
+    u &&
+    u.profilePhoto?.trim() &&
+    u.vehicleType?.trim() &&
+    u.vehicleColor?.trim() &&
+    u.vehiclePlateNumber?.trim();
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.greet}>Hi {name}</Text>
+
+        {!profileComplete ? (
+          <TouchableOpacity
+            style={styles.profileBanner}
+            onPress={() => router.push('/(tabs)/profile')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.profileBannerText}>Complete your profile to go online →</Text>
+          </TouchableOpacity>
+        ) : null}
 
         <View style={styles.onlineRow}>
           <View style={styles.onlineTextCol}>
@@ -313,6 +345,19 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { padding: 20, paddingBottom: 32 },
   greet: { color: COLORS.text, fontSize: 24, fontWeight: '800', marginBottom: 20 },
+  profileBanner: {
+    backgroundColor: COLORS.accent,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  profileBannerText: {
+    color: COLORS.bg,
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   onlineRow: {
     flexDirection: 'row',
     alignItems: 'center',

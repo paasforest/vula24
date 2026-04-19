@@ -31,6 +31,7 @@ export default function JobRequestScreen() {
   const jobId = Array.isArray(jid) ? jid[0] : jid;
 
   const [job, setJob] = useState(null);
+  const [locksmithProfile, setLocksmithProfile] = useState(null);
   const [seconds, setSeconds] = useState(15);
   const [loading, setLoading] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -39,7 +40,15 @@ export default function JobRequestScreen() {
   const load = useCallback(async () => {
     if (!jobId) return;
     try {
-      const { data } = await api.get(`/api/jobs/locksmith/job/${jobId}`);
+      const [{ data }, profRes] = await Promise.all([
+        api.get(`/api/jobs/locksmith/job/${jobId}`),
+        api.get('/api/locksmith/profile').catch(() => null),
+      ]);
+      if (profRes?.data?.locksmith) {
+        setLocksmithProfile(profRes.data.locksmith);
+      } else {
+        setLocksmithProfile(null);
+      }
       let j = data.job;
       try {
         const loc = await Location.getCurrentPositionAsync({});
@@ -127,6 +136,11 @@ export default function JobRequestScreen() {
   const kmAway =
     job?._km != null ? `${Math.max(0.1, job._km).toFixed(1)} km away` : 'Distance…';
 
+  const lp = locksmithProfile;
+  const showVehicleReminder =
+    lp &&
+    (!(lp.vehicleType || '').trim() || !(lp.vehiclePlateNumber || '').trim());
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <Animated.View style={[styles.pulse, { transform: [{ scale }] }]} />
@@ -140,6 +154,11 @@ export default function JobRequestScreen() {
         ) : null}
         <Text style={styles.earnLabel}>You will earn</Text>
         <Text style={styles.earn}>R {earn}</Text>
+        {showVehicleReminder ? (
+          <Text style={styles.vehicleReminder}>
+            Make sure your vehicle info is up to date so the customer can identify you.
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.timerWrap}>
@@ -188,6 +207,12 @@ const styles = StyleSheet.create({
   note: { color: COLORS.text, marginTop: 12, fontSize: 15 },
   earnLabel: { color: COLORS.textMuted, marginTop: 20, fontSize: 14 },
   earn: { color: COLORS.accent, fontSize: 36, fontWeight: '900', marginTop: 4 },
+  vehicleReminder: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 16,
+    lineHeight: 18,
+  },
   timerWrap: { alignItems: 'center', marginVertical: 28 },
   timer: { color: COLORS.accent, fontSize: 48, fontWeight: '900' },
   timerLabel: { color: COLORS.textMuted, marginTop: 4 },
