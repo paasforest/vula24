@@ -1,10 +1,10 @@
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
 
-const WHATSAPP_URL = 'https://wa.me/27600000000';
+const WHATSAPP_URL = 'https://wa.me/27729543821';
 const EMAIL = 'mailto:support@vula24.com';
 
 const STEPS = [
@@ -28,7 +28,24 @@ export default function HelpScreen() {
         <Text style={styles.sectionTitle}>Contact Us</Text>
         <TouchableOpacity
           style={styles.contactBtn}
-          onPress={() => Linking.openURL(WHATSAPP_URL)}
+          onPress={async () => {
+            try {
+              const supported = await Linking.canOpenURL(WHATSAPP_URL);
+              if (supported) {
+                await Linking.openURL(WHATSAPP_URL);
+              } else {
+                Alert.alert(
+                  'WhatsApp',
+                  'WhatsApp is not installed on this device. Call us on 072 954 3821'
+                );
+              }
+            } catch {
+              Alert.alert(
+                'WhatsApp',
+                'Could not open WhatsApp. Call us on 072 954 3821'
+              );
+            }
+          }}
         >
           <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
           <Text style={styles.contactText}>WhatsApp Us</Text>

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
 
-const WHATSAPP_URL = 'https://wa.me/27600000000';
+const WHATSAPP_URL = 'https://wa.me/27729543821';
 const EMAIL = 'mailto:support@vula24.com';
 
 const STEPS = [
@@ -43,7 +43,24 @@ export default function HelpScreen() {
         <Text style={styles.sectionTitle}>Contact Us</Text>
         <GoldButton
           title="WhatsApp"
-          onPress={() => openUrl(WHATSAPP_URL, 'WhatsApp')}
+          onPress={async () => {
+            try {
+              const supported = await Linking.canOpenURL(WHATSAPP_URL);
+              if (supported) {
+                await Linking.openURL(WHATSAPP_URL);
+              } else {
+                Alert.alert(
+                  'WhatsApp',
+                  'WhatsApp is not installed on this device. Call us on 072 954 3821'
+                );
+              }
+            } catch {
+              Alert.alert(
+                'WhatsApp',
+                'Could not open WhatsApp. Call us on 072 954 3821'
+              );
+            }
+          }}
         />
         <View style={styles.btnSpacer} />
         <GoldButton
