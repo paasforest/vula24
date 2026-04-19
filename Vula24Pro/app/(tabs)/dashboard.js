@@ -248,7 +248,7 @@ export default function DashboardScreen() {
   }
 
   const activeJob = jobs.find((j) =>
-    ['ACCEPTED', 'ARRIVED', 'IN_PROGRESS'].includes(j.status)
+    ['ACCEPTED', 'DISPATCHED', 'ARRIVED', 'IN_PROGRESS'].includes(j.status)
   );
 
   const recent = jobs.slice(0, 5);

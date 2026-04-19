@@ -1137,6 +1137,34 @@ async function uploadLocksmithProfilePhoto(req, res) {
   res.json({ profilePhoto });
 }
 
+const DOCUMENT_TYPE_TO_FIELD = {
+  idPhoto: 'idPhotoUrl',
+  selfiePhoto: 'selfiePhotoUrl',
+  proofOfAddress: 'proofOfAddressUrl',
+  toolsPhoto: 'toolsPhotoUrl',
+};
+
+async function uploadLocksmithDocument(req, res) {
+  const file = req.file;
+  const documentType = req.body?.documentType;
+  const field = DOCUMENT_TYPE_TO_FIELD[documentType];
+  if (!field) {
+    throw new AppError(
+      'documentType must be one of: idPhoto, selfiePhoto, proofOfAddress, toolsPhoto',
+      400
+    );
+  }
+  if (!file?.buffer?.length) {
+    throw new AppError('document image file is required', 400);
+  }
+  const url = await uploadLocksmithImage(req, file);
+  await prisma.locksmith.update({
+    where: { id: req.locksmith.id },
+    data: { [field]: url },
+  });
+  res.json({ field, url });
+}
+
 async function updateLocksmithProfile(req, res) {
   const id = req.locksmith.id;
   const allowed = [
@@ -1563,6 +1591,7 @@ module.exports = {
   listOpenScheduledJobsForLocksmith,
   getLocksmithProfile,
   uploadLocksmithProfilePhoto,
+  uploadLocksmithDocument,
   acceptJob,
   dispatchJob,
   expireAcceptedJobs,

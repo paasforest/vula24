@@ -113,17 +113,20 @@ export default function ActiveJobScreen() {
 
   const jobStatus = job?.status;
   const jobMode = job?.mode;
+  const isDisputed = job?.isDisputed === true;
   let primary = null;
-  if (jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY') {
-    primary = null;
-  } else if (jobStatus === 'DISPATCHED') {
-    primary = { label: 'I Have Arrived', onPress: () => action('/arrived') };
-  } else if (jobStatus === 'ACCEPTED' && jobMode !== 'EMERGENCY') {
-    primary = { label: 'I Have Arrived', onPress: () => action('/arrived') };
-  } else if (jobStatus === 'ARRIVED') {
-    primary = { label: 'Start Job', onPress: () => action('/start') };
-  } else if (jobStatus === 'IN_PROGRESS') {
-    primary = { label: 'Complete Job', onPress: () => action('/complete') };
+  if (!isDisputed) {
+    if (jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY') {
+      primary = null;
+    } else if (jobStatus === 'DISPATCHED') {
+      primary = { label: 'I Have Arrived', onPress: () => action('/arrived') };
+    } else if (jobStatus === 'ACCEPTED' && jobMode !== 'EMERGENCY') {
+      primary = { label: 'I Have Arrived', onPress: () => action('/arrived') };
+    } else if (jobStatus === 'ARRIVED') {
+      primary = { label: 'Start Job', onPress: () => action('/start') };
+    } else if (jobStatus === 'IN_PROGRESS') {
+      primary = { label: 'Complete Job', onPress: () => action('/complete') };
+    }
   }
 
   const phone = job?.customer?.phone;
@@ -144,9 +147,11 @@ export default function ActiveJobScreen() {
 
       <SafeAreaView style={styles.topBar} edges={['top']}>
         <Text style={styles.navHint}>
-          {jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY'
-            ? 'Waiting for customer payment…'
-            : 'Head out now — navigate to the customer pin'}
+          {isDisputed
+            ? 'Dispute in progress — check notifications'
+            : jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY'
+              ? 'Waiting for customer payment…'
+              : 'Head out now — navigate to the customer pin'}
         </Text>
       </SafeAreaView>
 
@@ -159,11 +164,25 @@ export default function ActiveJobScreen() {
           <Text style={styles.svc}>{job?.serviceType?.replace(/_/g, ' ')}</Text>
           <Text style={styles.addr}>{job?.customerAddress}</Text>
 
-          {jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY' ? (
+          {!isDisputed && jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY' ? (
             <Text style={styles.waitPay}>Waiting for customer payment…</Text>
           ) : null}
 
-          {primary ? (
+          {isDisputed ? (
+            <View style={styles.disputeCard}>
+              <Text style={styles.disputeTitle}>Dispute in progress</Text>
+              <Text style={styles.disputeBody}>
+                A dispute has been raised for this job. Your payout is on hold until it is
+                resolved. Please check your notifications for updates or contact support.
+              </Text>
+              <TouchableOpacity
+                style={styles.disputeBtn}
+                onPress={() => Linking.openURL('https://wa.me/27729543821')}
+              >
+                <Text style={styles.disputeBtnText}>Contact Support</Text>
+              </TouchableOpacity>
+            </View>
+          ) : primary ? (
             <GoldButton title={primary.label} onPress={primary.onPress} />
           ) : null}
 
@@ -232,6 +251,37 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     textAlign: 'center',
+  },
+  disputeCard: {
+    margin: 16,
+    backgroundColor: '#1a0a00',
+    borderWidth: 1.5,
+    borderColor: '#ff9500',
+    borderRadius: 16,
+    padding: 20,
+  },
+  disputeTitle: {
+    color: '#ff9500',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  disputeBody: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  disputeBtn: {
+    backgroundColor: '#ff9500',
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+  },
+  disputeBtnText: {
+    color: '#111',
+    fontWeight: '700',
+    fontSize: 14,
   },
   call: {
     flexDirection: 'row',
