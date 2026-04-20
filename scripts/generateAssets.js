@@ -72,6 +72,59 @@ function generateIcon(outputPath, size) {
   console.log(`Created: ${outputPath}`);
 }
 
+function generateAdaptiveIcon(outputPath, size) {
+  const canvas = createCanvas(size, size);
+  const ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, size, size);
+
+  const safeSize = size * 0.66;
+  const offset = (size - safeSize) / 2;
+  const s = safeSize / 24;
+
+  ctx.strokeStyle = '#D4A017';
+  ctx.lineWidth = 2 * s;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.save();
+  ctx.translate(offset, offset);
+  ctx.scale(s, s);
+
+  ctx.beginPath();
+  ctx.moveTo(21, 2);
+  ctx.lineTo(19, 4);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(11.3891, 11.6109);
+  ctx.bezierCurveTo(12.3844, 12.6062, 13, 13.9812, 13, 15.5);
+  ctx.bezierCurveTo(13, 18.5376, 10.5376, 21, 7.5, 21);
+  ctx.bezierCurveTo(4.46243, 21, 2, 18.5376, 2, 15.5);
+  ctx.bezierCurveTo(2, 12.4624, 4.46243, 10, 7.5, 10);
+  ctx.bezierCurveTo(9.01878, 10, 10.3938, 10.6156, 11.3891, 11.6109);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(11.3891, 11.6109);
+  ctx.lineTo(15.5, 7.5);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(15.5, 7.5);
+  ctx.lineTo(18, 10);
+  ctx.lineTo(21, 7);
+  ctx.lineTo(18.5, 4.5);
+  ctx.lineTo(15.5, 7.5);
+  ctx.stroke();
+
+  ctx.restore();
+
+  const buffer = canvas.toBuffer('image/png');
+  fs.writeFileSync(outputPath, buffer);
+  console.log(`Created: ${outputPath}`);
+}
+
 function generateSplash(outputPath) {
   const w = 1284;
   const h = 2778;
@@ -147,9 +200,9 @@ dirs.forEach((d) => {
 });
 
 generateIcon('Vula24/assets/icon.png', 1024);
-generateIcon('Vula24/assets/adaptive-icon.png', 1024);
+generateAdaptiveIcon('Vula24/assets/adaptive-icon.png', 1024);
 generateIcon('Vula24Pro/assets/icon.png', 1024);
-generateIcon('Vula24Pro/assets/adaptive-icon.png', 1024);
+generateAdaptiveIcon('Vula24Pro/assets/adaptive-icon.png', 1024);
 generateSplash('Vula24/assets/splash.png');
 generateSplash('Vula24Pro/assets/splash.png');
 
