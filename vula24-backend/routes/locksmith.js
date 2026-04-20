@@ -12,6 +12,17 @@ const { SERVICE_TYPES } = require('../constants/serviceTypes');
 
 const router = Router();
 
+/** Dev-only: confirm deployed server exposes the canonical SERVICE_TYPES list (no auth). */
+if (process.env.NODE_ENV !== 'production') {
+  router.get('/pricing/debug', (req, res) => {
+    res.json({
+      nodeEnv: process.env.NODE_ENV || 'undefined',
+      count: SERVICE_TYPES.length,
+      serviceTypes: SERVICE_TYPES,
+    });
+  });
+}
+
 router.post(
   '/location/update',
   authenticateLocksmith,
@@ -62,6 +73,12 @@ router.post(
         if (!item || typeof item !== 'object') {
           throw new Error('Each item must be an object');
         }
+        // eslint-disable-next-line no-console
+        console.log('[locksmith/pricing] validate row', {
+          receivedServiceType: item.serviceType,
+          typeofReceived: typeof item.serviceType,
+          allowedServiceTypes: SERVICE_TYPES,
+        });
         if (!SERVICE_TYPES.includes(item.serviceType)) {
           throw new Error('Invalid serviceType');
         }

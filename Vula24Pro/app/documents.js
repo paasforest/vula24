@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants/theme';
-import api from '../lib/api';
+import api, { postMultipart } from '../lib/api';
 
 function mimeFromUri(uri) {
   const u = String(uri).toLowerCase();
@@ -91,11 +91,15 @@ export default function DocumentsScreen() {
         type: mimeFromUri(uri),
       });
       form.append('documentType', documentType);
-      await api.post('/api/locksmith/documents/upload', form);
+      await postMultipart('/api/locksmith/documents/upload', form);
       Alert.alert('Uploaded', 'Document saved.');
       await load();
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || e.message || 'Upload failed.');
+      const msg =
+        e?.response?.data?.error ||
+        e?.message ||
+        (e?.name === 'AbortError' ? 'Upload timed out.' : 'Upload failed.');
+      Alert.alert('Error', msg);
     } finally {
       setUploadingType(null);
     }

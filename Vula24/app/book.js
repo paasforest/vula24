@@ -202,6 +202,8 @@ export default function BookScreen() {
     const onShow = (e) => {
       setKeyboardBottomInset(e?.endCoordinates?.height ?? 0);
     };
+    // Reset to 0 so the absolute bottom sheet sits flush with the screen bottom again
+    // (paddingBottom still uses safe-area via insets below).
     const onHide = () => setKeyboardBottomInset(0);
     const subShow = Keyboard.addListener(showEvt, onShow);
     const subHide = Keyboard.addListener(hideEvt, onHide);

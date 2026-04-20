@@ -129,8 +129,9 @@ export default function PricingScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+        enabled={Platform.OS === 'android'}
+        behavior="height"
+        keyboardVerticalOffset={0}
       >
         <ScrollView
           contentContainerStyle={[styles.scroll, styles.scrollGrow]}

@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../constants/theme';
 import { getUser, clearAuth, saveUser } from '../../lib/storage';
-import api from '../../lib/api';
+import api, { postMultipart } from '../../lib/api';
 import { GoldButton } from '../../components/GoldButton';
 
 function mimeFromUri(uri) {
@@ -89,7 +89,7 @@ export default function ProfileScreen() {
         name: 'profile.jpg',
         type: mimeFromUri(uri),
       });
-      const { data: up } = await api.post('/api/locksmith/profile/photo', form);
+      const up = await postMultipart('/api/locksmith/profile/photo', form);
       const url = up.profilePhoto;
       if (!url) throw new Error('No image URL returned');
 
@@ -100,7 +100,11 @@ export default function ProfileScreen() {
       setUser(merged);
       Alert.alert('Updated', 'Profile photo saved.');
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || e.message || 'Upload failed.');
+      const msg =
+        e?.response?.data?.error ||
+        e?.message ||
+        (e?.name === 'AbortError' ? 'Upload timed out.' : 'Upload failed.');
+      Alert.alert('Error', msg);
     } finally {
       setPhotoUploading(false);
     }

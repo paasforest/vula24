@@ -1,6 +1,8 @@
 /**
  * Canonical list of job / pricing service types.
- * Must match `enum ServiceType` in prisma/schema.prisma and customer job routes.
+ * Must match `enum ServiceType` in prisma/schema.prisma (lines 15–36) exactly:
+ * same 20 values, same order, same spelling (UPPER_SNAKE_CASE). If this drifts,
+ * Prisma/API validation will fail.
  */
 const SERVICE_TYPES = [
   'CAR_LOCKOUT',

@@ -1,5 +1,6 @@
 const multer = require('multer');
 
+/** memoryStorage fills `req.file.buffer`. diskStorage would leave buffer empty. */
 const storage = multer.memoryStorage();
 
 function fileFilter(req, file, cb) {
