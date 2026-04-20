@@ -9,6 +9,8 @@ import {
   Modal,
   Alert,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -110,23 +112,34 @@ export default function ScheduledQuotesScreen() {
       </ScrollView>
 
       <Modal visible={!!modalJob} transparent animationType="slide">
-        <View style={styles.modalBg}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Your quote</Text>
-            <FormInput label="Price (R)" value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
-            <FormInput
-              label="Message (optional)"
-              value={message}
-              onChangeText={setMessage}
-              multiline
-              numberOfLines={3}
-            />
-            <GoldButton title="Submit" onPress={submitQuote} loading={submitting} />
-            <TouchableOpacity onPress={() => setModalJob(null)}>
-              <Text style={styles.cancel}>Cancel</Text>
-            </TouchableOpacity>
+        <KeyboardAvoidingView
+          style={styles.modalKav}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+        >
+          <View style={styles.modalBg}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalScroll}
+            >
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>Your quote</Text>
+                <FormInput label="Price (R)" value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
+                <FormInput
+                  label="Message (optional)"
+                  value={message}
+                  onChangeText={setMessage}
+                  multiline
+                  numberOfLines={3}
+                />
+                <GoldButton title="Submit" onPress={submitQuote} loading={submitting} />
+                <TouchableOpacity onPress={() => setModalJob(null)}>
+                  <Text style={styles.cancel}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -153,12 +166,12 @@ const styles = StyleSheet.create({
   dt: { color: COLORS.accent, marginTop: 8, fontSize: 14 },
   img: { width: '100%', height: 140, borderRadius: 12, marginTop: 12 },
   note: { color: COLORS.textMuted, marginTop: 8, marginBottom: 12 },
+  modalKav: { flex: 1 },
   modalBg: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    padding: 24,
   },
+  modalScroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
   modalCard: {
     backgroundColor: COLORS.bg,
     borderRadius: 16,

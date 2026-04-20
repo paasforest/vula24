@@ -49,10 +49,14 @@ export default function BankDetailsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
         style={styles.flex}
       >
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView
+          contentContainerStyle={[styles.scroll, styles.scrollGrow]}
+          keyboardShouldPersistTaps="handled"
+        >
           <TouchableOpacity style={styles.back} onPress={() => router.back()}>
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
@@ -71,6 +75,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   flex: { flex: 1 },
   scroll: { padding: 20, paddingBottom: 40 },
+  scrollGrow: { flexGrow: 1 },
   back: { marginBottom: 12 },
   backText: { color: COLORS.accent, fontSize: 16 },
   h1: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginBottom: 16 },

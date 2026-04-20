@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
   Alert,
   TouchableOpacity,
   Image,
   TextInput,
+  Keyboard,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,6 +69,7 @@ export default function BookScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [photoUri, setPhotoUri] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [keyboardBottomInset, setKeyboardBottomInset] = useState(0);
 
   const placesApiKey =
     (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
@@ -195,6 +196,21 @@ export default function BookScreen() {
     })();
   }, [animateMapTo]);
 
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = (e) => {
+      setKeyboardBottomInset(e?.endCoordinates?.height ?? 0);
+    };
+    const onHide = () => setKeyboardBottomInset(0);
+    const subShow = Keyboard.addListener(showEvt, onShow);
+    const subHide = Keyboard.addListener(hideEvt, onHide);
+    return () => {
+      subShow.remove();
+      subHide.remove();
+    };
+  }, []);
+
   const onPlaceSelected = useCallback(
     (data, details = null) => {
       userChosePlaceBeforeGpsRef.current = true;
@@ -310,12 +326,7 @@ export default function BookScreen() {
   const searchTop = Math.max(insets.top, 8) + 52;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
-    >
-      <View style={styles.root}>
+    <View style={styles.root}>
         <MapView
           ref={mapRef}
           style={styles.mapFill}
@@ -411,13 +422,17 @@ export default function BookScreen() {
         <View
           style={[
             styles.bottomSheet,
-            { paddingBottom: Math.max(insets.bottom, 16) },
+            {
+              paddingBottom: Math.max(insets.bottom, 16),
+              bottom: keyboardBottomInset,
+            },
           ]}
         >
           <ScrollView
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             bounces={false}
+            nestedScrollEnabled
           >
             <Text style={styles.serviceLabel}>Service</Text>
             <Text style={styles.serviceType}>
@@ -507,7 +522,6 @@ export default function BookScreen() {
           </ScrollView>
         </View>
       </View>
-    </KeyboardAvoidingView>
   );
 }
 

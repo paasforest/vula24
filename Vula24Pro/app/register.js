@@ -245,9 +245,13 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[styles.scroll, styles.scrollGrow]}
+          keyboardShouldPersistTaps="handled"
+        >
           <VulaLogoPro iconSize={48} />
           <Text style={styles.h1}>Create your pro account</Text>
           <Text style={styles.badge}>
@@ -345,6 +349,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   flex: { flex: 1 },
   scroll: { padding: 24, paddingBottom: 48 },
+  scrollGrow: { flexGrow: 1 },
   h1: { color: COLORS.text, fontSize: 22, fontWeight: '700', marginTop: 16 },
   badge: { color: COLORS.accent, marginTop: 8, marginBottom: 16, fontWeight: '600' },
   section: { color: COLORS.text, fontSize: 17, fontWeight: '700', marginTop: 8, marginBottom: 12 },

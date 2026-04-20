@@ -8,6 +8,8 @@ import {
   Alert,
   ActivityIndicator,
   TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -125,7 +127,15 @@ export default function PricingScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.scroll, styles.scrollGrow]}
+          keyboardShouldPersistTaps="handled"
+        >
         <TouchableOpacity style={styles.back} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={COLORS.accent} />
           <Text style={styles.backText}>Back</Text>
@@ -179,14 +189,17 @@ export default function PricingScreen() {
         })}
 
         <GoldButton title="Save pricing" onPress={save} loading={saving} />
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
+  flex: { flex: 1 },
   scroll: { padding: 20, paddingBottom: 40 },
+  scrollGrow: { flexGrow: 1 },
   back: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   backText: { color: COLORS.accent, marginLeft: 8, fontSize: 16 },
   h1: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginBottom: 8 },

@@ -8,16 +8,9 @@ const {
   locksmithDocumentUpload,
 } = require('../middleware/uploadLocksmith');
 const jobs = require('../controllers/jobController');
+const { SERVICE_TYPES } = require('../constants/serviceTypes');
 
 const router = Router();
-
-const serviceTypes = [
-  'CAR_LOCKOUT',
-  'HOUSE_LOCKOUT',
-  'KEY_DUPLICATION',
-  'LOCK_REPLACEMENT',
-  'LOCK_REPAIR',
-];
 
 router.post(
   '/location/update',
@@ -69,7 +62,7 @@ router.post(
         if (!item || typeof item !== 'object') {
           throw new Error('Each item must be an object');
         }
-        if (!serviceTypes.includes(item.serviceType)) {
+        if (!SERVICE_TYPES.includes(item.serviceType)) {
           throw new Error('Invalid serviceType');
         }
         if (typeof item.basePrice !== 'number' || item.basePrice <= 0) {

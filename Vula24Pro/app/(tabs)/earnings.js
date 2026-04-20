@@ -8,6 +8,8 @@ import {
   Alert,
   Modal,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -127,12 +129,18 @@ export default function EarningsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
-        }
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
+        <ScrollView
+          contentContainerStyle={[styles.scroll, styles.scrollGrow]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
+          }
+          keyboardShouldPersistTaps="handled"
+        >
         <Text style={styles.h1}>Earnings</Text>
 
         <View style={styles.balanceCard}>
@@ -217,32 +225,44 @@ export default function EarningsScreen() {
             </View>
           ))
         )}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal visible={withdrawOpen} transparent animationType="fade">
-        <View style={styles.modalBg}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Confirm withdrawal</Text>
-            <Text style={styles.modalBank}>
-              Bank: {profile?.bankName || '—'}
-              {'\n'}
-              Account: {profile?.bankAccountNumber || '—'}
-              {'\n'}
-              Holder: {profile?.bankAccountHolder || '—'}
-            </Text>
-            <FormInput
-              label="Amount (ZAR)"
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-            />
-            <GoldButton title="Submit" onPress={submitWithdraw} loading={loading} />
-            <TouchableOpacity style={styles.cancel} onPress={() => setWithdrawOpen(false)}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+        >
+          <View style={styles.modalBg}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalScroll}
+            >
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>Confirm withdrawal</Text>
+                <Text style={styles.modalBank}>
+                  Bank: {profile?.bankName || '—'}
+                  {'\n'}
+                  Account: {profile?.bankAccountNumber || '—'}
+                  {'\n'}
+                  Holder: {profile?.bankAccountHolder || '—'}
+                </Text>
+                <FormInput
+                  label="Amount (ZAR)"
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType="decimal-pad"
+                  placeholder="0.00"
+                />
+                <GoldButton title="Submit" onPress={submitWithdraw} loading={loading} />
+                <TouchableOpacity style={styles.cancel} onPress={() => setWithdrawOpen(false)}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -250,7 +270,9 @@ export default function EarningsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
+  flex: { flex: 1 },
   scroll: { paddingBottom: 40 },
+  scrollGrow: { flexGrow: 1 },
   h1: { color: COLORS.text, fontSize: 24, fontWeight: '800', marginBottom: 16 },
   balanceCard: {
     margin: 20,
@@ -369,9 +391,8 @@ const styles = StyleSheet.create({
   modalBg: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent: 'center',
-    padding: 24,
   },
+  modalScroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
   modalCard: {
     backgroundColor: COLORS.bg,
     borderRadius: 16,

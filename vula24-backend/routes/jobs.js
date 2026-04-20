@@ -9,32 +9,10 @@ const {
   authenticateMember,
 } = require('../middleware/auth');
 const jobs = require('../controllers/jobController');
+const { SERVICE_TYPES: serviceTypes } = require('../constants/serviceTypes');
 
 const router = Router();
 const memberRouter = Router();
-
-const serviceTypes = [
-  'CAR_LOCKOUT',
-  'HOUSE_LOCKOUT',
-  'OFFICE_LOCKOUT',
-  'KEY_DUPLICATION',
-  'CAR_KEY_PROGRAMMING',
-  'CAR_KEY_CUTTING',
-  'BROKEN_KEY_EXTRACTION',
-  'LOST_KEY_REPLACEMENT',
-  'IGNITION_REPAIR',
-  'LOCK_REPLACEMENT',
-  'LOCK_REPAIR',
-  'LOCK_UPGRADE',
-  'DEADLOCK_INSTALLATION',
-  'SAFE_OPENING',
-  'GATE_MOTOR_REPAIR',
-  'ACCESS_CONTROL',
-  'PADLOCK_REMOVAL',
-  'GARAGE_DOOR',
-  'SECURITY_GATE',
-  'ELECTRIC_FENCE_GATE',
-];
 
 router.post(
   '/emergency/create',

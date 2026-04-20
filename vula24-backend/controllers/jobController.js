@@ -11,14 +11,7 @@ const {
 const bcrypt = require('bcrypt');
 const { sendPushNotification } = require('../utils/pushNotifications');
 const { uploadLocksmithImage } = require('../lib/locksmithUploads');
-
-const SERVICE_TYPES = [
-  'CAR_LOCKOUT',
-  'HOUSE_LOCKOUT',
-  'KEY_DUPLICATION',
-  'LOCK_REPLACEMENT',
-  'LOCK_REPAIR',
-];
+const { SERVICE_TYPES } = require('../constants/serviceTypes');
 
 function stripLocksmithPublic(l) {
   if (!l) return null;

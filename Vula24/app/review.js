@@ -9,6 +9,8 @@ import {
   Alert,
   Modal,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -122,7 +124,15 @@ export default function ReviewScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.scroll, styles.scrollGrow]}
+          keyboardShouldPersistTaps="handled"
+        >
         <Text style={styles.h1}>How was your experience?</Text>
         <Text style={styles.name}>{lock?.name || 'Locksmith'}</Text>
         {vehicleLine ? (
@@ -169,40 +179,52 @@ export default function ReviewScreen() {
             <Text style={styles.disputeBtnText}>Raise a dispute</Text>
           </TouchableOpacity>
         ) : null}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal visible={disputeModal} transparent animationType="fade">
-        <View style={styles.modalBg}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Raise a dispute</Text>
-            <Text style={styles.modalHint}>
-              Describe what went wrong. You can only dispute within 24 hours of completion.
-            </Text>
-            <TextInput
-              style={styles.modalInput}
-              value={disputeReason}
-              onChangeText={setDisputeReason}
-              placeholder="Reason"
-              placeholderTextColor="#666"
-              multiline
-              numberOfLines={4}
-            />
-            <GoldButton
-              title={disputeLoading ? 'Sending…' : 'Submit dispute'}
-              onPress={submitDispute}
-              loading={disputeLoading}
-            />
-            <TouchableOpacity
-              style={styles.modalCancel}
-              onPress={() => {
-                setDisputeModal(false);
-                setDisputeReason('');
-              }}
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+        >
+          <View style={styles.modalBg}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalScroll}
             >
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>Raise a dispute</Text>
+                <Text style={styles.modalHint}>
+                  Describe what went wrong. You can only dispute within 24 hours of completion.
+                </Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={disputeReason}
+                  onChangeText={setDisputeReason}
+                  placeholder="Reason"
+                  placeholderTextColor="#666"
+                  multiline
+                  numberOfLines={4}
+                />
+                <GoldButton
+                  title={disputeLoading ? 'Sending…' : 'Submit dispute'}
+                  onPress={submitDispute}
+                  loading={disputeLoading}
+                />
+                <TouchableOpacity
+                  style={styles.modalCancel}
+                  onPress={() => {
+                    setDisputeModal(false);
+                    setDisputeReason('');
+                  }}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -210,7 +232,10 @@ export default function ReviewScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
+  flex: { flex: 1 },
   scroll: { padding: 20, paddingBottom: 40 },
+  scrollGrow: { flexGrow: 1 },
+  modalScroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
   h1: {
     color: COLORS.text,
     fontSize: 22,
@@ -268,8 +293,6 @@ const styles = StyleSheet.create({
   modalBg: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent: 'center',
-    padding: 24,
   },
   modalCard: {
     backgroundColor: COLORS.bg,

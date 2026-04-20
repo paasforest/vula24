@@ -8,6 +8,8 @@ import {
   Modal,
   Alert,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -143,30 +145,41 @@ export default function TeamScreen() {
       </View>
 
       <Modal visible={modal} transparent animationType="slide">
-        <View style={styles.modalBg}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>New team member</Text>
-            <FormInput label="Name" value={name} onChangeText={setName} />
-            <FormInput label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-            <FormInput
-              label="App email"
-              value={appEmail}
-              onChangeText={setAppEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <FormInput
-              label="App password"
-              value={appPassword}
-              onChangeText={setAppPassword}
-              secureTextEntry
-            />
-            <GoldButton title="Create" onPress={addMember} loading={loading} />
-            <TouchableOpacity onPress={() => setModal(false)}>
-              <Text style={styles.cancel}>Cancel</Text>
-            </TouchableOpacity>
+        <KeyboardAvoidingView
+          style={styles.modalKav}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+        >
+          <View style={styles.modalBg}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalScroll}
+            >
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>New team member</Text>
+                <FormInput label="Name" value={name} onChangeText={setName} />
+                <FormInput label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+                <FormInput
+                  label="App email"
+                  value={appEmail}
+                  onChangeText={setAppEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                <FormInput
+                  label="App password"
+                  value={appPassword}
+                  onChangeText={setAppPassword}
+                  secureTextEntry
+                />
+                <GoldButton title="Create" onPress={addMember} loading={loading} />
+                <TouchableOpacity onPress={() => setModal(false)}>
+                  <Text style={styles.cancel}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -199,12 +212,12 @@ const styles = StyleSheet.create({
   badgeT: { color: COLORS.text, fontSize: 12, fontWeight: '700' },
   deact: { color: COLORS.error, fontWeight: '700' },
   footer: { padding: 20, position: 'absolute', bottom: 0, left: 0, right: 0 },
+  modalKav: { flex: 1 },
   modalBg: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.85)',
-    justifyContent: 'center',
-    padding: 20,
   },
+  modalScroll: { flexGrow: 1, justifyContent: 'center', padding: 20 },
   modalCard: {
     backgroundColor: COLORS.bg,
     borderRadius: 16,

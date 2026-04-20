@@ -48,10 +48,11 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scroll, styles.scrollGrow]}
           keyboardShouldPersistTaps="handled"
         >
           <VulaLogo iconSize={56} />
@@ -76,6 +77,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   flex: { flex: 1 },
   scroll: { padding: 24, paddingBottom: 48 },
+  scrollGrow: { flexGrow: 1 },
   h1: {
     color: COLORS.text,
     fontSize: 22,

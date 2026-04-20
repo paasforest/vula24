@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -74,27 +76,33 @@ export default function EditProfileScreen() {
       {loading ? (
         <ActivityIndicator color={COLORS.accent} style={styles.loader} />
       ) : (
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
         >
-          <FormInput
-            label="Name"
-            value={name}
-            onChangeText={setName}
-            placeholder="Your name"
-            autoCapitalize="words"
-          />
-          <FormInput
-            label="Phone"
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="Phone number"
-            keyboardType="phone-pad"
-          />
-          <GoldButton title="Save" onPress={save} loading={saving} />
-        </ScrollView>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={[styles.scroll, styles.scrollGrow]}
+            showsVerticalScrollIndicator={false}
+          >
+            <FormInput
+              label="Name"
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+              autoCapitalize="words"
+            />
+            <FormInput
+              label="Phone"
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Phone number"
+              keyboardType="phone-pad"
+            />
+            <GoldButton title="Save" onPress={save} loading={saving} />
+          </ScrollView>
+        </KeyboardAvoidingView>
       )}
     </SafeAreaView>
   );
@@ -102,6 +110,8 @@ export default function EditProfileScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
+  flex: { flex: 1 },
+  scrollGrow: { flexGrow: 1 },
   back: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 8 },
   backText: { color: COLORS.accent, marginLeft: 8, fontSize: 16 },
   h1: {

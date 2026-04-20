@@ -8,6 +8,8 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -181,7 +183,15 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.scroll, styles.scrollGrow]}
+          keyboardShouldPersistTaps="handled"
+        >
         <Text style={styles.h1}>Profile</Text>
 
         <View style={styles.photoSection}>
@@ -310,14 +320,17 @@ export default function ProfileScreen() {
           <Ionicons name="log-out-outline" size={22} color={COLORS.error} />
           <Text style={styles.signOut}>Sign Out</Text>
         </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
+  flex: { flex: 1 },
   scroll: { paddingBottom: 32 },
+  scrollGrow: { flexGrow: 1 },
   h1: {
     color: COLORS.text,
     fontSize: 24,
