@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node scripts/start.js",
+    "setup:patrick": "node scripts/setupLocksmith.js",
     "dev": "node --watch index.js",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
