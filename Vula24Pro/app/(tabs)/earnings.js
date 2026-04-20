@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../../components/GoldButton';
 import { FormInput } from '../../components/FormInput';
 import { COLORS } from '../../constants/theme';
@@ -63,6 +64,7 @@ export default function EarningsScreen() {
         api.get('/api/wallet/pending-payouts').catch(() => ({ data: { pendingPayouts: [] } })),
       ]);
       setWallet(w.data);
+      console.log('wallet data:', JSON.stringify(w.data));
       setProfile(p.data.locksmith);
       setPendingPayouts(pend.data?.pendingPayouts || []);
     } catch (e) {
@@ -97,7 +99,11 @@ export default function EarningsScreen() {
   const week = sumCredit(w0);
   const month = sumCredit(m0);
   const totalEarned =
-    wallet?.totalEarned != null ? Number(wallet.totalEarned) : 0;
+    wallet?.totalEarned != null ? Number(wallet.totalEarned) : null;
+
+  const sumToday = today;
+  const sumWeek = week;
+  const sumMonth = month;
 
   const submitWithdraw = async () => {
     const n = parseFloat(String(amount).replace(',', '.'));
@@ -128,10 +134,17 @@ export default function EarningsScreen() {
         }
       >
         <Text style={styles.h1}>Earnings</Text>
-        <Text style={styles.balanceLabel}>Wallet balance</Text>
-        <Text style={styles.balance}>
-          R {wallet?.balance != null ? Number(wallet.balance).toFixed(2) : '0.00'}
-        </Text>
+
+        <View style={styles.balanceCard}>
+          <Text style={styles.balanceLbl}>Wallet balance</Text>
+          <Text style={styles.balanceVal}>
+            R {Number(wallet?.wallet?.balance ?? wallet?.balance ?? 0).toFixed(2)}
+          </Text>
+          <TouchableOpacity style={styles.withdrawBtn} onPress={() => setWithdrawOpen(true)}>
+            <Text style={styles.withdrawBtnText}>Withdraw to bank</Text>
+            <Ionicons name="arrow-forward" size={16} color="#111" />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.pendingCard}>
           <Text style={styles.pendingTitle}>Pending payouts</Text>
@@ -157,24 +170,27 @@ export default function EarningsScreen() {
           )}
         </View>
 
-        <GoldButton title="Withdraw to Bank" onPress={() => setWithdrawOpen(true)} />
-
-        <View style={styles.stats}>
+        <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <Text style={styles.statVal}>R {today.toFixed(2)}</Text>
             <Text style={styles.statLbl}>Today</Text>
+            <Text style={styles.statVal}>R {sumToday.toFixed(0)}</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statVal}>R {week.toFixed(2)}</Text>
             <Text style={styles.statLbl}>This week</Text>
+            <Text style={styles.statVal}>R {sumWeek.toFixed(0)}</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statVal}>R {month.toFixed(2)}</Text>
             <Text style={styles.statLbl}>This month</Text>
+            <Text style={styles.statVal}>R {sumMonth.toFixed(0)}</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statVal}>R {totalEarned.toFixed(2)}</Text>
+          <View style={[styles.statCard, styles.statCardAccent]}>
             <Text style={styles.statLbl}>Total earned</Text>
+            <Text style={styles.statVal}>
+              {totalEarned !== null ? `R ${totalEarned.toFixed(0)}` : '...'}
+            </Text>
+            <Text style={styles.totalEarnedHint}>
+              {totalEarned !== null ? '' : 'Calculating...'}
+            </Text>
           </View>
         </View>
 
@@ -234,15 +250,48 @@ export default function EarningsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
-  scroll: { padding: 20, paddingBottom: 40 },
+  scroll: { paddingBottom: 40 },
   h1: { color: COLORS.text, fontSize: 24, fontWeight: '800', marginBottom: 16 },
-  balanceLabel: { color: COLORS.textMuted, fontSize: 14 },
-  balance: { color: COLORS.accent, fontSize: 36, fontWeight: '900', marginBottom: 16 },
+  balanceCard: {
+    margin: 20,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    alignItems: 'center',
+  },
+  balanceLbl: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  balanceVal: {
+    color: COLORS.text,
+    fontSize: 40,
+    fontWeight: '800',
+    marginBottom: 20,
+  },
+  withdrawBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: COLORS.accent,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  withdrawBtnText: {
+    color: '#111',
+    fontWeight: '700',
+    fontSize: 15,
+  },
   pendingCard: {
     backgroundColor: COLORS.inputBg,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
+    marginHorizontal: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#2a2a2a',
   },
@@ -262,30 +311,54 @@ const styles = StyleSheet.create({
   pendingAmt: { color: COLORS.accent, fontSize: 18, fontWeight: '800' },
   pendingRelease: { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
   pendingJob: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
-  stats: {
+  statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    marginBottom: 8,
-    gap: 8,
+    paddingHorizontal: 20,
+    gap: 10,
+    marginBottom: 24,
   },
   statCard: {
-    width: '48%',
+    width: '47%',
     backgroundColor: COLORS.inputBg,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#2a2a2a',
   },
-  statVal: { color: COLORS.accent, fontSize: 16, fontWeight: '800' },
-  statLbl: { color: COLORS.textMuted, fontSize: 11, marginTop: 4 },
-  section: { color: COLORS.text, fontSize: 17, fontWeight: '700', marginTop: 16, marginBottom: 12 },
-  empty: { color: COLORS.textMuted },
+  statCardAccent: {
+    borderColor: COLORS.accent,
+  },
+  statLbl: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  statVal: {
+    color: COLORS.accent,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  totalEarnedHint: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    marginTop: 6,
+    minHeight: 14,
+  },
+  section: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 12,
+    paddingHorizontal: 20,
+  },
+  empty: { color: COLORS.textMuted, paddingHorizontal: 20 },
   tx: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 12,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#2a2a2a',
   },

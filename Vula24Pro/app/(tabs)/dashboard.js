@@ -260,44 +260,101 @@ export default function DashboardScreen() {
     u.vehicleColor?.trim() &&
     u.vehiclePlateNumber?.trim();
 
+  const timeOfDay = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'morning';
+    if (h < 17) return 'afternoon';
+    return 'evening';
+  };
+
+  const getJobIcon = (type) => {
+    if (!type) return 'key-outline';
+    if (type.includes('CAR')) return 'car';
+    if (type.includes('HOUSE')) return 'home';
+    if (type.includes('OFFICE')) return 'business';
+    if (type.includes('KEY')) return 'key-outline';
+    if (type.includes('LOCK')) return 'lock-closed';
+    if (type.includes('SAFE')) return 'cube-outline';
+    if (type.includes('GATE')) return 'git-merge-outline';
+    return 'construct';
+  };
+
+  const getStatusBg = (status) => {
+    const map = {
+      COMPLETED: '#0a2a0a',
+      CANCELLED: '#2a0a0a',
+      IN_PROGRESS: '#0a1a2a',
+      ARRIVED: '#0a1a2a',
+      DISPATCHED: '#1a1a0a',
+      ACCEPTED: '#1a1a0a',
+      PENDING: '#1a1a1a',
+      DISPUTED: '#2a1a00',
+    };
+    return map[status] || '#1a1a1a';
+  };
+
+  const getStatusColor = (status) => {
+    const map = {
+      COMPLETED: '#34c759',
+      CANCELLED: '#ff3b30',
+      IN_PROGRESS: '#0a84ff',
+      ARRIVED: '#0a84ff',
+      DISPATCHED: '#D4A017',
+      ACCEPTED: '#D4A017',
+      PENDING: '#888',
+      DISPUTED: '#ff9500',
+    };
+    return map[status] || '#888';
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.greet}>Hi {name}</Text>
-
-        {!profileComplete ? (
-          <TouchableOpacity
-            style={styles.profileBanner}
-            onPress={() => router.push('/(tabs)/profile')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.profileBannerText}>Complete your profile to go online →</Text>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerGreet}>Good {timeOfDay()}, {name}</Text>
+            <Text style={styles.headerSub}>{online ? 'You are online' : 'You are offline'}</Text>
+          </View>
+          <TouchableOpacity style={styles.notifBtn} onPress={() => router.push('/notifications')}>
+            <Ionicons name="notifications-outline" size={22} color={COLORS.accent} />
           </TouchableOpacity>
-        ) : null}
+        </View>
 
-        <View style={styles.onlineRow}>
-          <View style={styles.onlineTextCol}>
-            <Text style={styles.onlineLabel}>Availability</Text>
-            <Text style={[styles.onlineStatus, { color: online ? COLORS.success : COLORS.textMuted }]}>
-              {online ? 'You are receiving jobs' : 'You are not receiving jobs'}
-            </Text>
+        <TouchableOpacity
+          style={[styles.onlineCard, { borderColor: online ? '#34c759' : '#444' }]}
+          onPress={() => onToggleOnline(!online)}
+          disabled={toggleLoading}
+          activeOpacity={0.9}
+        >
+          <View style={styles.onlineCardLeft}>
+            <View style={[styles.onlineDot, { backgroundColor: online ? '#34c759' : '#666' }]} />
+            <View>
+              <Text style={styles.onlineCardTitle}>{online ? 'Online' : 'Offline'}</Text>
+              <Text style={styles.onlineCardSub}>
+                {online ? 'Receiving job requests' : 'Tap to go online'}
+              </Text>
+            </View>
           </View>
           <Switch
             value={online}
             onValueChange={onToggleOnline}
             disabled={toggleLoading}
-            trackColor={{ false: '#444', true: '#2d4a2d' }}
-            thumbColor={online ? COLORS.accent : '#888'}
+            trackColor={{ false: '#333', true: '#1a3a1a' }}
+            thumbColor={online ? '#34c759' : '#666'}
           />
-        </View>
-        <View style={styles.dotRow}>
-          <View style={[styles.dot, { backgroundColor: online ? COLORS.success : '#666' }]} />
-          <Text style={styles.dotLabel}>{online ? 'Online' : 'Offline'}</Text>
-        </View>
+        </TouchableOpacity>
+
+        {!profileComplete ? (
+          <TouchableOpacity style={styles.incompleteBanner} onPress={() => router.push('/(tabs)/profile')}>
+            <Ionicons name="warning-outline" size={18} color="#111" style={{ marginRight: 8 }} />
+            <Text style={styles.incompleteBannerText}>Complete your profile to go online</Text>
+            <Ionicons name="chevron-forward" size={18} color="#111" />
+          </TouchableOpacity>
+        ) : null}
 
         {activeJob ? (
           <TouchableOpacity
-            style={styles.activeBanner}
+            style={styles.activeJobCard}
             onPress={() =>
               router.push({
                 pathname: '/active-job',
@@ -305,34 +362,68 @@ export default function DashboardScreen() {
               })
             }
           >
-            <Text style={styles.activeBannerText}>Active Job — tap to view</Text>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.bg} />
+            <View style={styles.activeJobLeft}>
+              <View style={styles.activeJobDot} />
+              <View>
+                <Text style={styles.activeJobTitle}>Active Job</Text>
+                <Text style={styles.activeJobSub}>
+                  {activeJob.serviceType?.replace(/_/g, ' ')} · {activeJob.status}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.activeJobRight}>
+              <Text style={styles.activeJobBtn}>View</Text>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.accent} />
+            </View>
           </TouchableOpacity>
         ) : null}
 
-        <View style={styles.statsRow}>
-          <View style={styles.stat}>
-            <Text style={styles.statNum}>{jobsToday}</Text>
-            <Text style={styles.statLabel}>Jobs today</Text>
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <Text style={styles.statVal}>{jobsToday}</Text>
+            <Text style={styles.statLbl}>Jobs today</Text>
           </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNum}>R {earnedToday.toFixed(0)}</Text>
-            <Text style={styles.statLabel}>Earned today</Text>
+          <View style={[styles.statCard, styles.statCardMid]}>
+            <Text style={styles.statVal}>R{earnedToday.toFixed(0)}</Text>
+            <Text style={styles.statLbl}>Earned today</Text>
           </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNum}>{Number(u?.rating ?? 5).toFixed(1)}</Text>
-            <Text style={styles.statLabel}>Rating</Text>
+          <View style={styles.statCard}>
+            <Text style={styles.statVal}>{Number(u?.rating ?? 5).toFixed(1)}★</Text>
+            <Text style={styles.statLbl}>Rating</Text>
           </View>
         </View>
 
-        <Text style={styles.section}>Recent jobs</Text>
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle}>Recent jobs</Text>
+          <TouchableOpacity onPress={() => router.push('/my-jobs')}>
+            <Text style={styles.seeAll}>See all</Text>
+          </TouchableOpacity>
+        </View>
+
         {recent.length === 0 ? (
           <Text style={styles.empty}>No jobs yet. Go online to receive requests.</Text>
         ) : (
           recent.map((j) => (
-            <View key={j.id} style={styles.jobRow}>
-              <Text style={styles.jobService}>{j.serviceType?.replace(/_/g, ' ')}</Text>
-              <Text style={styles.jobStatus}>{j.status}</Text>
+            <View key={j.id} style={styles.jobCard}>
+              <View style={styles.jobIconWrap}>
+                <Ionicons name={getJobIcon(j.serviceType)} size={20} color={COLORS.accent} />
+              </View>
+              <View style={styles.jobInfo}>
+                <Text style={styles.jobService}>{j.serviceType?.replace(/_/g, ' ')}</Text>
+                <Text style={styles.jobDate}>
+                  {new Date(j.createdAt).toLocaleDateString('en-ZA', {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </Text>
+              </View>
+              <View style={[styles.jobBadge, { backgroundColor: getStatusBg(j.status) }]}>
+                <Text style={[styles.jobBadgeText, { color: getStatusColor(j.status) }]}>
+                  {j.status}
+                </Text>
+              </View>
             </View>
           ))
         )}
@@ -343,60 +434,214 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
-  scroll: { padding: 20, paddingBottom: 32 },
-  greet: { color: COLORS.text, fontSize: 24, fontWeight: '800', marginBottom: 20 },
-  profileBanner: {
-    backgroundColor: COLORS.accent,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+  scroll: { paddingBottom: 40 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
-  profileBannerText: {
-    color: COLORS.bg,
+  headerGreet: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  headerSub: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    marginTop: 2,
+  },
+  notifBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  onlineCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1.5,
+  },
+  onlineCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  onlineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  onlineCardTitle: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  onlineCardSub: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    marginTop: 2,
+  },
+  incompleteBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.accent,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 14,
+  },
+  incompleteBannerText: {
+    color: '#111',
+    fontWeight: '700',
+    fontSize: 14,
+    flex: 1,
+  },
+  activeJobCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    backgroundColor: '#0a1a0a',
+    borderWidth: 1.5,
+    borderColor: '#34c759',
+    borderRadius: 16,
+    padding: 16,
+  },
+  activeJobLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  activeJobDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#34c759',
+  },
+  activeJobTitle: {
+    color: '#34c759',
     fontSize: 15,
     fontWeight: '700',
+  },
+  activeJobSub: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  activeJobRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  activeJobBtn: {
+    color: COLORS.accent,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginBottom: 24,
+    gap: 10,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  statCardMid: {
+    borderColor: COLORS.accent,
+    borderWidth: 1,
+  },
+  statVal: {
+    color: COLORS.accent,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  statLbl: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    marginTop: 4,
     textAlign: 'center',
   },
-  onlineRow: {
+  sectionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  seeAll: {
+    color: COLORS.accent,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  jobCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  onlineTextCol: { flex: 1 },
-  onlineLabel: { color: COLORS.textMuted, fontSize: 16 },
-  onlineStatus: { fontSize: 15, marginTop: 4, fontWeight: '600' },
-  dotRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  dot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
-  dotLabel: { color: COLORS.textMuted, fontSize: 14 },
-  activeBanner: {
-    backgroundColor: COLORS.accent,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 20,
-  },
-  activeBannerText: { color: COLORS.bg, fontWeight: '800', fontSize: 16 },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  stat: { alignItems: 'center', flex: 1 },
-  statNum: { color: COLORS.accent, fontSize: 22, fontWeight: '800' },
-  statLabel: { color: COLORS.textMuted, fontSize: 12, marginTop: 4 },
-  section: { color: COLORS.text, fontSize: 17, fontWeight: '700', marginBottom: 12 },
-  empty: { color: COLORS.textMuted, fontSize: 15 },
-  jobRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
+    borderBottomColor: '#1a1a1a',
+    gap: 12,
   },
-  jobService: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
-  jobStatus: { color: COLORS.textMuted, fontSize: 14 },
+  jobIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  jobInfo: { flex: 1 },
+  jobService: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  jobDate: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  jobBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  jobBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  empty: {
+    color: COLORS.textMuted,
+    fontSize: 15,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
 });
