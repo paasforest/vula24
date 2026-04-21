@@ -272,10 +272,17 @@ export default function BookScreen() {
         params: { jobId: data.job.id },
       });
     } catch (e) {
-      Alert.alert(
-        'Error',
-        e.response?.data?.error || e.message || 'Could not create job.'
-      );
+      if (e.response?.status === 404) {
+        Alert.alert(
+          'No Locksmiths Available',
+          'There are no locksmiths available in your area right now.\n\nPlease try again in a few minutes.'
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          e.response?.data?.error || e.message || 'Could not create job.'
+        );
+      }
     } finally {
       setLoading(false);
     }
