@@ -100,6 +100,11 @@ export default function JobRequestScreen() {
       if (!timerDone.current) {
         timerDone.current = true;
         (async () => {
+          try {
+            await api.post(`/api/jobs/${jobId}/locksmith-timeout`);
+          } catch {
+            /* ignore */
+          }
           await AsyncStorage.setItem(`dismiss_job_${jobId}`, '1');
           router.back();
         })();

@@ -4,6 +4,52 @@ import Constants from 'expo-constants';
 import { getToken } from './storage';
 
 /**
+ * POST multipart FormData via native fetch (reliable on RN Android).
+ * Do not set Content-Type — fetch sets the boundary. Adds Bearer token when present.
+ * @param {string} path Absolute path e.g. /api/customer/upload-photo
+ * @param {FormData} form
+ * @param {{ timeoutMs?: number }} [options]
+ * @returns {Promise<Record<string, unknown>>} Parsed JSON body
+ */
+export async function postMultipart(path, form, options = {}) {
+  const base = getBaseURL();
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = `${base}${normalizedPath}`;
+  const token = await getToken();
+  /** @type {Record<string, string>} */
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const timeoutMs = options.timeoutMs ?? 120000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      body: form,
+      headers,
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(
+        text?.slice(0, 200) || `Invalid response (HTTP ${res.status})`
+      );
+    }
+    if (!res.ok) {
+      throw new Error(data.error || `Request failed (HTTP ${res.status})`);
+    }
+    return data;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
  * Resolves API base URL for dev:
  * - EXPO_PUBLIC_API_URL in .env (highest priority)
  * - Expo Go / dev client: same LAN host as Metro (physical phone works without manual IP)

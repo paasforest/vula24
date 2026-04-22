@@ -26,7 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FormInput } from '../components/FormInput';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
-import api from '../lib/api';
+import api, { postMultipart } from '../lib/api';
 import {
   reverseGeocodeFormatted,
   formatExpoReversePlace,
@@ -325,7 +325,7 @@ export default function BookScreen() {
           type: mimeFromUri(photoUri),
           name: 'job-photo.jpg',
         });
-        const { data: upload } = await api.post('/api/customer/upload-photo', form);
+        const upload = await postMultipart('/api/customer/upload-photo', form);
         jobPhotoUrl = upload.url;
       }
       const { data } = await api.post('/api/jobs/scheduled/create', {
@@ -519,7 +519,13 @@ export default function BookScreen() {
                   onPress={() => setShowPicker(true)}
                 >
                   <Text style={styles.dtText}>
-                    {scheduledAt.toLocaleString()}
+                    {(() => {
+                      try {
+                        return scheduledAt?.toLocaleString?.() || 'Select date and time';
+                      } catch {
+                        return 'Select date and time';
+                      }
+                    })()}
                   </Text>
                 </TouchableOpacity>
                 {showPicker && (
@@ -528,12 +534,23 @@ export default function BookScreen() {
                     mode="datetime"
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                     onChange={(event, d) => {
-                      if (Platform.OS === 'android') {
-                        setShowPicker(false);
-                      }
-                      if (d) setScheduledAt(d);
-                      if (Platform.OS === 'ios' && event?.type === 'dismissed') {
-                        setShowPicker(false);
+                      try {
+                        if (Platform.OS === 'android') {
+                          setShowPicker(false);
+                        }
+                        if (Platform.OS === 'ios' && event?.type === 'dismissed') {
+                          setShowPicker(false);
+                        }
+                        if (!(d instanceof Date) || Number.isNaN(d.getTime())) {
+                          return;
+                        }
+                        if (d.getTime() < Date.now()) {
+                          Alert.alert('Please select a future date and time');
+                          return;
+                        }
+                        setScheduledAt(d);
+                      } catch {
+                        /* never crash the screen */
                       }
                     }}
                   />

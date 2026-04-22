@@ -91,6 +91,14 @@ router.get(
 );
 
 router.post(
+  '/:id/locksmith-timeout',
+  authenticateLocksmith,
+  [param('id').isUUID()],
+  handleValidationErrors,
+  asyncHandler(jobs.locksmithTimeout)
+);
+
+router.post(
   '/:id/accept',
   authenticateLocksmith,
   [param('id').isUUID()],

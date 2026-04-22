@@ -19,7 +19,7 @@ const morgan = require('morgan');
 
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const prisma = require('./lib/prisma');
-const { expireAcceptedJobs } = require('./controllers/jobController');
+const { expireAcceptedJobs, expirePendingJobs } = require('./controllers/jobController');
 const { releasePendingPayouts } = require('./controllers/paymentController');
 
 const authRoutes = require('./routes/auth');
@@ -88,6 +88,9 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 setInterval(() => {
+  expirePendingJobs().catch((err) =>
+    console.error('expirePendingJobs', err)
+  );
   expireAcceptedJobs().catch((err) =>
     console.error('expireAcceptedJobs', err)
   );

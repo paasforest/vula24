@@ -355,6 +355,142 @@ async function expireAcceptedJobs() {
   }
 }
 
+async function expirePendingJobs() {
+  const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+  const stale = await prisma.job.findMany({
+    where: {
+      mode: 'EMERGENCY',
+      status: 'PENDING',
+      createdAt: { lt: twoMinutesAgo },
+    },
+    select: {
+      id: true,
+      customerId: true,
+    },
+  });
+
+  if (stale.length === 0) {
+    return;
+  }
+
+  let cancelled = 0;
+  for (const job of stale) {
+    try {
+      const updated = await prisma.job.updateMany({
+        where: {
+          id: job.id,
+          status: 'PENDING',
+          mode: 'EMERGENCY',
+        },
+        data: { status: 'CANCELLED', locksithId: null },
+      });
+      if (updated.count === 0) continue;
+      cancelled += 1;
+
+      const customer = await prisma.customer.findUnique({
+        where: { id: job.customerId },
+        select: { pushToken: true },
+      });
+      sendPushNotification(
+        customer?.pushToken,
+        'No Locksmith Found',
+        'We could not find an available locksmith. Please try again.',
+        { jobId: String(job.id) }
+      );
+    } catch (err) {
+      console.error('expirePendingJobs', job.id, err);
+    }
+  }
+
+  console.log(`[expirePendingJobs] cancelled ${cancelled} jobs`);
+}
+
+async function locksmithTimeout(req, res) {
+  const { id: jobId } = req.params;
+  const locksmithId = req.locksmith.id;
+
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job) throw new AppError('Job not found', 404);
+  if (job.locksithId !== locksmithId) {
+    throw new AppError('This job is not assigned to you', 403);
+  }
+  if (job.status !== 'PENDING' || job.mode !== 'EMERGENCY') {
+    return res.json({ job, reassigned: false });
+  }
+
+  const next = await getNearestLocksmith({
+    customerLat: job.customerLat,
+    customerLng: job.customerLng,
+    serviceType: job.serviceType,
+    excludeLocksmithId: locksmithId,
+  });
+
+  if (!next) {
+    const updated = await prisma.job.update({
+      where: { id: job.id },
+      data: { status: 'CANCELLED', locksithId: null, acceptedAt: null },
+    });
+
+    const customer = await prisma.customer.findUnique({
+      where: { id: job.customerId },
+      select: { pushToken: true },
+    });
+    sendPushNotification(
+      customer?.pushToken,
+      'No Locksmith Found',
+      'We could not find an available locksmith. Please try again.',
+      { jobId: String(job.id) }
+    );
+
+    return res.json({ job: updated, reassigned: false });
+  }
+
+  const svcLabel = String(job.serviceType).replace(/_/g, ' ');
+  const msgDb = `New ${svcLabel} job — ${job.customerAddress}`;
+  const msgPush = `New ${svcLabel} — ${job.customerAddress}`;
+
+  const pricing = calculateJobPrice(next.basePrice);
+  const updated = await prisma.job.update({
+    where: { id: job.id },
+    data: {
+      status: 'PENDING',
+      locksithId: next.locksmith.id,
+      acceptedAt: null,
+      locksithBasePrice: next.basePrice,
+      travelFee: pricing.travelFee,
+      platformFee: pricing.platformFee,
+      totalPrice: pricing.totalPrice,
+      locksithEarning: pricing.locksithEarning,
+    },
+    include: { locksmith: true },
+  });
+
+  await prisma.notification.create({
+    data: {
+      recipientId: next.locksmith.id,
+      recipientType: 'LOCKSMITH',
+      title: 'New job nearby',
+      message: msgDb,
+    },
+  });
+  sendPushNotification(
+    next.locksmith.pushToken,
+    'New job nearby',
+    msgPush,
+    { jobId: String(job.id) }
+  );
+
+  return res.json({
+    job: {
+      ...updated,
+      locksmith: stripLocksmithPublic(updated.locksmith),
+    },
+    reassigned: true,
+    distanceKm: next.distanceKm,
+    pricing,
+  });
+}
+
 async function startJob(req, res) {
   const jobId = req.params.id;
   const locksmithId = req.locksmith.id;
@@ -1588,9 +1724,11 @@ module.exports = {
   acceptJob,
   dispatchJob,
   expireAcceptedJobs,
+  expirePendingJobs,
   arrivedJob,
   startJob,
   completeJob,
+  locksmithTimeout,
   cancelJob,
   createScheduledJob,
   submitQuote,
