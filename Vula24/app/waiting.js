@@ -6,6 +6,7 @@ import {
   Animated,
   Alert,
   Easing,
+  Linking,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -128,9 +129,29 @@ export default function WaitingScreen() {
         stoppedRef.current = true;
         clearInterval(id);
         Alert.alert(
-          'No Locksmith Found',
-          'We could not find an available locksmith for your request.\n\nPlease try again or contact support.',
-          [{ text: 'OK', onPress: goHome }]
+          'No locksmith available',
+          'We could not find an available locksmith in your area right now. Please try again or contact us directly.',
+          [
+            {
+              text: 'Call us',
+              onPress: () => {
+                Linking.openURL('tel:+27661235067');
+                goHome();
+              },
+            },
+            {
+              text: 'WhatsApp us',
+              onPress: () => {
+                Linking.openURL('https://wa.me/27661235067');
+                goHome();
+              },
+            },
+            {
+              text: 'Try again',
+              style: 'cancel',
+              onPress: goHome,
+            },
+          ]
         );
       }
     }, POLL_MS);
