@@ -381,6 +381,9 @@ async function withdraw(req, res) {
   const locksmithId = req.locksmith.id;
 
   if (amount <= 0) throw new AppError('Amount must be positive', 400);
+  if (amount < 100) {
+    throw new AppError('Minimum withdrawal amount is R100', 400);
+  }
 
   const wallet = await prisma.wallet.findUnique({
     where: { locksithId: locksmithId },

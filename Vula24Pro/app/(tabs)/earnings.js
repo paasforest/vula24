@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../../components/GoldButton';
@@ -113,10 +113,17 @@ export default function EarningsScreen() {
       Alert.alert('Amount', 'Enter a valid amount.');
       return;
     }
+    if (n < 100) {
+      Alert.alert('Minimum', 'Minimum withdrawal amount is R100.');
+      return;
+    }
     setLoading(true);
     try {
       await api.post('/api/payments/withdraw', { amount: n });
-      Alert.alert('Success', 'Withdrawal request submitted.');
+      Alert.alert(
+        'Withdrawal requested',
+        'Your withdrawal request has been submitted. Funds will be transferred to your bank account within 1-2 business days.'
+      );
       setWithdrawOpen(false);
       setAmount('');
       await load();
@@ -148,7 +155,30 @@ export default function EarningsScreen() {
           <Text style={styles.balanceVal}>
             R {Number(wallet?.wallet?.balance ?? wallet?.balance ?? 0).toFixed(2)}
           </Text>
-          <TouchableOpacity style={styles.withdrawBtn} onPress={() => setWithdrawOpen(true)}>
+          <TouchableOpacity
+            style={styles.withdrawBtn}
+            onPress={() => {
+              if (
+                !profile?.bankName ||
+                !profile?.bankAccountNumber ||
+                !profile?.bankAccountHolder
+              ) {
+                Alert.alert(
+                  'Bank details required',
+                  'Please add your bank details in your profile before withdrawing.',
+                  [
+                    {
+                      text: 'Add bank details',
+                      onPress: () => router.push('/bank-details'),
+                    },
+                    { text: 'Cancel', style: 'cancel' },
+                  ]
+                );
+                return;
+              }
+              setWithdrawOpen(true);
+            }}
+          >
             <Text style={styles.withdrawBtnText}>Withdraw to bank</Text>
             <Ionicons name="arrow-forward" size={16} color="#111" />
           </TouchableOpacity>

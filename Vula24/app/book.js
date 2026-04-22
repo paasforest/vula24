@@ -10,6 +10,7 @@ import {
   Image,
   TextInput,
   Keyboard,
+  Linking,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -272,15 +273,33 @@ export default function BookScreen() {
         params: { jobId: data.job.id },
       });
     } catch (e) {
-      if (e.response?.status === 404) {
+      const msg = e.response?.data?.error || '';
+      if (
+        e.response?.status === 404 &&
+        msg.includes('locksmith')
+      ) {
         Alert.alert(
-          'No Locksmiths Available',
-          'There are no locksmiths available in your area right now.\n\nPlease try again in a few minutes.'
+          'No locksmiths available',
+          'There are no verified locksmiths available in your area right now. Please try again in a few minutes or call us directly.',
+          [
+            {
+              text: 'Call us',
+              onPress: () => Linking.openURL('tel:+27661235067'),
+            },
+            {
+              text: 'WhatsApp us',
+              onPress: () =>
+                Linking.openURL('https://wa.me/27661235067'),
+            },
+            { text: 'Try again', style: 'cancel' },
+          ]
         );
       } else {
         Alert.alert(
           'Error',
-          e.response?.data?.error || e.message || 'Could not create job.'
+          e.response?.data?.error ||
+            e.message ||
+            'Could not create job.'
         );
       }
     } finally {
