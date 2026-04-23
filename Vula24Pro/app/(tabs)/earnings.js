@@ -77,6 +77,10 @@ export default function EarningsScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
+      const id = setInterval(() => {
+        load();
+      }, 30000);
+      return () => clearInterval(id);
     }, [load])
   );
 
@@ -183,6 +187,16 @@ export default function EarningsScreen() {
             <Ionicons name="arrow-forward" size={16} color="#111" />
           </TouchableOpacity>
         </View>
+
+        {pendingPayouts.length > 0 ? (
+          <View style={styles.pendingNote}>
+            <Text style={styles.pendingNoteText}>
+              You have {pendingPayouts.length} pending payout
+              {pendingPayouts.length > 1 ? 's' : ''} releasing soon. Pull down to
+              refresh.
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.pendingCard}>
           <Text style={styles.pendingTitle}>Pending payouts</Text>
@@ -337,6 +351,21 @@ const styles = StyleSheet.create({
     color: '#111',
     fontWeight: '700',
     fontSize: 15,
+  },
+  pendingNote: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    backgroundColor: '#1a1a0a',
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    borderRadius: 12,
+    padding: 12,
+  },
+  pendingNoteText: {
+    color: COLORS.accent,
+    fontSize: 13,
+    textAlign: 'center',
+    fontWeight: '600',
   },
   pendingCard: {
     backgroundColor: COLORS.inputBg,
