@@ -366,43 +366,108 @@ async function expirePendingJobs() {
     select: {
       id: true,
       customerId: true,
+      locksithId: true,
+      customerLat: true,
+      customerLng: true,
+      serviceType: true,
+      customerAddress: true,
     },
   });
 
-  if (stale.length === 0) {
-    return;
-  }
+  if (stale.length === 0) return;
 
+  let reassigned = 0;
   let cancelled = 0;
+
   for (const job of stale) {
     try {
-      const updated = await prisma.job.updateMany({
-        where: {
-          id: job.id,
-          status: 'PENDING',
-          mode: 'EMERGENCY',
-        },
-        data: { status: 'CANCELLED', locksithId: null },
+      const next = await getNearestLocksmith({
+        customerLat: job.customerLat,
+        customerLng: job.customerLng,
+        serviceType: job.serviceType,
+        excludeLocksmithId: job.locksithId,
       });
-      if (updated.count === 0) continue;
-      cancelled += 1;
 
-      const customer = await prisma.customer.findUnique({
-        where: { id: job.customerId },
-        select: { pushToken: true },
-      });
-      sendPushNotification(
-        customer?.pushToken,
-        'No Locksmith Found',
-        'We could not find an available locksmith. Please try again.',
-        { jobId: String(job.id) }
-      );
+      if (next) {
+        const pricing = calculateJobPrice(next.basePrice);
+        await prisma.job.update({
+          where: { id: job.id },
+          data: {
+            status: 'PENDING',
+            locksithId: next.locksmith.id,
+            acceptedAt: null,
+            locksithBasePrice: next.basePrice,
+            travelFee: pricing.travelFee,
+            platformFee: pricing.platformFee,
+            totalPrice: pricing.totalPrice,
+            locksithEarning: pricing.locksithEarning,
+          },
+        });
+
+        const svcLabel = String(job.serviceType).replace(/_/g, ' ');
+
+        await prisma.notification.create({
+          data: {
+            recipientId: next.locksmith.id,
+            recipientType: 'LOCKSMITH',
+            title: 'New job nearby',
+            message: `New ${svcLabel} job — ${job.customerAddress}`,
+          },
+        });
+
+        sendPushNotification(
+          next.locksmith.pushToken,
+          'New job nearby',
+          `New ${svcLabel} — ${job.customerAddress}`,
+          { jobId: String(job.id) }
+        );
+
+        const customer = await prisma.customer.findUnique({
+          where: { id: job.customerId },
+          select: { pushToken: true },
+        });
+
+        sendPushNotification(
+          customer?.pushToken,
+          'Still searching',
+          'We are finding you the nearest locksmith. Please wait.',
+          { jobId: String(job.id) }
+        );
+
+        reassigned += 1;
+      } else {
+        const updated = await prisma.job.updateMany({
+          where: {
+            id: job.id,
+            status: 'PENDING',
+            mode: 'EMERGENCY',
+          },
+          data: { status: 'CANCELLED', locksithId: null },
+        });
+
+        if (updated.count === 0) continue;
+        cancelled += 1;
+
+        const customer = await prisma.customer.findUnique({
+          where: { id: job.customerId },
+          select: { pushToken: true },
+        });
+
+        sendPushNotification(
+          customer?.pushToken,
+          'No Locksmith Found',
+          'We could not find an available locksmith. Please try again or contact us.',
+          { jobId: String(job.id) }
+        );
+      }
     } catch (err) {
       console.error('expirePendingJobs', job.id, err);
     }
   }
 
-  console.log(`[expirePendingJobs] cancelled ${cancelled} jobs`);
+  console.log(
+    `[expirePendingJobs] reassigned ${reassigned}, cancelled ${cancelled}`
+  );
 }
 
 async function locksmithTimeout(req, res) {
