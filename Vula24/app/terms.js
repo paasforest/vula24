@@ -29,7 +29,9 @@ Payment is processed securely through PayFast. Vula24 does not store your card d
 
 For emergency jobs, full payment is required before the locksmith is dispatched to your location. For scheduled jobs, a deposit is required when you accept a quote, with the remainder due on completion.
 
-Refunds are processed within 3 to 5 business days where applicable.`,
+Refunds are processed within 3 to 5 business days where applicable.
+
+Locksmith earnings are held for a short period after job completion to allow for dispute resolution. Earnings are released to the locksmith wallet within 49 hours of payment confirmation. Withdrawals are processed within 1 to 3 business days after the earnings are released to the wallet.`,
   },
   {
     title: 'Cancellation Policy',

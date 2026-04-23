@@ -9,7 +9,7 @@ function appBaseUrl() {
 /** @param {'deposit' | 'final' | 'simulate'} paymentKind */
 function releaseAfterForPendingPayout(job, paymentKind) {
   if (job.mode === 'EMERGENCY') {
-    return new Date(Date.now() + 24 * 60 * 60 * 1000);
+    return new Date(Date.now() + 49 * 60 * 60 * 1000);
   }
   if (job.mode === 'SCHEDULED') {
     if (paymentKind === 'final') {
@@ -17,7 +17,7 @@ function releaseAfterForPendingPayout(job, paymentKind) {
     }
     return new Date();
   }
-  return new Date(Date.now() + 24 * 60 * 60 * 1000);
+  return new Date(Date.now() + 49 * 60 * 60 * 1000);
 }
 
 function parsePaymentRef(mPaymentId) {

@@ -14,9 +14,11 @@ You agree to only accept jobs you can complete professionally and timeously. Rep
     title: 'Earnings & Fees',
     body: `Vula24 charges a service fee on each completed job. This fee is deducted from the customer payment before your earnings are credited to your wallet.
 
-Your earnings are held briefly after job completion before being released to your wallet. This protects customers against disputes. For emergency jobs the hold period is 24 hours. For scheduled jobs the deposit is released immediately and the final payment after a short hold.
+Your earnings are held briefly after job completion before being released to your wallet. This protects customers against disputes. For emergency jobs the hold period is 49 hours. For scheduled jobs the deposit is released immediately and the final payment after a short hold.
 
-You can withdraw your wallet balance to your registered bank account at any time, subject to minimum withdrawal amounts.`,
+You can withdraw your wallet balance to your registered bank account at any time, subject to minimum withdrawal amounts.
+
+Your earnings will reflect in your Vula24 wallet within 49 hours of customer payment confirmation. This holding period exists to protect customers and maintain platform integrity. Once released to your wallet, you may withdraw at any time. Withdrawals are processed within 1 to 3 business days.`,
   },
   {
     title: 'Verification & Compliance',
