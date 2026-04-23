@@ -177,7 +177,7 @@ export default function ActiveJobScreen() {
               </Text>
               <TouchableOpacity
                 style={styles.disputeBtn}
-                onPress={() => Linking.openURL('https://wa.me/27729543821')}
+                onPress={() => Linking.openURL('https://wa.me/27661235067')}
               >
                 <Text style={styles.disputeBtnText}>Contact Support</Text>
               </TouchableOpacity>

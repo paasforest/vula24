@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
 
-const WHATSAPP_URL = 'https://wa.me/27729543821';
+const WHATSAPP_URL = 'https://wa.me/27661235067';
 const EMAIL = 'mailto:support@vula24.com';
 
 const STEPS = [
@@ -51,13 +51,13 @@ export default function HelpScreen() {
               } else {
                 Alert.alert(
                   'WhatsApp',
-                  'WhatsApp is not installed on this device. Call us on 072 954 3821'
+                  'WhatsApp is not installed on this device. Call us on 066 123 5067'
                 );
               }
             } catch {
               Alert.alert(
                 'WhatsApp',
-                'Could not open WhatsApp. Call us on 072 954 3821'
+                'Could not open WhatsApp. Call us on 066 123 5067'
               );
             }
           }}
