@@ -89,7 +89,17 @@ export default function RegisterScreen() {
         return;
       }
     }
-    setCamVisible(true);
+    try {
+      setCamVisible(true);
+    } catch {
+      const r = await ImagePicker.launchCameraAsync({
+        quality: 0.85,
+        cameraType: ImagePicker.CameraType.front,
+      });
+      if (!r.canceled && r.assets[0]) {
+        setSelfieUri(r.assets[0].uri);
+      }
+    }
   };
 
   const takeSelfie = async () => {
@@ -103,7 +113,11 @@ export default function RegisterScreen() {
     } catch {
       /* fall through */
     }
-    const r = await ImagePicker.launchCameraAsync({ quality: 0.85 });
+    const r = await ImagePicker.launchCameraAsync({
+      quality: 0.85,
+      cameraType: ImagePicker.CameraType.front,
+      allowsEditing: false,
+    });
     if (!r.canceled && r.assets[0]) {
       setSelfieUri(r.assets[0].uri);
       setCamVisible(false);
