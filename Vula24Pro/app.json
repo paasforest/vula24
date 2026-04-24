@@ -1,6 +1,6 @@
 {
   "expo": {
-    "owner": "swiftdrop26",
+    "owner": "vula24",
     "name": "Vula24 Pro",
     "slug": "vula24-pro",
     "scheme": "vula24pro",
@@ -46,6 +46,19 @@
       }
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#111111",
+          "image": "./assets/splash.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#111111",
+            "image": "./assets/splash.png"
+          }
+        }
+      ],
       "expo-dev-client",
       "expo-router",
       [
@@ -80,8 +93,9 @@
     },
     "extra": {
       "router": {},
+      "apiUrl": "https://vula24-production.up.railway.app",
       "eas": {
-        "projectId": "2b51c42b-3b1c-4731-ba49-1c9b665fac36"
+        "projectId": "7f3e60de-0428-4b93-b9b5-24d96959a43a"
       }
     }
   }

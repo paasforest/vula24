@@ -1,13 +1,9 @@
 {
   "expo": {
     "name": "Vula24",
+    "owner": "vula24",
     "slug": "vula24",
     "scheme": "vula24",
-    "extra": {
-      "eas": {
-        "projectId": "1b85a0e6-6a6e-4272-8f29-833b888673ca"
-      }
-    },
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -50,6 +46,19 @@
       }
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#111111",
+          "image": "./assets/splash.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#111111",
+            "image": "./assets/splash.png"
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-location",
@@ -74,6 +83,13 @@
     ],
     "experiments": {
       "typedRoutes": false
+    },
+    "extra": {
+      "router": {},
+      "googlePlacesApiKey": "AIzaSyBPS1Ek7P23ziEKh1OfawDPV4AMhu7WHAc",
+      "eas": {
+        "projectId": "11b345af-ae98-47c0-910d-b5677469e70b"
+      }
     }
   }
 }
