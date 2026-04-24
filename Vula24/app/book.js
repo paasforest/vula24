@@ -67,7 +67,8 @@ export default function BookScreen() {
   const [note, setNote] = useState('');
   const [description, setDescription] = useState('');
   const [scheduledAt, setScheduledAt] = useState(new Date(Date.now() + 3600000));
-  const [showPicker, setShowPicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [photoUri, setPhotoUri] = useState(null);
   const [loading, setLoading] = useState(false);
   const [keyboardBottomInset, setKeyboardBottomInset] = useState(0);
@@ -513,44 +514,84 @@ export default function BookScreen() {
                   <Image source={{ uri: photoUri }} style={styles.preview} />
                 ) : null}
 
-                <Text style={styles.dtLabel}>When do you need this done?</Text>
-                <TouchableOpacity
-                  style={styles.dtBtn}
-                  onPress={() => setShowPicker(true)}
-                >
-                  <Text style={styles.dtText}>
-                    {(() => {
-                      try {
-                        return scheduledAt?.toLocaleString?.() || 'Select date and time';
-                      } catch {
-                        return 'Select date and time';
-                      }
-                    })()}
-                  </Text>
-                </TouchableOpacity>
-                {showPicker && (
+                <View style={styles.dtRow}>
+                  <TouchableOpacity
+                    style={[styles.dtBtn, { flex: 1, marginRight: 8 }]}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Text style={styles.dtLabel}>Date</Text>
+                    <Text style={styles.dtText}>
+                      {(() => {
+                        try {
+                          return scheduledAt?.toLocaleDateString?.() || 'Select date';
+                        } catch {
+                          return 'Select date';
+                        }
+                      })()}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.dtBtn, { flex: 1 }]}
+                    onPress={() => setShowTimePicker(true)}
+                  >
+                    <Text style={styles.dtLabel}>Time</Text>
+                    <Text style={styles.dtText}>
+                      {(() => {
+                        try {
+                          return scheduledAt?.toLocaleTimeString?.() || 'Select time';
+                        } catch {
+                          return 'Select time';
+                        }
+                      })()}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {showDatePicker && (
                   <DateTimePicker
                     value={scheduledAt}
-                    mode="datetime"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    mode="date"
+                    display="default"
+                    minimumDate={new Date()}
                     onChange={(event, d) => {
                       try {
-                        if (Platform.OS === 'android') {
-                          setShowPicker(false);
-                        }
-                        if (Platform.OS === 'ios' && event?.type === 'dismissed') {
-                          setShowPicker(false);
-                        }
-                        if (!(d instanceof Date) || Number.isNaN(d.getTime())) {
+                        setShowDatePicker(false);
+                        if (!(d instanceof Date) || Number.isNaN(d.getTime())) return;
+                        const updated = new Date(scheduledAt);
+                        updated.setFullYear(d.getFullYear());
+                        updated.setMonth(d.getMonth());
+                        updated.setDate(d.getDate());
+                        if (updated.getTime() < Date.now()) {
+                          Alert.alert('Invalid date', 'Please select a future date.');
                           return;
                         }
-                        if (d.getTime() < Date.now()) {
-                          Alert.alert('Please select a future date and time');
-                          return;
-                        }
-                        setScheduledAt(d);
+                        setScheduledAt(updated);
+                        setTimeout(() => setShowTimePicker(true), 500);
                       } catch {
-                        /* never crash the screen */
+                        setShowDatePicker(false);
+                      }
+                    }}
+                  />
+                )}
+                {showTimePicker && (
+                  <DateTimePicker
+                    value={scheduledAt}
+                    mode="time"
+                    display="default"
+                    onChange={(event, d) => {
+                      try {
+                        setShowTimePicker(false);
+                        if (!(d instanceof Date) || Number.isNaN(d.getTime())) return;
+                        const updated = new Date(scheduledAt);
+                        updated.setHours(d.getHours());
+                        updated.setMinutes(d.getMinutes());
+                        if (updated.getTime() < Date.now()) {
+                          Alert.alert('Invalid time', 'Please select a future time.');
+                          return;
+                        }
+                        setScheduledAt(updated);
+                      } catch {
+                        setShowTimePicker(false);
                       }
                     }}
                   />
@@ -732,7 +773,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
   },
-  dtLabel: { color: COLORS.textMuted, marginBottom: 8 },
+  dtRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  dtLabel: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginBottom: 4,
+  },
   dtBtn: {
     backgroundColor: COLORS.inputBg,
     borderWidth: 1,
