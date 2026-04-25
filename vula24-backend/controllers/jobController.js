@@ -763,6 +763,23 @@ async function createScheduledJob(req, res) {
     },
   });
 
+  const svcLabel = String(serviceType).replace(/_/g, ' ');
+  const pushBody = `${svcLabel} — ${customerAddress || ''}`;
+  for (const { locksmith } of eligible) {
+    await prisma.notification.create({
+      data: {
+        recipientId: locksmith.id,
+        recipientType: 'LOCKSMITH',
+        title: 'New Quote Request',
+        message: pushBody,
+      },
+    });
+    sendPushNotification(locksmith.pushToken, 'New Quote Request', pushBody, {
+      jobId: String(job.id),
+      screen: 'scheduled-quotes',
+    });
+  }
+
   res.status(201).json({
     jobId: job.id,
     locksmithsNotified: eligible.length,

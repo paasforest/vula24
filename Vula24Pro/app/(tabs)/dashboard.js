@@ -129,6 +129,10 @@ export default function DashboardScreen() {
     const sub = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const data = response.notification.request.content.data;
+        if (data?.screen === 'scheduled-quotes') {
+          router.push('/scheduled-quotes');
+          return;
+        }
         const jobId = data?.jobId;
         if (jobId) {
           router.push({

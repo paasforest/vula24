@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
 
-const WHATSAPP_URL = 'https://wa.me/27661235067';
+const WHATSAPP_URL = 'https://api.whatsapp.com/send?phone=27661235067';
 const EMAIL = 'mailto:support@vula24.com';
 
 const STEPS = [
@@ -20,14 +20,13 @@ const STEPS = [
 export default function HelpScreen() {
   const openUrl = async (url, label) => {
     try {
-      const supported = await Linking.canOpenURL(url);
-      if (!supported) {
-        Alert.alert('Error', `Cannot open ${label}.`);
-        return;
-      }
       await Linking.openURL(url);
     } catch {
-      Alert.alert('Error', `Could not open ${label}.`);
+      Alert.alert(
+        'Could not open',
+        `Please contact us directly:\nWhatsApp: 066 123 5067\nEmail: support@vula24.co.za`,
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -43,24 +42,7 @@ export default function HelpScreen() {
         <Text style={styles.sectionTitle}>Contact Us</Text>
         <GoldButton
           title="WhatsApp"
-          onPress={async () => {
-            try {
-              const supported = await Linking.canOpenURL(WHATSAPP_URL);
-              if (supported) {
-                await Linking.openURL(WHATSAPP_URL);
-              } else {
-                Alert.alert(
-                  'WhatsApp',
-                  'WhatsApp is not installed on this device. Call us on 066 123 5067'
-                );
-              }
-            } catch {
-              Alert.alert(
-                'WhatsApp',
-                'Could not open WhatsApp. Call us on 066 123 5067'
-              );
-            }
-          }}
+          onPress={() => openUrl(WHATSAPP_URL, 'WhatsApp')}
         />
         <View style={styles.btnSpacer} />
         <GoldButton

@@ -12,13 +12,14 @@ import {
   Platform,
 } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FormInput } from '../components/FormInput';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
 import api from '../lib/api';
 
 export default function TeamScreen() {
+  const insets = useSafeAreaInsets();
   const [members, setMembers] = useState([]);
   const [profile, setProfile] = useState(null);
   const [modal, setModal] = useState(false);
@@ -140,7 +141,7 @@ export default function TeamScreen() {
           </View>
         ))}
       </ScrollView>
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <GoldButton title="Add Team Member" onPress={() => setModal(true)} />
       </View>
 
@@ -211,7 +212,15 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   badgeT: { color: COLORS.text, fontSize: 12, fontWeight: '700' },
   deact: { color: COLORS.error, fontWeight: '700' },
-  footer: { padding: 20, position: 'absolute', bottom: 0, left: 0, right: 0 },
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: COLORS.bg,
+  },
   modalKav: { flex: 1 },
   modalBg: {
     flex: 1,

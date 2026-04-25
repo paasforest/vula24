@@ -1,10 +1,22 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 
-const WHATSAPP_URL = 'https://wa.me/27661235067';
+const WHATSAPP_URL = 'https://api.whatsapp.com/send?phone=27661235067';
+
+const openUrl = async (url, label) => {
+  try {
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert(
+      'Could not open',
+      `Please contact us directly:\nWhatsApp: 066 123 5067\nEmail: support@vula24.co.za`,
+      [{ text: 'OK' }]
+    );
+  }
+};
 const EMAIL = 'mailto:support@vula24.com';
 
 const STEPS = [
@@ -24,28 +36,15 @@ export default function HelpScreen() {
         <Text style={styles.backText}>← Back</Text>
       </TouchableOpacity>
       <Text style={styles.h1}>Help & Support</Text>
-      <View style={styles.scroll}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.scroll, { paddingBottom: 40 }]}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.sectionTitle}>Contact Us</Text>
         <TouchableOpacity
           style={styles.contactBtn}
-          onPress={async () => {
-            try {
-              const supported = await Linking.canOpenURL(WHATSAPP_URL);
-              if (supported) {
-                await Linking.openURL(WHATSAPP_URL);
-              } else {
-                Alert.alert(
-                  'WhatsApp',
-                  'WhatsApp is not installed on this device. Call us on 066 123 5067'
-                );
-              }
-            } catch {
-              Alert.alert(
-                'WhatsApp',
-                'Could not open WhatsApp. Call us on 066 123 5067'
-              );
-            }
-          }}
+          onPress={() => openUrl(WHATSAPP_URL, 'WhatsApp')}
         >
           <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
           <Text style={styles.contactText}>WhatsApp Us</Text>
@@ -67,7 +66,7 @@ export default function HelpScreen() {
             <Text style={styles.stepText}>{step}</Text>
           </View>
         ))}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
