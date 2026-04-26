@@ -86,8 +86,31 @@ export default function WaitingScreen() {
         if (status === 'CANCELLED') {
           stoppedRef.current = true;
           clearInterval(id);
-          Alert.alert('Cancelled', 'This request was cancelled.');
-          goHome();
+          Alert.alert(
+            'No Locksmith Found',
+            'We could not find an available locksmith in your area right now.\n\nPlease try again or contact our support team directly on 066 123 5067.',
+            [
+              {
+                text: 'Try Again',
+                style: 'cancel',
+                onPress: () => router.replace('/(tabs)/home'),
+              },
+              {
+                text: 'Call Us',
+                onPress: () => {
+                  Linking.openURL('tel:+27661235067');
+                  goHome();
+                },
+              },
+              {
+                text: 'WhatsApp Us',
+                onPress: () => {
+                  Linking.openURL('https://wa.me/27661235067');
+                  goHome();
+                },
+              },
+            ]
+          );
           return;
         }
         if (status === 'COMPLETED') {
