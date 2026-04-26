@@ -1794,6 +1794,50 @@ async function updateLocksmithPushToken(req, res) {
   res.json({ success: true });
 }
 
+async function getMemberProfile(req, res) {
+  const member = await prisma.teamMember.findUnique({
+    where: { id: req.member.id },
+  });
+  if (!member) throw new AppError('Member not found', 404);
+  const { appPassword, ...profile } = member;
+  res.json({ member: profile });
+}
+
+async function updateMemberProfile(req, res) {
+  const { vehicleType, vehicleColor, vehiclePlateNumber, profilePhoto } =
+    req.body;
+  const updateData = {};
+  if (vehicleType !== undefined) updateData.vehicleType = vehicleType;
+  if (vehicleColor !== undefined) updateData.vehicleColor = vehicleColor;
+  if (vehiclePlateNumber !== undefined)
+    updateData.vehiclePlateNumber = vehiclePlateNumber;
+  if (profilePhoto !== undefined) updateData.profilePhoto = profilePhoto;
+
+  if (Object.keys(updateData).length === 0) {
+    throw new AppError('No valid fields to update', 400);
+  }
+
+  const updated = await prisma.teamMember.update({
+    where: { id: req.member.id },
+    data: updateData,
+  });
+  const { appPassword, ...profile } = updated;
+  res.json({ member: profile });
+}
+
+async function uploadMemberPhoto(req, res) {
+  const file = req.file;
+  if (!file?.buffer?.length) {
+    throw new AppError('profilePhoto image file is required', 400);
+  }
+  const url = await uploadLocksmithImage(req, file);
+  await prisma.teamMember.update({
+    where: { id: req.member.id },
+    data: { profilePhoto: url },
+  });
+  res.json({ profilePhoto: url });
+}
+
 module.exports = {
   createEmergencyJob,
   getNearbyLocksmiths,
@@ -1828,6 +1872,9 @@ module.exports = {
   memberStartJob,
   memberCompleteJob,
   listMemberCompletedJobs,
+  getMemberProfile,
+  updateMemberProfile,
+  uploadMemberPhoto,
   updateLocksmithProfile,
   toggleLocksmithOnline,
   setPaymentMethod,

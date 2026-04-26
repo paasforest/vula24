@@ -135,16 +135,20 @@ model Locksmith {
 }
 
 model TeamMember {
-  id          String    @id @default(uuid())
-  businessId  String
-  business    Locksmith @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  name        String
-  phone       String
-  idPhotoUrl  String?
-  appEmail    String    @unique
-  appPassword String
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
+  id                 String    @id @default(uuid())
+  businessId         String
+  business           Locksmith @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name               String
+  phone              String
+  idPhotoUrl         String?
+  appEmail           String    @unique
+  appPassword        String
+  isActive           Boolean   @default(true)
+  profilePhoto       String?
+  vehicleType        String?
+  vehicleColor       String?
+  vehiclePlateNumber String?
+  createdAt          DateTime  @default(now())
 
   jobs Job[]
 }
