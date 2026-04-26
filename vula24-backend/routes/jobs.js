@@ -10,6 +10,7 @@ const {
 } = require('../middleware/auth');
 const { memberPhotoUpload } = require('../middleware/uploadLocksmith');
 const jobs = require('../controllers/jobController');
+const { memberPhotoUpload } = require('../middleware/uploadLocksmith');
 const { SERVICE_TYPES: serviceTypes } = require('../constants/serviceTypes');
 
 const router = Router();
@@ -291,6 +292,25 @@ memberRouter.get(
   '/jobs/my-jobs',
   authenticateMember,
   asyncHandler(jobs.listMemberCompletedJobs)
+);
+
+memberRouter.get(
+  '/profile',
+  authenticateMember,
+  asyncHandler(jobs.getMemberProfile)
+);
+
+memberRouter.put(
+  '/profile',
+  authenticateMember,
+  asyncHandler(jobs.updateMemberProfile)
+);
+
+memberRouter.post(
+  '/profile/photo',
+  authenticateMember,
+  memberPhotoUpload,
+  asyncHandler(jobs.uploadMemberPhoto)
 );
 
 module.exports = router;
