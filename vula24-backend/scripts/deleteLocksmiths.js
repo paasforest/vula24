@@ -14,12 +14,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const prisma = require('../lib/prisma');
 
-const EMAILS = [
-  'paasforest@gmail.com',
-  'paasbanda@gmail.com',
-  'sipho@vula24.co.za',
-  'cly-test-1775243332@example.com',
-].map((e) => e.trim().toLowerCase());
+const EMAILS = ['paasbanda@gmail.comp'].map((e) => e.trim().toLowerCase());
 
 async function deleteOneByEmail(email) {
   const locksmith = await prisma.locksmith.findUnique({
