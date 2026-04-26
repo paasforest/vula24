@@ -1339,6 +1339,66 @@ async function listMemberCompletedJobs(req, res) {
   res.json({ jobs });
 }
 
+const MEMBER_PROFILE_SELECT = {
+  id: true,
+  businessId: true,
+  name: true,
+  phone: true,
+  idPhotoUrl: true,
+  profilePhoto: true,
+  vehicleType: true,
+  vehicleColor: true,
+  vehiclePlateNumber: true,
+  appEmail: true,
+  isActive: true,
+  createdAt: true,
+};
+
+async function getMemberProfile(req, res) {
+  const member = await prisma.teamMember.findUnique({
+    where: { id: req.member.id },
+    select: MEMBER_PROFILE_SELECT,
+  });
+  if (!member) throw new AppError('Member not found', 404);
+  res.json({ member });
+}
+
+async function updateMemberProfile(req, res) {
+  const allowed = [
+    'vehicleType',
+    'vehicleColor',
+    'vehiclePlateNumber',
+    'profilePhoto',
+  ];
+  const data = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) data[key] = req.body[key];
+  }
+  if (Object.keys(data).length === 0) {
+    throw new AppError('No valid fields to update', 400);
+  }
+
+  const member = await prisma.teamMember.update({
+    where: { id: req.member.id },
+    data,
+    select: MEMBER_PROFILE_SELECT,
+  });
+  res.json({ member });
+}
+
+async function uploadMemberPhoto(req, res) {
+  const file = req.file;
+  if (!file?.buffer?.length) {
+    throw new AppError('Profile photo image file is required', 400);
+  }
+  const url = await uploadLocksmithImage(req, file);
+  await prisma.teamMember.update({
+    where: { id: req.member.id },
+    data: { profilePhoto: url },
+  });
+  res.json({ profilePhoto: url });
+}
+
 async function uploadLocksmithProfilePhoto(req, res) {
   const file = req.file;
   if (!file?.buffer?.length) {
@@ -1828,6 +1888,9 @@ module.exports = {
   memberStartJob,
   memberCompleteJob,
   listMemberCompletedJobs,
+  getMemberProfile,
+  updateMemberProfile,
+  uploadMemberPhoto,
   updateLocksmithProfile,
   toggleLocksmithOnline,
   setPaymentMethod,

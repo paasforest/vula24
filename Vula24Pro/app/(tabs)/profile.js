@@ -39,6 +39,7 @@ function initialsFromName(name) {
 export default function ProfileScreen() {
   const [isMember, setIsMember] = useState(false);
   const [user, setUser] = useState(null);
+  const [memberData, setMemberData] = useState(null);
   const [vehicleType, setVehicleType] = useState('');
   const [vehicleColor, setVehicleColor] = useState('');
   const [vehiclePlateNumber, setVehiclePlateNumber] = useState('');
@@ -50,6 +51,35 @@ export default function ProfileScreen() {
   }, []);
 
   const load = useCallback(async () => {
+    const creds = await getUser();
+    if (creds?.isMember) {
+      try {
+        const { data } = await api.get('/api/member/profile');
+        const m = data.member;
+        setMemberData(m);
+        setVehicleType(m?.vehicleType || '');
+        setVehicleColor(m?.vehicleColor || '');
+        setVehiclePlateNumber(m?.vehiclePlateNumber || '');
+        const merged = {
+          ...creds,
+          ...m,
+          email: m?.appEmail ?? creds?.email,
+          isMember: true,
+        };
+        setUser(merged);
+        await saveUser(merged);
+        return;
+      } catch {
+        setMemberData(null);
+        const u = await getUser();
+        setUser(u);
+        setVehicleType(u?.vehicleType || '');
+        setVehicleColor(u?.vehicleColor || '');
+        setVehiclePlateNumber(u?.vehiclePlateNumber || '');
+        return;
+      }
+    }
+    setMemberData(null);
     try {
       const { data } = await api.get('/api/locksmith/profile');
       const ls = data.locksmith;
@@ -87,6 +117,8 @@ export default function ProfileScreen() {
 
     setPhotoUploading(true);
     try {
+      const creds = await getUser();
+      const member = creds?.isMember === true;
       const uri = res.assets[0].uri;
       const form = new FormData();
       form.append('profilePhoto', {
@@ -94,6 +126,19 @@ export default function ProfileScreen() {
         name: 'profile.jpg',
         type: mimeFromUri(uri),
       });
+      if (member) {
+        const up = await postMultipart('/api/member/profile/photo', form);
+        const url = up.profilePhoto;
+        if (!url) throw new Error('No image URL returned');
+        await api.put('/api/member/profile', { profilePhoto: url });
+        const prev = await getUser();
+        const merged = { ...prev, ...user, profilePhoto: url, isMember: true };
+        await saveUser(merged);
+        setUser(merged);
+        setMemberData((md) => ({ ...(md || {}), profilePhoto: url }));
+        Alert.alert('Updated', 'Profile photo saved.');
+        return;
+      }
       const up = await postMultipart('/api/locksmith/profile/photo', form);
       const url = up.profilePhoto;
       if (!url) throw new Error('No image URL returned');
@@ -118,6 +163,26 @@ export default function ProfileScreen() {
   const saveVehicle = async () => {
     setVehicleSaving(true);
     try {
+      const creds = await getUser();
+      if (creds?.isMember) {
+        await api.put('/api/member/profile', {
+          vehicleType: vehicleType.trim() || undefined,
+          vehicleColor: vehicleColor.trim() || undefined,
+          vehiclePlateNumber: vehiclePlateNumber.trim() || undefined,
+        });
+        const prev = await getUser();
+        const merged = {
+          ...prev,
+          ...user,
+          vehicleType: vehicleType.trim() || null,
+          vehicleColor: vehicleColor.trim() || null,
+          vehiclePlateNumber: vehiclePlateNumber.trim() || null,
+        };
+        await saveUser(merged);
+        await load();
+        Alert.alert('Saved', 'Vehicle info updated.');
+        return;
+      }
       await api.put('/api/locksmith/profile', {
         vehicleType: vehicleType.trim() || undefined,
         vehicleColor: vehicleColor.trim() || undefined,
@@ -156,6 +221,9 @@ export default function ProfileScreen() {
   };
 
   const isBusiness = user?.accountType === 'BUSINESS';
+  const displayProfilePhoto = isMember
+    ? (memberData?.profilePhoto ?? user?.profilePhoto)
+    : user?.profilePhoto;
 
   const vehAllSet =
     vehicleType.trim().length > 0 &&
@@ -199,8 +267,8 @@ export default function ProfileScreen() {
             >
               {photoUploading ? (
                 <ActivityIndicator color={COLORS.accent} style={styles.photoLoader} />
-              ) : user?.profilePhoto ? (
-                <Image source={{ uri: user.profilePhoto }} style={styles.photoImg} />
+              ) : displayProfilePhoto ? (
+                <Image source={{ uri: displayProfilePhoto }} style={styles.photoImg} />
               ) : (
                 <View style={styles.initialsCircle}>
                   <Text style={styles.initialsText}>{initialsFromName(user?.name)}</Text>
@@ -213,11 +281,11 @@ export default function ProfileScreen() {
             <View
               style={[
                 styles.photoCompleteBadge,
-                { backgroundColor: user?.profilePhoto ? COLORS.success : COLORS.error },
+                { backgroundColor: displayProfilePhoto ? COLORS.success : COLORS.error },
               ]}
             >
               <Ionicons
-                name={user?.profilePhoto ? 'checkmark' : 'alert'}
+                name={displayProfilePhoto ? 'checkmark' : 'alert'}
                 size={16}
                 color="#fff"
               />
@@ -226,10 +294,10 @@ export default function ProfileScreen() {
           <Text
             style={[
               styles.photoStatusLine,
-              { color: user?.profilePhoto ? COLORS.success : COLORS.error },
+              { color: displayProfilePhoto ? COLORS.success : COLORS.error },
             ]}
           >
-            {user?.profilePhoto ? 'Profile photo added' : 'Add profile photo — required'}
+            {displayProfilePhoto ? 'Profile photo added' : 'Add profile photo — required'}
           </Text>
         </View>
 

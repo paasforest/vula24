@@ -8,6 +8,7 @@ const {
   authenticateJobParticipant,
   authenticateMember,
 } = require('../middleware/auth');
+const { memberPhotoUpload } = require('../middleware/uploadLocksmith');
 const jobs = require('../controllers/jobController');
 const { SERVICE_TYPES: serviceTypes } = require('../constants/serviceTypes');
 
@@ -227,6 +228,25 @@ router.get(
   [param('id').isUUID()],
   handleValidationErrors,
   asyncHandler(jobs.getLocksmithLocationForJob)
+);
+
+memberRouter.get(
+  '/profile',
+  authenticateMember,
+  asyncHandler(jobs.getMemberProfile)
+);
+
+memberRouter.put(
+  '/profile',
+  authenticateMember,
+  asyncHandler(jobs.updateMemberProfile)
+);
+
+memberRouter.post(
+  '/profile/photo',
+  authenticateMember,
+  memberPhotoUpload,
+  asyncHandler(jobs.uploadMemberPhoto)
 );
 
 memberRouter.get(
