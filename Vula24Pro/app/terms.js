@@ -5,40 +5,53 @@ import { COLORS } from '../constants/theme';
 
 const SECTIONS = [
   {
-    title: 'Locksmith Agreement',
-    body: `By registering on Vula24 Pro, you agree to operate as an independent contractor. You are not an employee of Vula24. You are responsible for your own tools, vehicle, insurance, and compliance with South African law.
+    title: 'Independent Contractor Agreement',
+    body: `By registering on Vula24 Pro you confirm that you operate as an independent contractor and not as an employee of Vula24.
 
-You agree to only accept jobs you can complete professionally and timeously. Repeated cancellations, poor service, or fraudulent behaviour will result in suspension or permanent removal from the platform.`,
+You are responsible for your own tools, vehicle, insurance, tax obligations, and compliance with all applicable South African laws and regulations.
+
+You agree to only accept jobs you are qualified and able to complete professionally and on time.`,
   },
   {
-    title: 'Earnings & Fees',
-    body: `Vula24 charges a service fee on each completed job. This fee is deducted from the customer payment before your earnings are credited to your wallet.
+    title: 'Code of Conduct',
+    body: `You must treat all customers with respect and professionalism at all times.
 
-Your earnings are held briefly after job completion before being released to your wallet. This protects customers against disputes. For emergency jobs the hold period is 49 hours. For scheduled jobs the deposit is released immediately and the final payment after a short hold.
+You must arrive within a reasonable time after accepting a job. You must complete the job to a professional standard.
 
-You can withdraw your wallet balance to your registered bank account at any time, subject to minimum withdrawal amounts.
+The price agreed before the job starts is final. No additional charges may be added on site without the customer's prior agreement through the app.
 
-Your earnings will reflect in your Vula24 wallet within 49 hours of customer payment confirmation. This holding period exists to protect customers and maintain platform integrity. Once released to your wallet, you may withdraw at any time. Withdrawals are processed within 1 to 3 business days.`,
+Repeated cancellations, poor service ratings, or any form of misconduct may result in suspension or permanent removal from the platform.`,
+  },
+  {
+    title: 'Earnings & Payments',
+    body: `When a customer books through Vula24, a service fee is added on top of your quoted price. You receive your full quoted amount — the customer pays your price plus the Vula24 service fee. You are not charged any hidden deductions on your earnings.
+
+Your earnings are held for a short period after job completion to allow for dispute resolution. Once released, your balance reflects in your Vula24 wallet.
+
+You may withdraw your wallet balance to your registered bank account at any time. Withdrawals are processed within 1 to 3 business days.`,
   },
   {
     title: 'Verification & Compliance',
-    body: `All locksmiths must be verified by Vula24 before going online. Verification includes identity verification and review of your documents.
+    body: `You must complete your profile including identity verification before you can go online and receive jobs.
 
-You must maintain accurate vehicle and profile information at all times. Customers use your profile photo and vehicle details to identify you on arrival.
+Your profile photo and vehicle information must be accurate and up to date at all times. Customers use this information to identify you when you arrive.
 
-Vula24 reserves the right to suspend or remove any locksmith who provides false information or fails to meet our service standards.`,
+Vula24 reserves the right to suspend or remove any locksmith who provides false information, fails verification, or does not meet our service standards.`,
   },
   {
     title: 'Disputes',
-    body: `If a customer raises a dispute about your job, your payout will be held until the dispute is resolved by Vula24 admin. You may be asked to submit proof of completion.
+    body: `If a customer raises a dispute about a job you completed, your earnings for that job will be held until the matter is resolved by our team.
 
-Disputes are resolved at Vula24's discretion based on evidence provided by both parties. The decision is final.`,
+You may be asked to provide proof of completion such as photos or customer confirmation.
+
+Disputes are resolved by Vula24 based on evidence from both parties. The decision is final.`,
   },
   {
-    title: 'Contact',
-    body: `For support or queries contact us at:
+    title: 'Contact & Support',
+    body: `For support, payment queries, or account issues:
 
-Email: support@vula24.com
+Email: support@vula24.co.za
+WhatsApp: 066 123 5067
 Website: www.vula24.co.za`,
   },
 ];

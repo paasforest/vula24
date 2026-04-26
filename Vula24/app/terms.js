@@ -7,45 +7,54 @@ import { COLORS } from '../constants/theme';
 const SECTIONS = [
   {
     title: 'Service Agreement',
-    body: `By using Vula24, you agree to these terms. Vula24 is a platform that connects customers with independent locksmith service providers. We do not employ locksmiths directly — they are independent contractors.
+    body: `Vula24 is a platform that connects customers with independent locksmith professionals. By using this app you agree to use it only for lawful purposes.
 
-You agree to use the app only for lawful purposes. You must provide accurate location and contact information when booking a job. Misuse of the platform, including false bookings or abusive behaviour toward locksmiths, may result in account suspension.
+You must provide accurate location and contact information when making a booking. False bookings or abusive behaviour toward service providers may result in account suspension.
 
-Vula24 reserves the right to cancel any booking and suspend any account that violates these terms.`,
+Vula24 does not employ locksmiths directly. All locksmiths on the platform are independent professionals who have been verified before being listed.`,
   },
   {
     title: 'Privacy Policy',
-    body: `Vula24 collects your name, phone number, email address, and location data to provide our service. Your location is used to find nearby locksmiths and to track job progress.
+    body: `We collect your name, phone number, email address, and location to provide our service. Your location is used to find nearby locksmiths and track job progress.
 
 We do not sell your personal information to third parties. Your data is stored securely and used only to operate the Vula24 platform.
 
-By using Vula24 you consent to the collection and use of your information as described here. You may request deletion of your account and data by contacting support@vula24.com.`,
+You may request deletion of your account and data by contacting us at support@vula24.co.za.`,
   },
   {
-    title: 'Payment Terms',
-    body: `All prices shown in the app include a Vula24 service fee. The total price shown before you confirm your booking is the amount you will be charged — there are no hidden fees.
+    title: 'Payments',
+    body: `The price shown before you confirm your booking is the total amount you will be charged. There are no hidden fees or surprise charges.
 
 Payment is processed securely through PayFast. Vula24 does not store your card details.
 
-For emergency jobs, full payment is required before the locksmith is dispatched to your location. For scheduled jobs, a deposit is required when you accept a quote, with the remainder due on completion.
+For emergency bookings, full payment is required before the locksmith is dispatched to your location.
 
-Refunds are processed within 3 to 5 business days where applicable.
-
-Locksmith earnings are held for a short period after job completion to allow for dispute resolution. Earnings are released to the locksmith wallet within 49 hours of payment confirmation. Withdrawals are processed within 1 to 3 business days after the earnings are released to the wallet.`,
+For scheduled services, a deposit is required when you accept a quote. The remaining balance is due on completion of the job.`,
   },
   {
-    title: 'Cancellation Policy',
-    body: `You may cancel an emergency job while waiting for a locksmith to accept. Once a locksmith has accepted your job and payment has been made, cancellation fees may apply.
+    title: 'Cancellations & Refunds',
+    body: `You may cancel an emergency booking while waiting for a locksmith to accept your request at no charge.
 
-For scheduled jobs, cancellations made more than 24 hours before the scheduled time are eligible for a full refund. Cancellations within 24 hours may result in a partial refund at Vula24's discretion.
+Once a locksmith has accepted your booking and payment has been made, cancellation fees may apply depending on the circumstances.
 
-Locksmiths who repeatedly cancel accepted jobs may be suspended from the platform.`,
+For scheduled bookings, cancellations made more than 24 hours before the scheduled time are eligible for a full refund. Cancellations within 24 hours may result in a partial refund at Vula24s discretion.
+
+Refunds are processed within 3 to 5 business days.`,
+  },
+  {
+    title: 'Disputes',
+    body: `If you are unhappy with the service received, you may raise a dispute within 24 hours of job completion through the app.
+
+Disputes are reviewed by our team and resolved fairly based on information provided by both parties.
+
+For support contact us at support@vula24.co.za or WhatsApp 066 123 5067.`,
   },
   {
     title: 'Contact Us',
-    body: `For support, disputes, or account queries contact us at:
+    body: `For any queries, support, or concerns:
 
-Email: support@vula24.com
+Email: support@vula24.co.za
+WhatsApp: 066 123 5067
 Website: www.vula24.co.za
 
 We aim to respond to all queries within 24 hours on business days.`,

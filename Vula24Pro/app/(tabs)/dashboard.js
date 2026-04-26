@@ -39,11 +39,14 @@ async function registerPushToken() {
       });
     }
     if (Platform.OS === 'android') {
-      Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
+      Notifications.setNotificationChannelAsync('jobs', {
+        name: 'Job Requests',
         importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
+        vibrationPattern: [0, 500, 250, 500, 250, 500],
         lightColor: '#D4A017',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
       });
     }
   } catch {

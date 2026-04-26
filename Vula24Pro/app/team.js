@@ -149,7 +149,7 @@ export default function TeamScreen() {
           </View>
         ))}
       </ScrollView>
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 16, 32) }]}>
         <GoldButton title="Add Team Member" onPress={() => setModal(true)} />
       </View>
 
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   back: { paddingHorizontal: 20, marginBottom: 8 },
   backText: { color: COLORS.accent, fontSize: 16 },
   h1: { color: COLORS.text, fontSize: 22, fontWeight: '800', paddingHorizontal: 20, marginBottom: 12 },
-  scroll: { paddingHorizontal: 20, paddingBottom: 120 },
+  scroll: { paddingHorizontal: 20, paddingBottom: 160 },
   empty: { color: COLORS.textMuted, padding: 20 },
   card: {
     borderWidth: 1,
