@@ -1415,6 +1415,7 @@ async function toggleLocksmithOnline(req, res) {
     select: {
       isOnline: true,
       walletMinimum: true,
+      createdAt: true,
       profilePhoto: true,
       vehicleType: true,
       vehicleColor: true,
@@ -1431,12 +1432,17 @@ async function toggleLocksmithOnline(req, res) {
       where: { locksithId: id },
     });
     if (!wallet) throw new AppError('Wallet not found', 404);
-    if (wallet.balance < current.walletMinimum) {
+    const accountAgeDays =
+      (Date.now() - new Date(current.createdAt).getTime()) /
+      (1000 * 60 * 60 * 24);
+    const inGracePeriod = accountAgeDays <= 60;
+    if (!inGracePeriod && wallet.balance < current.walletMinimum) {
       return res.status(403).json({
         error: 'Insufficient wallet balance',
-        message: `Minimum balance required: R${current.walletMinimum.toFixed(2)}. Current balance: R${wallet.balance.toFixed(2)}. Please top up.`,
+        message: `Minimum balance required: R${current.walletMinimum.toFixed(2)}. Current balance: R${wallet.balance.toFixed(2)}. Please top up your wallet to go online.`,
         walletBalance: wallet.balance,
         minimumRequired: current.walletMinimum,
+        gracePeriodExpired: true,
       });
     }
     if (
@@ -1525,7 +1531,7 @@ async function recordCashCollected(req, res) {
 
     const locksmith = await tx.locksmith.findUnique({
       where: { id: locksmithId },
-      select: { isOnline: true, walletMinimum: true },
+      select: { isOnline: true, walletMinimum: true, createdAt: true },
     });
     if (!locksmith) throw new AppError('Locksmith not found', 404);
 
@@ -1558,8 +1564,13 @@ async function recordCashCollected(req, res) {
       });
     }
 
+    const accountAgeDays =
+      (Date.now() - new Date(locksmith.createdAt).getTime()) /
+      (1000 * 60 * 60 * 24);
+    const inGracePeriod = accountAgeDays <= 60;
+
     let isOnline = locksmith.isOnline;
-    if (newBalance < locksmith.walletMinimum) {
+    if (!inGracePeriod && newBalance < locksmith.walletMinimum) {
       await tx.locksmith.update({
         where: { id: locksmithId },
         data: { isOnline: false },

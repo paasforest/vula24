@@ -67,6 +67,7 @@ export default function DashboardScreen() {
   const [hasScheduledJobs, setHasScheduledJobs] = useState(false);
   const [toggleLoading, setToggleLoading] = useState(false);
   const [online, setOnline] = useState(false);
+  const [graceDaysLeft, setGraceDaysLeft] = useState(null);
   const pushedJobRef = useRef(null);
   const pushRegisteredRef = useRef(false);
   const appStateRef = useRef(AppState.currentState);
@@ -77,6 +78,15 @@ export default function DashboardScreen() {
       setUser(data.locksmith);
       await saveUser(data.locksmith);
       setOnline(!!data.locksmith.isOnline);
+      const created = data.locksmith?.createdAt;
+      if (created) {
+        const ageDays =
+          (Date.now() - new Date(created).getTime()) /
+          (1000 * 60 * 60 * 24);
+        setGraceDaysLeft(Math.max(0, 60 - Math.floor(ageDays)));
+      } else {
+        setGraceDaysLeft(null);
+      }
       if (!data.locksmith.isVerified) {
         router.replace('/pending');
       }
@@ -221,7 +231,8 @@ export default function DashboardScreen() {
       await loadProfile();
     } catch (e) {
       const data = e.response?.data;
-      if (e.response?.status === 400 && data?.incomplete) {
+      const status = e.response?.status;
+      if (status === 400 && data?.incomplete) {
         Alert.alert(
           'Profile incomplete',
           'Add your profile photo and vehicle details before going online.',
@@ -231,6 +242,18 @@ export default function DashboardScreen() {
               onPress: () => router.push('/(tabs)/profile'),
             },
             { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+      } else if (status === 403 && data?.gracePeriodExpired) {
+        const min = data?.minimumRequired;
+        const minStr =
+          typeof min === 'number' ? min.toFixed(2) : String(min ?? '');
+        Alert.alert(
+          'Top Up Required',
+          `Your 60-day free period has ended. You need a minimum balance of R${minStr} to go online.\n\nPlease top up your wallet.`,
+          [
+            { text: 'Top Up', onPress: () => router.push('/(tabs)/earnings') },
+            { text: 'Later', style: 'cancel' },
           ]
         );
       } else {
@@ -331,6 +354,21 @@ export default function DashboardScreen() {
             <Ionicons name="notifications-outline" size={22} color={COLORS.accent} />
           </TouchableOpacity>
         </View>
+
+        {graceDaysLeft !== null && graceDaysLeft > 0 && graceDaysLeft <= 60 ? (
+          <View style={styles.graceBanner}>
+            <Ionicons
+              name="time-outline"
+              size={16}
+              color="#111"
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.graceBannerText}>
+              {graceDaysLeft} day{graceDaysLeft !== 1 ? 's' : ''} left in your
+              free period — top up your wallet before day 60 to stay online
+            </Text>
+          </View>
+        ) : null}
 
         <TouchableOpacity
           style={[styles.onlineCard, { borderColor: online ? '#34c759' : '#444' }]}
@@ -488,6 +526,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#2a2a2a',
+  },
+  graceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0a500',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 10,
+    padding: 12,
+  },
+  graceBannerText: {
+    color: '#111',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
   },
   onlineCard: {
     flexDirection: 'row',
