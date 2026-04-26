@@ -40,6 +40,7 @@ export default function ProfileScreen() {
   const [isMember, setIsMember] = useState(false);
   const [user, setUser] = useState(null);
   const [memberData, setMemberData] = useState(null);
+  const [memberLoading, setMemberLoading] = useState(false);
   const [vehicleType, setVehicleType] = useState('');
   const [vehicleColor, setVehicleColor] = useState('');
   const [vehiclePlateNumber, setVehiclePlateNumber] = useState('');
@@ -54,6 +55,7 @@ export default function ProfileScreen() {
     const creds = await getUser();
     if (creds?.isMember) {
       setIsMember(true);
+      setMemberLoading(true);
       try {
         const { data } = await api.get('/api/member/profile');
         setMemberData(data.member);
@@ -77,6 +79,8 @@ export default function ProfileScreen() {
         setVehicleColor(u?.vehicleColor || '');
         setVehiclePlateNumber(u?.vehiclePlateNumber || '');
         return;
+      } finally {
+        setMemberLoading(false);
       }
     }
     setMemberData(null);
@@ -228,6 +232,16 @@ export default function ProfileScreen() {
     { key: 'notif', label: 'Notifications', icon: 'notifications-outline', path: '/notifications' },
   ];
 
+  if (isMember && memberLoading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.loadingCenter}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <KeyboardAvoidingView
@@ -356,7 +370,9 @@ export default function ProfileScreen() {
           >
             {vehAllSet
               ? 'Vehicle info complete'
-              : 'Vehicle info required to go online'}
+              : isMember
+                ? 'Vehicle info required to accept jobs'
+                : 'Vehicle info required to go online'}
           </Text>
           <Text style={styles.vehicleTitle}>Vehicle information</Text>
           <Text style={styles.inputLabel}>Vehicle type</Text>
@@ -402,6 +418,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
+  loadingCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
   scroll: { paddingBottom: 32 },
   scrollGrow: { flexGrow: 1 },

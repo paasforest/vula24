@@ -13,12 +13,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
 import api from '../lib/api';
-import { saveUser } from '../lib/storage';
+import { saveUser, getUser } from '../lib/storage';
 
 export default function PendingScreen() {
   const [profile, setProfile] = useState(null);
 
   const load = useCallback(async () => {
+    const u = await getUser();
+    if (u?.isMember) {
+      router.replace('/(tabs)/dashboard');
+      return;
+    }
     try {
       const { data } = await api.get('/api/locksmith/profile');
       setProfile(data.locksmith);
