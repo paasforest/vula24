@@ -68,7 +68,7 @@ export default function EarningsScreen() {
   const load = useCallback(async () => {
     try {
       if (isMember) {
-        const { data } = await api.get('/api/jobs/locksmith/my-jobs');
+        const { data } = await api.get('/api/member/jobs/my-jobs');
         setJobs(data.jobs || []);
         return;
       }
@@ -82,7 +82,7 @@ export default function EarningsScreen() {
       setProfile(p.data.locksmith);
       setPendingPayouts(pend.data?.pendingPayouts || []);
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Could not load wallet.');
+      Alert.alert('Error', e.response?.data?.error || 'Could not load data.');
     }
   }, [isMember]);
 
