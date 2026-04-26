@@ -25,7 +25,7 @@ export default function SplashScreen() {
 
   return (
     <View style={styles.container}>
-      <VulaLogoPro iconSize={88} />
+      <VulaLogoPro size={88} />
       <Text style={styles.tagline}>Your jobs. Your earnings.</Text>
     </View>
   );

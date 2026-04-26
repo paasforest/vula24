@@ -20,7 +20,7 @@ export default function SplashScreen() {
 
   return (
     <View style={styles.container}>
-      <VulaLogo iconSize={88} />
+      <VulaLogo size={88} />
       <Text style={styles.tagline}>We open doors, day and night</Text>
     </View>
   );

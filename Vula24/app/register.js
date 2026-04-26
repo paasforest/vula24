@@ -68,7 +68,7 @@ export default function RegisterScreen() {
           contentContainerStyle={[styles.scroll, styles.scrollGrow]}
           keyboardShouldPersistTaps="handled"
         >
-          <VulaLogo iconSize={56} />
+          <VulaLogo size={56} />
           <Text style={styles.h1}>Create your account</Text>
           <FormInput label="Full Name" value={name} onChangeText={setName} placeholder="Your name" autoCapitalize="words" />
           <FormInput label="Phone Number" value={phone} onChangeText={setPhone} placeholder="+27 …" keyboardType="phone-pad" />

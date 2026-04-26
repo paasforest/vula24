@@ -65,7 +65,7 @@ export default function LoginScreen() {
           contentContainerStyle={[styles.scroll, styles.scrollGrow]}
           keyboardShouldPersistTaps="handled"
         >
-          <VulaLogoPro iconSize={56} />
+          <VulaLogoPro size={56} />
           <Text style={styles.h1}>Sign in</Text>
           <Text style={styles.sub}>Access your dashboard and incoming jobs.</Text>
           <FormInput label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />

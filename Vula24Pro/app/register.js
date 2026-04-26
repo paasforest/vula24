@@ -266,7 +266,7 @@ export default function RegisterScreen() {
           contentContainerStyle={[styles.scroll, styles.scrollGrow]}
           keyboardShouldPersistTaps="handled"
         >
-          <VulaLogoPro iconSize={48} />
+          <VulaLogoPro size={48} />
           <Text style={styles.h1}>Create your pro account</Text>
           <Text style={styles.badge}>
             {isBusiness ? 'Business account' : 'Individual locksmith'}

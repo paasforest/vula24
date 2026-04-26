@@ -62,7 +62,7 @@ export default function MemberLoginScreen() {
           contentContainerStyle={[styles.scroll, styles.scrollGrow]}
           keyboardShouldPersistTaps="handled"
         >
-          <VulaLogoPro iconSize={56} />
+          <VulaLogoPro size={56} />
           <Text style={styles.h1}>Team member sign in</Text>
           <Text style={styles.sub}>Use the email and password provided by your business owner.</Text>
           <FormInput

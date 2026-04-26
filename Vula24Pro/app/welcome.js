@@ -8,7 +8,7 @@ import { COLORS } from '../constants/theme';
 export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <VulaLogoPro iconSize={64} />
+      <VulaLogoPro size={64} />
       <Text style={styles.h1}>How do you work?</Text>
       <Text style={styles.sub}>Choose the option that best describes you.</Text>
 

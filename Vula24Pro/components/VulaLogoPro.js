@@ -1,23 +1,10 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/theme';
+import { Image } from 'react-native';
 
-export function VulaLogoPro({ iconSize = 72 }) {
+export function VulaLogoPro({ size = 120 }) {
   return (
-    <View style={styles.wrap}>
-      <Ionicons name="key" size={iconSize} color={COLORS.accent} />
-      <Text style={styles.brand}>Vula24 Pro</Text>
-    </View>
+    <Image
+      source={require('../assets/icon.png')}
+      style={{ width: size, height: size, resizeMode: 'contain' }}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: { alignItems: 'center' },
-  brand: {
-    color: COLORS.accent,
-    fontSize: 28,
-    fontWeight: '800',
-    marginTop: 12,
-    letterSpacing: 0.5,
-  },
-});
