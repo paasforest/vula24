@@ -53,21 +53,21 @@ export default function ProfileScreen() {
   const load = useCallback(async () => {
     const creds = await getUser();
     if (creds?.isMember) {
+      setIsMember(true);
       try {
         const { data } = await api.get('/api/member/profile');
-        const m = data.member;
-        setMemberData(m);
-        setVehicleType(m?.vehicleType || '');
-        setVehicleColor(m?.vehicleColor || '');
-        setVehiclePlateNumber(m?.vehiclePlateNumber || '');
+        setMemberData(data.member);
+        setVehicleType(data.member?.vehicleType || '');
+        setVehicleColor(data.member?.vehicleColor || '');
+        setVehiclePlateNumber(data.member?.vehiclePlateNumber || '');
         const merged = {
           ...creds,
-          ...m,
-          email: m?.appEmail ?? creds?.email,
+          ...data.member,
+          email: data.member?.appEmail ?? creds?.email,
           isMember: true,
         };
-        setUser(merged);
         await saveUser(merged);
+        setUser(merged);
         return;
       } catch {
         setMemberData(null);
@@ -117,8 +117,6 @@ export default function ProfileScreen() {
 
     setPhotoUploading(true);
     try {
-      const creds = await getUser();
-      const member = creds?.isMember === true;
       const uri = res.assets[0].uri;
       const form = new FormData();
       form.append('profilePhoto', {
@@ -126,17 +124,16 @@ export default function ProfileScreen() {
         name: 'profile.jpg',
         type: mimeFromUri(uri),
       });
-      if (member) {
+      if (isMember) {
         const up = await postMultipart('/api/member/profile/photo', form);
         const url = up.profilePhoto;
         if (!url) throw new Error('No image URL returned');
         await api.put('/api/member/profile', { profilePhoto: url });
-        const prev = await getUser();
-        const merged = { ...prev, ...user, profilePhoto: url, isMember: true };
-        await saveUser(merged);
-        setUser(merged);
+        setUser((prev) => ({ ...prev, profilePhoto: url }));
         setMemberData((md) => ({ ...(md || {}), profilePhoto: url }));
-        Alert.alert('Updated', 'Profile photo saved.');
+        const p = await getUser();
+        await saveUser({ ...p, profilePhoto: url, isMember: true });
+        Alert.alert('Updated', 'Profile photo updated.');
         return;
       }
       const up = await postMultipart('/api/locksmith/profile/photo', form);
@@ -163,23 +160,12 @@ export default function ProfileScreen() {
   const saveVehicle = async () => {
     setVehicleSaving(true);
     try {
-      const creds = await getUser();
-      if (creds?.isMember) {
+      if (isMember) {
         await api.put('/api/member/profile', {
           vehicleType: vehicleType.trim() || undefined,
           vehicleColor: vehicleColor.trim() || undefined,
           vehiclePlateNumber: vehiclePlateNumber.trim() || undefined,
         });
-        const prev = await getUser();
-        const merged = {
-          ...prev,
-          ...user,
-          vehicleType: vehicleType.trim() || null,
-          vehicleColor: vehicleColor.trim() || null,
-          vehiclePlateNumber: vehiclePlateNumber.trim() || null,
-        };
-        await saveUser(merged);
-        await load();
         Alert.alert('Saved', 'Vehicle info updated.');
         return;
       }
@@ -221,9 +207,7 @@ export default function ProfileScreen() {
   };
 
   const isBusiness = user?.accountType === 'BUSINESS';
-  const displayProfilePhoto = isMember
-    ? (memberData?.profilePhoto ?? user?.profilePhoto)
-    : user?.profilePhoto;
+  const headerProfilePhoto = isMember ? memberData?.profilePhoto : user?.profilePhoto;
 
   const vehAllSet =
     vehicleType.trim().length > 0 &&
@@ -267,11 +251,16 @@ export default function ProfileScreen() {
             >
               {photoUploading ? (
                 <ActivityIndicator color={COLORS.accent} style={styles.photoLoader} />
-              ) : displayProfilePhoto ? (
-                <Image source={{ uri: displayProfilePhoto }} style={styles.photoImg} />
+              ) : (isMember ? memberData?.profilePhoto : user?.profilePhoto) ? (
+                <Image
+                  source={{ uri: isMember ? memberData?.profilePhoto : user?.profilePhoto }}
+                  style={styles.photoImg}
+                />
               ) : (
                 <View style={styles.initialsCircle}>
-                  <Text style={styles.initialsText}>{initialsFromName(user?.name)}</Text>
+                  <Text style={styles.initialsText}>
+                    {initialsFromName(isMember ? memberData?.name : user?.name)}
+                  </Text>
                 </View>
               )}
               <View style={styles.photoHint}>
@@ -281,11 +270,11 @@ export default function ProfileScreen() {
             <View
               style={[
                 styles.photoCompleteBadge,
-                { backgroundColor: displayProfilePhoto ? COLORS.success : COLORS.error },
+                { backgroundColor: headerProfilePhoto ? COLORS.success : COLORS.error },
               ]}
             >
               <Ionicons
-                name={displayProfilePhoto ? 'checkmark' : 'alert'}
+                name={headerProfilePhoto ? 'checkmark' : 'alert'}
                 size={16}
                 color="#fff"
               />
@@ -294,15 +283,17 @@ export default function ProfileScreen() {
           <Text
             style={[
               styles.photoStatusLine,
-              { color: displayProfilePhoto ? COLORS.success : COLORS.error },
+              { color: headerProfilePhoto ? COLORS.success : COLORS.error },
             ]}
           >
-            {displayProfilePhoto ? 'Profile photo added' : 'Add profile photo — required'}
+            {headerProfilePhoto ? 'Profile photo added' : 'Add profile photo — required'}
           </Text>
         </View>
 
         <View style={styles.header}>
-          <Text style={styles.name}>{user?.name || 'Locksmith'}</Text>
+          <Text style={styles.name}>
+            {isMember ? memberData?.name || user?.name : user?.name || 'Locksmith'}
+          </Text>
           <Text style={styles.email}>{user?.email || ''}</Text>
           <View style={styles.badges}>
             <View style={[styles.badge, { marginRight: 8 }]}>
