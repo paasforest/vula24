@@ -61,6 +61,7 @@ export default function DashboardScreen() {
   const [user, setUser] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [wallet, setWallet] = useState(null);
+  const [hasScheduledJobs, setHasScheduledJobs] = useState(false);
   const [toggleLoading, setToggleLoading] = useState(false);
   const [online, setOnline] = useState(false);
   const pushedJobRef = useRef(null);
@@ -160,6 +161,10 @@ export default function DashboardScreen() {
       if (!u?.id || !u.isVerified || !u.isOnline) return;
       await loadJobs();
       await loadWallet();
+      try {
+        const { data: sq } = await api.get('/api/jobs/locksmith/scheduled-open');
+        setHasScheduledJobs((sq?.jobs?.length || 0) > 0);
+      } catch { /* ignore */ }
       try {
         const { data } = await api.get('/api/jobs/locksmith/my-jobs');
         const list = data.jobs || [];
@@ -382,6 +387,20 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         ) : null}
 
+        {hasScheduledJobs && (
+          <TouchableOpacity
+            style={styles.scheduledBanner}
+            onPress={() => router.push('/scheduled-quotes')}
+          >
+            <Ionicons name="calendar-outline" size={18} color="#111" 
+              style={{ marginRight: 8 }} />
+            <Text style={styles.scheduledBannerText}>
+              New quote requests — tap to view
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color="#111" />
+          </TouchableOpacity>
+        )}
+
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Text style={styles.statVal}>{jobsToday}</Text>
@@ -508,6 +527,21 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   incompleteBannerText: {
+    color: '#111',
+    fontWeight: '700',
+    fontSize: 14,
+    flex: 1,
+  },
+  scheduledBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4a9eff',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 14,
+  },
+  scheduledBannerText: {
     color: '#111',
     fontWeight: '700',
     fontSize: 14,

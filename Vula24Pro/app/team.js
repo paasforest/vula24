@@ -63,7 +63,15 @@ export default function TeamScreen() {
         appEmail: appEmail.trim().toLowerCase(),
         appPassword,
       });
-      Alert.alert('Added', 'Team member created.');
+      Alert.alert(
+        'Team member added',
+        'Share these login details with ' + name.trim() +
+        ':\n\nEmail: ' + appEmail.trim() +
+        '\nPassword: ' + appPassword +
+        '\n\nThey can login using the "Team member? Login here"' +
+        ' option on the Pro app login screen.',
+        [{ text: 'OK' }]
+      );
       setModal(false);
       setName('');
       setPhone('');

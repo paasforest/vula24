@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { GoldButton } from '../../components/GoldButton';
 import { FormInput } from '../../components/FormInput';
 import { COLORS } from '../../constants/theme';
 import api from '../../lib/api';
+import { getUser } from '../../lib/storage';
 
 function startOfDay(d) {
   const x = new Date(d);
@@ -50,16 +51,27 @@ function releaseCountdownLabel(releaseAfter) {
 }
 
 export default function EarningsScreen() {
+  const [isMember, setIsMember] = useState(false);
   const [wallet, setWallet] = useState(null);
   const [profile, setProfile] = useState(null);
   const [pendingPayouts, setPendingPayouts] = useState([]);
+  const [jobs, setJobs] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    getUser().then((u) => setIsMember(u?.isMember === true));
+  }, []);
+
   const load = useCallback(async () => {
     try {
+      if (isMember) {
+        const { data } = await api.get('/api/jobs/locksmith/my-jobs');
+        setJobs(data.jobs || []);
+        return;
+      }
       const [w, p, pend] = await Promise.all([
         api.get('/api/wallet/my-wallet'),
         api.get('/api/locksmith/profile'),
@@ -72,7 +84,7 @@ export default function EarningsScreen() {
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'Could not load wallet.');
     }
-  }, []);
+  }, [isMember]);
 
   useFocusEffect(
     useCallback(() => {
@@ -137,6 +149,44 @@ export default function EarningsScreen() {
       setLoading(false);
     }
   };
+
+  if (isMember) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top','bottom']}>
+        <Text style={styles.h1}>My Jobs</Text>
+        <ScrollView contentContainerStyle={{ padding: 20 }}>
+          {(jobs || [])
+            .filter(j => j.status === 'COMPLETED')
+            .map(j => (
+              <View key={j.id} style={{
+                backgroundColor: COLORS.inputBg,
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 12,
+                borderWidth: 1,
+                borderColor: '#2a2a2a',
+              }}>
+                <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 15 }}>
+                  {String(j.serviceType).replace(/_/g, ' ')}
+                </Text>
+                <Text style={{ color: COLORS.textMuted, marginTop: 4 }}>
+                  {j.customerAddress}
+                </Text>
+                <Text style={{ color: COLORS.textMuted, marginTop: 4, fontSize: 12 }}>
+                  {new Date(j.completedAt || j.updatedAt).toLocaleDateString()}
+                </Text>
+              </View>
+            ))
+          }
+          {(jobs || []).filter(j => j.status === 'COMPLETED').length === 0 && (
+            <Text style={{ color: COLORS.textMuted, textAlign: 'center', marginTop: 40 }}>
+              No completed jobs yet
+            </Text>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>

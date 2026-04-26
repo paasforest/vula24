@@ -25,6 +25,11 @@ export async function getUser() {
   }
 }
 
+export async function getIsMember() {
+  const user = await getUser();
+  return user?.isMember === true;
+}
+
 export async function clearAuth() {
   await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
 }

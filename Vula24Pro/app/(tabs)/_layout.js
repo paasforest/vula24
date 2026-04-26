@@ -1,11 +1,18 @@
+import { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../../constants/theme';
+import { getUser } from '../../lib/storage';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const [isMember, setIsMember] = useState(false);
   const tabBarHeight = 60 + Math.max(insets.bottom, 16);
+
+  useEffect(() => {
+    getUser().then((u) => setIsMember(u?.isMember === true));
+  }, []);
 
   return (
     <Tabs
@@ -40,9 +47,13 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="earnings"
         options={{
-          title: 'Earnings',
+          title: isMember ? 'My Jobs' : 'Earnings',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="wallet" size={size} color={color} />
+            <Ionicons
+              name={isMember ? 'briefcase-outline' : 'wallet'}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />

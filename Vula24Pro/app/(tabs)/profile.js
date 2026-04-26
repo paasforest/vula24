@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -37,12 +37,17 @@ function initialsFromName(name) {
 }
 
 export default function ProfileScreen() {
+  const [isMember, setIsMember] = useState(false);
   const [user, setUser] = useState(null);
   const [vehicleType, setVehicleType] = useState('');
   const [vehicleColor, setVehicleColor] = useState('');
   const [vehiclePlateNumber, setVehiclePlateNumber] = useState('');
   const [vehicleSaving, setVehicleSaving] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+
+  useEffect(() => {
+    getUser().then((u) => setIsMember(u?.isMember === true));
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -157,31 +162,17 @@ export default function ProfileScreen() {
     vehicleColor.trim().length > 0 &&
     vehiclePlateNumber.trim().length > 0;
 
-  const items = [
-    {
-      key: 'sched',
-      label: 'Scheduled quote requests',
-      icon: 'calendar-outline',
-      path: '/scheduled-quotes',
-    },
+  const items = isMember ? [
+    { key: 'help', label: 'Help & Support', icon: 'help-circle-outline', path: '/help' },
+    { key: 'terms', label: 'Terms & Privacy', icon: 'document-text-outline', path: '/terms' },
+  ] : [
+    { key: 'sched', label: 'Scheduled quote requests', icon: 'calendar-outline', path: '/scheduled-quotes' },
     { key: 'pricing', label: 'My Services & Pricing', icon: 'pricetags-outline', path: '/pricing' },
     { key: 'docs', label: 'My Documents', icon: 'document-text-outline', path: '/documents' },
     { key: 'bank', label: 'Bank Details', icon: 'card-outline', path: '/bank-details' },
-    ...(isBusiness
-      ? [{ key: 'team', label: 'Team Management', icon: 'people-outline', path: '/team' }]
-      : []),
-    {
-      key: 'help',
-      label: 'Help & Support',
-      icon: 'help-circle-outline',
-      path: '/help',
-    },
-    {
-      key: 'terms',
-      label: 'Terms & Privacy',
-      icon: 'document-text-outline',
-      path: '/terms',
-    },
+    ...(isBusiness ? [{ key: 'team', label: 'Team Management', icon: 'people-outline', path: '/team' }] : []),
+    { key: 'help', label: 'Help & Support', icon: 'help-circle-outline', path: '/help' },
+    { key: 'terms', label: 'Terms & Privacy', icon: 'document-text-outline', path: '/terms' },
     { key: 'notif', label: 'Notifications', icon: 'notifications-outline', path: '/notifications' },
   ];
 
@@ -261,6 +252,26 @@ export default function ProfileScreen() {
             <Ionicons name="star" size={16} color={COLORS.accent} />
           </Text>
         </View>
+
+        {isMember && user?.businessId && (
+          <View style={{
+            backgroundColor: COLORS.inputBg,
+            marginHorizontal: 20,
+            marginBottom: 16,
+            borderRadius: 12,
+            padding: 12,
+            borderWidth: 1,
+            borderColor: COLORS.accent,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}>
+            <Ionicons name="business-outline" size={16} color={COLORS.accent} 
+              style={{ marginRight: 8 }} />
+            <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>
+              Team member account
+            </Text>
+          </View>
+        )}
 
         <View style={styles.menu}>
           {items.map((it) => (
