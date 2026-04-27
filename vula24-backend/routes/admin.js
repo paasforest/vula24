@@ -95,4 +95,14 @@ router.post(
   asyncHandler(admin.resolveDispute)
 );
 
+router.delete(
+  '/locksmith/:id/delete',
+  [
+    param('id').isUUID(),
+    body('reason').trim().notEmpty(),
+  ],
+  handleValidationErrors,
+  asyncHandler(admin.deleteLocksmith)
+);
+
 module.exports = router;

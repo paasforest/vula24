@@ -218,6 +218,7 @@ async function getStats(req, res) {
     activeOnline,
     pendingPayoutAgg,
     jobCreditsAgg,
+    locksmithsNoMinimum,
   ] = await Promise.all([
     prisma.job.count(),
     prisma.job.aggregate({
@@ -238,6 +239,9 @@ async function getStats(req, res) {
       },
       _sum: { amount: true },
     }),
+    prisma.locksmith.count({
+      where: { walletMinimum: 0 },
+    }),
   ]);
 
   res.json({
@@ -246,6 +250,7 @@ async function getStats(req, res) {
     activeLocksmithsOnline: activeOnline,
     totalPendingPayouts: pendingPayoutAgg._sum.amount || 0,
     totalReleasedJobCredits: jobCreditsAgg._sum.amount || 0,
+    locksmithsNoMinimum,
   });
 }
 
@@ -469,6 +474,26 @@ async function resolveDispute(req, res) {
   res.json({ job: updatedJob });
 }
 
+async function deleteLocksmith(req, res) {
+  const { id } = req.params;
+  const { reason } = req.body;
+
+  const locksmith = await prisma.locksmith.findUnique({
+    where: { id },
+    select: { id: true, name: true, email: true },
+  });
+
+  if (!locksmith) throw new AppError('Locksmith not found', 404);
+
+  await prisma.locksmith.delete({
+    where: { id },
+  });
+
+  console.log(`[ADMIN] Deleted locksmith ${locksmith.email} — reason: ${reason}`);
+
+  res.json({ success: true, deleted: locksmith.name });
+}
+
 module.exports = {
   adminLogin,
   listPendingLocksmiths,
@@ -482,4 +507,5 @@ module.exports = {
   getStats,
   strikeCustomer,
   resolveDispute,
+  deleteLocksmith,
 };

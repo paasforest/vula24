@@ -119,6 +119,16 @@
       </div>
     </div>
 
+    <div class="section">
+      <div class="section-header">
+        <h2>Commission Tracking</h2>
+        <button onclick="refreshCommission()">Refresh</button>
+      </div>
+      <div id="commission-content">
+        <p style="color:#aaa">Loading...</p>
+      </div>
+    </div>
+
     <div class="card">
       <h2>Pending locksmiths</h2>
       <div class="toolbar">
@@ -313,6 +323,56 @@
           elErr('stats-err', e.message);
         } finally {
           btn.disabled = false;
+        }
+      }
+
+      async function refreshCommission() {
+        try {
+          const data = await apiFetch('/api/admin/stats');
+          const el = document.getElementById('commission-content');
+          el.innerHTML = `
+      <table style="width:100%;border-collapse:collapse">
+        <tr>
+          <td style="padding:12px;color:#aaa;border-bottom:1px solid #333">
+            Total platform fees collected
+          </td>
+          <td style="padding:12px;color:#D4A017;font-weight:700;
+            text-align:right;border-bottom:1px solid #333">
+            R ${(data.totalPlatformFees || 0).toFixed(2)}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px;color:#aaa;border-bottom:1px solid #333">
+            Total locksmith earnings paid out
+          </td>
+          <td style="padding:12px;color:#34c759;font-weight:700;
+            text-align:right;border-bottom:1px solid #333">
+            R ${(data.totalReleasedJobCredits || 0).toFixed(2)}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px;color:#aaa;border-bottom:1px solid #333">
+            Pending payouts (held)
+          </td>
+          <td style="padding:12px;color:#ff9500;font-weight:700;
+            text-align:right;border-bottom:1px solid #333">
+            R ${(data.totalPendingPayouts || 0).toFixed(2)}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px;color:#aaa">
+            Locksmiths with no wallet minimum
+          </td>
+          <td style="padding:12px;color:#fff;font-weight:700;
+            text-align:right">
+            ${data.locksmithsNoMinimum || 0}
+          </td>
+        </tr>
+      </table>
+    `;
+        } catch (e) {
+          document.getElementById('commission-content').innerHTML =
+            '<p style="color:#ff4444">Error loading commission data</p>';
         }
       }
 
@@ -700,6 +760,11 @@
                 : '<button type="button" class="btn btn-red btn-lm-sus" data-id="' +
                   r.id +
                   '">Suspend</button>') +
+              '<button onclick="deleteLocksmith(\'' +
+              r.id +
+              '\', \'' +
+              String(r.name || '').replace(/'/g, "\\'") +
+              '\')" style="background:#3a0a0a;color:#ff4444;border:1px solid #ff4444;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;margin-left:6px">Delete</button>' +
               '</div></td></tr>';
           }
           html += '</tbody></table>';
@@ -739,6 +804,32 @@
           alert(e.message);
         } finally {
           btn.disabled = false;
+        }
+      }
+
+      async function deleteLocksmith(id, name) {
+        const confirmed = confirm(
+          'DELETE ' + name + '?\n\nThis cannot be undone. ' +
+          'All their data will be removed.'
+        );
+        if (!confirmed) return;
+
+        const notes = prompt('Enter reason for deletion:');
+        if (!notes) return;
+
+        try {
+          await apiFetch(
+            '/api/admin/locksmith/' + id + '/delete',
+            {
+              method: 'DELETE',
+              body: JSON.stringify({ reason: notes })
+            }
+          );
+          alert(name + ' has been deleted.');
+          refreshLocksmiths();
+          refreshStats();
+        } catch (e) {
+          alert('Error: ' + e.message);
         }
       }
 
