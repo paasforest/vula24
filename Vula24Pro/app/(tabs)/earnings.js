@@ -304,6 +304,11 @@ export default function EarningsScreen() {
             <View key={t.id} style={styles.tx}>
               <View style={styles.txLeft}>
                 <Text style={styles.txDesc}>{t.description}</Text>
+                {t.job?.teamMember?.name && (
+                  <Text style={{ color: COLORS.textMuted, fontSize: 11, marginTop: 2 }}>
+                    via {t.job.teamMember.name}
+                  </Text>
+                )}
                 <Text style={styles.txDate}>
                   {new Date(t.createdAt).toLocaleString()}
                 </Text>

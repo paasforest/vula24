@@ -8,6 +8,15 @@ async function getMyWallet(req, res) {
       transactions: {
         orderBy: { createdAt: 'desc' },
         take: 20,
+        include: {
+          job: {
+            select: {
+              serviceType: true,
+              teamMemberId: true,
+              teamMember: { select: { name: true } },
+            },
+          },
+        },
       },
     },
   });

@@ -86,6 +86,12 @@ Powered by Vula24
           <Text style={styles.label}>Customer</Text>
           <Text style={styles.value}>{receipt?.customer?.name}</Text>
         </View>
+        {receipt?.teamMember?.name && (
+          <View style={styles.row}>
+            <Text style={styles.label}>Completed by</Text>
+            <Text style={styles.value}>{receipt.teamMember.name}</Text>
+          </View>
+        )}
         <View style={styles.divider} />
         <View style={styles.row}>
           <Text style={styles.label}>Service Amount</Text>

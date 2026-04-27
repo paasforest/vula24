@@ -1716,15 +1716,19 @@ async function listTeamMembers(req, res) {
 
   const members = await prisma.teamMember.findMany({
     where: { businessId: locksmith.id },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
     select: {
       id: true,
       name: true,
       phone: true,
-      appEmail: true,
-      idPhotoUrl: true,
       isActive: true,
+      isOnline: true,
       createdAt: true,
+      _count: {
+        select: {
+          jobs: { where: { status: 'COMPLETED' } },
+        },
+      },
     },
   });
   res.json({ members });
@@ -1830,12 +1834,9 @@ async function getLocksmithJobReceipt(req, res) {
   const job = await prisma.job.findUnique({
     where: { id: jobId },
     include: {
-      customer: {
-        select: { name: true, phone: true, email: true },
-      },
-      locksmith: {
-        select: { name: true, phone: true, businessName: true },
-      },
+      customer: { select: { name: true, phone: true, email: true } },
+      locksmith: { select: { name: true, phone: true, businessName: true } },
+      teamMember: { select: { name: true, phone: true } },
     },
   });
   if (!job) throw new AppError('Job not found', 404);

@@ -16,13 +16,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
 import api from '../lib/api';
+import { getUser } from '../lib/storage';
 
 export default function ActiveJobScreen() {
   const { jobId: jid } = useLocalSearchParams();
   const jobId = Array.isArray(jid) ? jid[0] : jid;
 
   const [job, setJob] = useState(null);
+  const [isMember, setIsMember] = useState(false);
   const locInterval = useRef(null);
+
+  useEffect(() => {
+    getUser().then((u) => setIsMember(u?.isMember === true));
+  }, []);
 
   const load = useCallback(async () => {
     if (!jobId) return;
@@ -197,7 +203,7 @@ export default function ActiveJobScreen() {
             <Text style={styles.callText}>Call customer</Text>
           </TouchableOpacity>
 
-          {job?.status === 'COMPLETED' && (
+          {job?.status === 'COMPLETED' && !isMember && (
             <TouchableOpacity
               style={{
                 flexDirection: 'row',

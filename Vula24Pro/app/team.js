@@ -129,16 +129,25 @@ export default function TeamScreen() {
       >
         {members.map((m) => (
           <View key={m.id} style={styles.card}>
-            <Text style={styles.n}>{m.name}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{
+                  width: 10, height: 10, borderRadius: 5,
+                  backgroundColor: m.isOnline ? '#34c759' : '#666',
+                  marginRight: 8,
+                }} />
+                <Text style={styles.n}>{m.name}</Text>
+              </View>
+              <Text style={{ color: COLORS.textMuted, fontSize: 12 }}>
+                {m._count?.jobs || 0} jobs
+              </Text>
+            </View>
             <Text style={styles.p}>{m.phone}</Text>
             <View style={styles.row}>
-              <View
-                style={[
-                  styles.badge,
-                  { backgroundColor: m.isActive ? '#1b3d1b' : '#3a1515' },
-                ]}
-              >
-                <Text style={styles.badgeT}>{m.isActive ? 'Active' : 'Inactive'}</Text>
+              <View style={[styles.badge, { backgroundColor: m.isActive ? '#1b3d1b' : '#3a1515' }]}>
+                <Text style={styles.badgeT}>
+                  {m.isActive ? (m.isOnline ? 'Online' : 'Offline') : 'Inactive'}
+                </Text>
               </View>
               {m.isActive ? (
                 <TouchableOpacity onPress={() => deactivate(m.id)}>
