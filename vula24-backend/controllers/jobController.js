@@ -1812,6 +1812,27 @@ async function uploadMemberPhoto(req, res) {
   res.json({ profilePhoto: url });
 }
 
+async function getLocksmithJobReceipt(req, res) {
+  const { id: jobId } = req.params;
+  const locksmithId = req.locksmith.id;
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: {
+      customer: {
+        select: { name: true, phone: true, email: true },
+      },
+      locksmith: {
+        select: { name: true, phone: true, businessName: true },
+      },
+    },
+  });
+  if (!job) throw new AppError('Job not found', 404);
+  if (job.locksithId !== locksmithId) {
+    throw new AppError('Not authorized', 403);
+  }
+  res.json({ receipt: job });
+}
+
 module.exports = {
   createEmergencyJob,
   getNearbyLocksmiths,
@@ -1859,4 +1880,5 @@ module.exports = {
   listTeamMembers,
   deactivateTeamMember,
   updateLocksmithPushToken,
+  getLocksmithJobReceipt,
 };

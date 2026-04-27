@@ -144,6 +144,8 @@ router.post(
   asyncHandler(jobs.addTeamMember)
 );
 
+router.get('/jobs/:id/receipt', authenticateLocksmith, asyncHandler(jobs.getLocksmithJobReceipt));
+
 router.get('/team', authenticateLocksmith, asyncHandler(jobs.listTeamMembers));
 
 router.post(

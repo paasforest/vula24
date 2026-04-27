@@ -9,6 +9,9 @@ async function sendPushNotification(pushToken, title, body, data) {
       body,
       sound: 'default',
       priority: 'high',
+      channelId: 'job-requests',
+      ttl: 300,
+      expiration: Math.floor(Date.now() / 1000) + 300,
     };
     if (data != null && typeof data === 'object') {
       payload.data = data;

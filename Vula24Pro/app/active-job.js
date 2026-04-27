@@ -196,6 +196,26 @@ export default function ActiveJobScreen() {
             <Ionicons name="call" size={22} color={COLORS.bg} style={{ marginRight: 8 }} />
             <Text style={styles.callText}>Call customer</Text>
           </TouchableOpacity>
+
+          {job?.status === 'COMPLETED' && (
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: COLORS.inputBg,
+                borderWidth: 1,
+                borderColor: COLORS.accent,
+                borderRadius: 12,
+                padding: 14,
+                marginTop: 12,
+              }}
+              onPress={() => router.push({ pathname: '/job-receipt', params: { jobId: job.id } })}
+            >
+              <Ionicons name="receipt-outline" size={18} color={COLORS.accent} style={{ marginRight: 8 }} />
+              <Text style={{ color: COLORS.accent, fontWeight: '700' }}>View Receipt</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
     </View>

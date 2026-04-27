@@ -60,6 +60,14 @@ function startOfDay(d) {
   return x;
 }
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
 export default function DashboardScreen() {
   const [user, setUser] = useState(null);
   const [jobs, setJobs] = useState([]);
@@ -67,11 +75,21 @@ export default function DashboardScreen() {
   const [hasScheduledJobs, setHasScheduledJobs] = useState(false);
   const [toggleLoading, setToggleLoading] = useState(false);
   const [online, setOnline] = useState(false);
+  const [isMember, setIsMember] = useState(false);
   const pushedJobRef = useRef(null);
   const pushRegisteredRef = useRef(false);
   const appStateRef = useRef(AppState.currentState);
 
+  useEffect(() => {
+    getUser().then((u) => setIsMember(u?.isMember === true));
+  }, []);
+
   const loadProfile = useCallback(async () => {
+    if (isMember) {
+      const u = await getUser();
+      setUser(u);
+      return;
+    }
     try {
       const { data } = await api.get('/api/locksmith/profile');
       setUser(data.locksmith);
@@ -83,25 +101,33 @@ export default function DashboardScreen() {
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [isMember]);
 
   const loadJobs = useCallback(async () => {
+    if (isMember) {
+      try {
+        const { data } = await api.get('/api/member/jobs/available');
+        setJobs(data.jobs || []);
+      } catch { /* ignore */ }
+      return;
+    }
     try {
       const { data } = await api.get('/api/jobs/locksmith/my-jobs');
       setJobs(data.jobs || []);
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [isMember]);
 
   const loadWallet = useCallback(async () => {
+    if (isMember) return;
     try {
       const { data } = await api.get('/api/wallet/my-wallet');
       setWallet(data);
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [isMember]);
 
   const postLocationIfPossible = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -127,6 +153,16 @@ export default function DashboardScreen() {
     if (pushRegisteredRef.current) return;
     pushRegisteredRef.current = true;
     registerPushToken();
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('job-requests', {
+        name: 'Job Requests',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#D4A017',
+        sound: 'default',
+        enableVibrate: true,
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -158,6 +194,7 @@ export default function DashboardScreen() {
   );
 
   useEffect(() => {
+    if (isMember) return;
     let interval;
     const run = async () => {
       const u = await getUser();
@@ -190,7 +227,7 @@ export default function DashboardScreen() {
     run();
     interval = setInterval(run, 10000);
     return () => clearInterval(interval);
-  }, [loadJobs, loadWallet]);
+  }, [isMember, loadJobs, loadWallet]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (next) => {
@@ -332,29 +369,54 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={[styles.onlineCard, { borderColor: online ? '#34c759' : '#444' }]}
-          onPress={() => onToggleOnline(!online)}
-          disabled={toggleLoading}
-          activeOpacity={0.9}
-        >
-          <View style={styles.onlineCardLeft}>
-            <View style={[styles.onlineDot, { backgroundColor: online ? '#34c759' : '#666' }]} />
+        {!isMember && (
+          <TouchableOpacity
+            style={[styles.onlineCard, { borderColor: online ? '#34c759' : '#444' }]}
+            onPress={() => onToggleOnline(!online)}
+            disabled={toggleLoading}
+            activeOpacity={0.9}
+          >
+            <View style={styles.onlineCardLeft}>
+              <View style={[styles.onlineDot, { backgroundColor: online ? '#34c759' : '#666' }]} />
+              <View>
+                <Text style={styles.onlineCardTitle}>{online ? 'Online' : 'Offline'}</Text>
+                <Text style={styles.onlineCardSub}>
+                  {online ? 'Receiving job requests' : 'Tap to go online'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={online}
+              onValueChange={onToggleOnline}
+              disabled={toggleLoading}
+              trackColor={{ false: '#333', true: '#1a3a1a' }}
+              thumbColor={online ? '#34c759' : '#666'}
+            />
+          </TouchableOpacity>
+        )}
+        {isMember && (
+          <View style={{
+            backgroundColor: COLORS.inputBg,
+            marginHorizontal: 20,
+            marginBottom: 16,
+            borderRadius: 12,
+            padding: 16,
+            borderWidth: 1,
+            borderColor: COLORS.accent,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}>
+            <Ionicons name="people-outline" size={20} color={COLORS.accent} style={{ marginRight: 12 }} />
             <View>
-              <Text style={styles.onlineCardTitle}>{online ? 'Online' : 'Offline'}</Text>
-              <Text style={styles.onlineCardSub}>
-                {online ? 'Receiving job requests' : 'Tap to go online'}
+              <Text style={{ color: COLORS.accent, fontWeight: '700', fontSize: 15 }}>
+                Team Member Account
+              </Text>
+              <Text style={{ color: COLORS.textMuted, fontSize: 13, marginTop: 2 }}>
+                Accept and complete jobs assigned to you
               </Text>
             </View>
           </View>
-          <Switch
-            value={online}
-            onValueChange={onToggleOnline}
-            disabled={toggleLoading}
-            trackColor={{ false: '#333', true: '#1a3a1a' }}
-            thumbColor={online ? '#34c759' : '#666'}
-          />
-        </TouchableOpacity>
+        )}
 
         {!profileComplete ? (
           <TouchableOpacity style={styles.incompleteBanner} onPress={() => router.push('/(tabs)/profile')}>
