@@ -148,6 +148,7 @@ model TeamMember {
   appEmail           String    @unique
   appPassword        String
   isActive           Boolean   @default(true)
+  isOnline           Boolean   @default(false)
   createdAt          DateTime  @default(now())
 
   jobs Job[]

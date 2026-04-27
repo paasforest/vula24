@@ -1812,6 +1812,18 @@ async function uploadMemberPhoto(req, res) {
   res.json({ profilePhoto: url });
 }
 
+async function toggleMemberOnline(req, res) {
+  const memberId = req.member.id;
+  const member = await prisma.teamMember.findUnique({ where: { id: memberId } });
+  if (!member) throw new AppError('Member not found', 404);
+  const nextOnline = !member.isOnline;
+  const updated = await prisma.teamMember.update({
+    where: { id: memberId },
+    data: { isOnline: nextOnline },
+  });
+  res.json({ isOnline: updated.isOnline, member: updated });
+}
+
 async function getLocksmithJobReceipt(req, res) {
   const { id: jobId } = req.params;
   const locksmithId = req.locksmith.id;
@@ -1881,4 +1893,5 @@ module.exports = {
   deactivateTeamMember,
   updateLocksmithPushToken,
   getLocksmithJobReceipt,
+  toggleMemberOnline,
 };

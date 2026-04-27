@@ -237,6 +237,12 @@ memberRouter.get(
 );
 
 memberRouter.put(
+  '/toggle-online',
+  authenticateMember,
+  asyncHandler(jobs.toggleMemberOnline)
+);
+
+memberRouter.put(
   '/profile',
   authenticateMember,
   asyncHandler(jobs.updateMemberProfile)

@@ -88,6 +88,10 @@ export default function DashboardScreen() {
     if (isMember) {
       const u = await getUser();
       setUser(u);
+      try {
+        const { data } = await api.get('/api/member/profile');
+        setOnline(data.member?.isOnline || false);
+      } catch { /* ignore */ }
       return;
     }
     try {
@@ -247,6 +251,12 @@ export default function DashboardScreen() {
   const onToggleOnline = async (value) => {
     setToggleLoading(true);
     try {
+      if (isMember) {
+        await api.put('/api/member/toggle-online');
+        setOnline(value);
+        setToggleLoading(false);
+        return;
+      }
       const { data } = await api.get('/api/locksmith/profile');
       const currentlyOn = !!data.locksmith.isOnline;
       if (value !== currentlyOn) {
@@ -369,31 +379,6 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {!isMember && (
-          <TouchableOpacity
-            style={[styles.onlineCard, { borderColor: online ? '#34c759' : '#444' }]}
-            onPress={() => onToggleOnline(!online)}
-            disabled={toggleLoading}
-            activeOpacity={0.9}
-          >
-            <View style={styles.onlineCardLeft}>
-              <View style={[styles.onlineDot, { backgroundColor: online ? '#34c759' : '#666' }]} />
-              <View>
-                <Text style={styles.onlineCardTitle}>{online ? 'Online' : 'Offline'}</Text>
-                <Text style={styles.onlineCardSub}>
-                  {online ? 'Receiving job requests' : 'Tap to go online'}
-                </Text>
-              </View>
-            </View>
-            <Switch
-              value={online}
-              onValueChange={onToggleOnline}
-              disabled={toggleLoading}
-              trackColor={{ false: '#333', true: '#1a3a1a' }}
-              thumbColor={online ? '#34c759' : '#666'}
-            />
-          </TouchableOpacity>
-        )}
         {isMember && (
           <View style={{
             backgroundColor: COLORS.inputBg,
@@ -417,6 +402,30 @@ export default function DashboardScreen() {
             </View>
           </View>
         )}
+
+        <TouchableOpacity
+          style={[styles.onlineCard, { borderColor: online ? '#34c759' : '#444' }]}
+          onPress={() => onToggleOnline(!online)}
+          disabled={toggleLoading}
+          activeOpacity={0.9}
+        >
+          <View style={styles.onlineCardLeft}>
+            <View style={[styles.onlineDot, { backgroundColor: online ? '#34c759' : '#666' }]} />
+            <View>
+              <Text style={styles.onlineCardTitle}>{online ? 'Online' : 'Offline'}</Text>
+              <Text style={styles.onlineCardSub}>
+                {online ? 'Receiving job requests' : 'Tap to go online'}
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={online}
+            onValueChange={onToggleOnline}
+            disabled={toggleLoading}
+            trackColor={{ false: '#333', true: '#1a3a1a' }}
+            thumbColor={online ? '#34c759' : '#666'}
+          />
+        </TouchableOpacity>
 
         {!profileComplete ? (
           <TouchableOpacity style={styles.incompleteBanner} onPress={() => router.push('/(tabs)/profile')}>
