@@ -39,6 +39,7 @@ export default function MemberLoginScreen() {
         id: data.memberId,
         name: data.name,
         businessId: data.businessId,
+        businessName: data.businessName || null,
         isMember: true,
         isVerified: true,
       });

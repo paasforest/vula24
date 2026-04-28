@@ -391,13 +391,13 @@ export default function DashboardScreen() {
             flexDirection: 'row',
             alignItems: 'center',
           }}>
-            <Ionicons name="people-outline" size={20} color={COLORS.accent} style={{ marginRight: 12 }} />
+            <Ionicons name="business-outline" size={20} color={COLORS.accent} style={{ marginRight: 12 }} />
             <View>
               <Text style={{ color: COLORS.accent, fontWeight: '700', fontSize: 15 }}>
-                Team Member Account
+                {user?.businessName || 'Team Member'}
               </Text>
               <Text style={{ color: COLORS.textMuted, fontSize: 13, marginTop: 2 }}>
-                Accept and complete jobs assigned to you
+                Team Member Account
               </Text>
             </View>
           </View>

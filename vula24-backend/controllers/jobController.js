@@ -1775,6 +1775,7 @@ async function updateLocksmithPushToken(req, res) {
 async function getMemberProfile(req, res) {
   const member = await prisma.teamMember.findUnique({
     where: { id: req.member.id },
+    include: { business: { select: { businessName: true } } },
   });
   if (!member) throw new AppError('Member not found', 404);
   const { appPassword, ...profile } = member;

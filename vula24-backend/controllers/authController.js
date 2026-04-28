@@ -266,6 +266,7 @@ async function loginMember(req, res) {
     memberId: member.id,
     businessId: member.businessId,
     name: member.name,
+    businessName: member.business?.businessName || null,
   });
 }
 

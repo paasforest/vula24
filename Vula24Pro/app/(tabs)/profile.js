@@ -66,6 +66,7 @@ export default function ProfileScreen() {
           ...creds,
           ...data.member,
           email: data.member?.appEmail ?? creds?.email,
+          businessName: data.member?.business?.businessName ?? creds?.businessName ?? null,
           isMember: true,
         };
         await saveUser(merged);
@@ -308,6 +309,11 @@ export default function ProfileScreen() {
           <Text style={styles.name}>
             {isMember ? memberData?.name || user?.name : user?.name || 'Locksmith'}
           </Text>
+          {!isMember && user?.businessName && (
+            <Text style={{ color: COLORS.textMuted, fontSize: 14, textAlign: 'center', marginTop: 4 }}>
+              {user.businessName}
+            </Text>
+          )}
           <Text style={styles.email}>{user?.email || ''}</Text>
           <View style={styles.badges}>
             <View style={[styles.badge, { marginRight: 8 }]}>
@@ -338,10 +344,12 @@ export default function ProfileScreen() {
             flexDirection: 'row',
             alignItems: 'center',
           }}>
-            <Ionicons name="business-outline" size={16} color={COLORS.accent} 
+            <Ionicons name="business-outline" size={16} color={COLORS.accent}
               style={{ marginRight: 8 }} />
             <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>
-              Team member account
+              {user?.businessName
+                ? `Working for: ${user.businessName}`
+                : 'Team member account'}
             </Text>
           </View>
         )}
