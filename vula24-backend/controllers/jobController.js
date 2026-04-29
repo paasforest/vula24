@@ -281,6 +281,16 @@ async function dispatchJob(req, res) {
       where: { id: job.locksithId },
       select: { pushToken: true },
     });
+    let dispatchPushToken = ls?.pushToken;
+    if (job.teamMemberId) {
+      const member = await prisma.teamMember.findUnique({
+        where: { id: job.teamMemberId },
+        select: { pushToken: true },
+      });
+      if (member?.pushToken) {
+        dispatchPushToken = member.pushToken;
+      }
+    }
     await prisma.notification.create({
       data: {
         recipientId: job.locksithId,
@@ -290,7 +300,7 @@ async function dispatchJob(req, res) {
       },
     });
     sendPushNotification(
-      ls?.pushToken,
+      dispatchPushToken,
       'Customer has paid',
       'Customer has paid — head to them now',
       { jobId: String(jobId) }
