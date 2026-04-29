@@ -21,7 +21,7 @@ import { COLORS } from '../../constants/theme';
 import api from '../../lib/api';
 import { getUser, saveUser } from '../../lib/storage';
 
-async function registerPushToken() {
+async function registerPushToken(isMember = false) {
   try {
     const { status: existing } = await Notifications.getPermissionsAsync();
     let finalStatus = existing;
@@ -34,20 +34,11 @@ async function registerPushToken() {
       projectId: Constants.expoConfig?.extra?.eas?.projectId,
     });
     if (token?.data) {
-      await api.put('/api/locksmith/push-token', {
-        pushToken: token.data,
-      });
-    }
-    if (Platform.OS === 'android') {
-      Notifications.setNotificationChannelAsync('jobs', {
-        name: 'Job Requests',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 500, 250, 500, 250, 500],
-        lightColor: '#D4A017',
-        sound: 'default',
-        enableVibrate: true,
-        showBadge: true,
-      });
+      if (isMember) {
+        await api.put('/api/member/push-token', { pushToken: token.data });
+      } else {
+        await api.put('/api/locksmith/push-token', { pushToken: token.data });
+      }
     }
   } catch {
     /* ignore — never block dashboard load */
@@ -154,9 +145,25 @@ export default function DashboardScreen() {
   }, [online]);
 
   useEffect(() => {
+    if (!isMember || !online) return;
+    const interval = setInterval(async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        const loc = await Location.getCurrentPositionAsync({});
+        await api.post('/api/member/location/update', {
+          lat: loc.coords.latitude,
+          lng: loc.coords.longitude,
+        });
+      } catch { /* ignore */ }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [isMember, online]);
+
+  useEffect(() => {
     if (pushRegisteredRef.current) return;
     pushRegisteredRef.current = true;
-    registerPushToken();
+    registerPushToken(isMember);
     if (Platform.OS === 'android') {
       Notifications.setNotificationChannelAsync('job-requests', {
         name: 'Job Requests',
@@ -167,7 +174,7 @@ export default function DashboardScreen() {
         enableVibrate: true,
       });
     }
-  }, []);
+  }, [isMember]);
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(
@@ -252,7 +259,20 @@ export default function DashboardScreen() {
     setToggleLoading(true);
     try {
       if (isMember) {
-        await api.put('/api/member/toggle-online');
+        if (value) {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === 'granted') {
+            const loc = await Location.getCurrentPositionAsync({});
+            await api.put('/api/member/toggle-online', {
+              lat: loc.coords.latitude,
+              lng: loc.coords.longitude,
+            });
+          } else {
+            await api.put('/api/member/toggle-online');
+          }
+        } else {
+          await api.put('/api/member/toggle-online');
+        }
         setOnline(value);
         setToggleLoading(false);
         return;

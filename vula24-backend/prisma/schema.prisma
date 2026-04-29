@@ -149,6 +149,9 @@ model TeamMember {
   appPassword        String
   isActive           Boolean   @default(true)
   isOnline           Boolean   @default(false)
+  currentLat         Float?
+  currentLng         Float?
+  pushToken          String?
   createdAt          DateTime  @default(now())
 
   jobs Job[]

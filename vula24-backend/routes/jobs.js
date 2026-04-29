@@ -242,6 +242,25 @@ memberRouter.put(
   asyncHandler(jobs.toggleMemberOnline)
 );
 
+memberRouter.post(
+  '/location/update',
+  authenticateMember,
+  [
+    body('lat').isFloat({ min: -90, max: 90 }),
+    body('lng').isFloat({ min: -180, max: 180 }),
+  ],
+  handleValidationErrors,
+  asyncHandler(jobs.updateMemberLocation)
+);
+
+memberRouter.put(
+  '/push-token',
+  authenticateMember,
+  [body('pushToken').optional().isString()],
+  handleValidationErrors,
+  asyncHandler(jobs.updateMemberPushToken)
+);
+
 memberRouter.put(
   '/profile',
   authenticateMember,

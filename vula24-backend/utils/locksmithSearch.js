@@ -2,7 +2,9 @@ const prisma = require('../lib/prisma');
 const { calculateDistance } = require('./pricing');
 
 /**
- * Returns locksmiths sorted by distance (closest first), filtered to <= maxKm
+ * Returns locksmiths AND online team members sorted by distance (closest first),
+ * filtered to <= maxKm. Team member results carry isMember: true so callers can
+ * route push notifications to the member's own push token.
  */
 async function findLocksmithsByDistance({
   customerLat,
@@ -11,7 +13,8 @@ async function findLocksmithsByDistance({
   maxKm = 20,
   excludeLocksmithId,
 }) {
-  const where = {
+  // --- Locksmith records ---
+  const lsWhere = {
     isVerified: true,
     isOnline: true,
     isSuspended: false,
@@ -22,35 +25,72 @@ async function findLocksmithsByDistance({
     },
   };
   if (excludeLocksmithId) {
-    where.id = { not: excludeLocksmithId };
+    lsWhere.id = { not: excludeLocksmithId };
   }
 
   const locksmiths = await prisma.locksmith.findMany({
-    where,
+    where: lsWhere,
     include: {
       servicePricing: { where: { serviceType } },
     },
   });
 
-  const withDistance = locksmiths
+  const locksmithResults = locksmiths
     .map((l) => {
-      const dist = calculateDistance(
-        customerLat,
-        customerLng,
-        l.currentLat,
-        l.currentLng
-      );
+      const dist = calculateDistance(customerLat, customerLng, l.currentLat, l.currentLng);
       const pricing = l.servicePricing[0];
+      return { locksmith: l, distanceKm: dist, basePrice: pricing ? pricing.basePrice : 0 };
+    })
+    .filter((x) => x.distanceKm <= maxKm && x.basePrice > 0);
+
+  // --- Team member records ---
+  const teamMembers = await prisma.teamMember.findMany({
+    where: {
+      isActive: true,
+      isOnline: true,
+      currentLat: { not: null },
+      currentLng: { not: null },
+      business: {
+        isVerified: true,
+        isSuspended: false,
+        servicePricing: {
+          some: { serviceType, isOffered: true, basePrice: { gt: 0 } },
+        },
+      },
+    },
+    include: {
+      business: {
+        include: {
+          servicePricing: { where: { serviceType, isOffered: true } },
+        },
+      },
+    },
+  });
+
+  const memberResults = teamMembers
+    .filter((m) => excludeLocksmithId !== m.business.id)
+    .map((m) => {
+      const dist = calculateDistance(customerLat, customerLng, m.currentLat, m.currentLng);
+      const basePrice = m.business.servicePricing[0]?.basePrice || 0;
+      if (dist > maxKm || basePrice === 0) return null;
       return {
-        locksmith: l,
+        locksmith: {
+          ...m.business,
+          currentLat: m.currentLat,
+          currentLng: m.currentLng,
+          isMember: true,
+          memberId: m.id,
+          memberName: m.name,
+          memberPushToken: m.pushToken,
+        },
         distanceKm: dist,
-        basePrice: pricing ? pricing.basePrice : 0,
+        basePrice,
       };
     })
-    .filter((x) => x.distanceKm <= maxKm && x.basePrice > 0)
-    .sort((a, b) => a.distanceKm - b.distanceKm);
+    .filter(Boolean);
 
-  return withDistance;
+  return [...locksmithResults, ...memberResults]
+    .sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
 async function getNearestLocksmith({ customerLat, customerLng, serviceType, excludeLocksmithId }) {

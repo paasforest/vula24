@@ -137,18 +137,16 @@ async function createEmergencyJob(req, res) {
   const msgPush = `New ${svcLabel} — ${customerAddress}`;
   await prisma.notification.create({
     data: {
-      recipientId: locksmith.id,
+      recipientId: locksmith.isMember ? locksmith.memberId : locksmith.id,
       recipientType: 'LOCKSMITH',
       title: 'New job nearby',
       message: msgDb,
     },
   });
-  sendPushNotification(
-    locksmith.pushToken,
-    'New job nearby',
-    msgPush,
-    { jobId: String(job.id) }
-  );
+  const pushToken = locksmith.isMember
+    ? locksmith.memberPushToken
+    : locksmith.pushToken;
+  sendPushNotification(pushToken, 'New job nearby', msgPush, { jobId: String(job.id) });
 
   res.status(201).json({
     job: {
@@ -1819,14 +1817,38 @@ async function uploadMemberPhoto(req, res) {
 
 async function toggleMemberOnline(req, res) {
   const memberId = req.member.id;
+  const { lat, lng } = req.body || {};
   const member = await prisma.teamMember.findUnique({ where: { id: memberId } });
   if (!member) throw new AppError('Member not found', 404);
   const nextOnline = !member.isOnline;
+  const updateData = { isOnline: nextOnline };
+  if (nextOnline && lat != null && lng != null) {
+    updateData.currentLat = lat;
+    updateData.currentLng = lng;
+  }
   const updated = await prisma.teamMember.update({
     where: { id: memberId },
-    data: { isOnline: nextOnline },
+    data: updateData,
   });
   res.json({ isOnline: updated.isOnline, member: updated });
+}
+
+async function updateMemberLocation(req, res) {
+  const { lat, lng } = req.body;
+  await prisma.teamMember.update({
+    where: { id: req.member.id },
+    data: { currentLat: lat, currentLng: lng },
+  });
+  res.json({ success: true });
+}
+
+async function updateMemberPushToken(req, res) {
+  const { pushToken } = req.body;
+  await prisma.teamMember.update({
+    where: { id: req.member.id },
+    data: { pushToken: pushToken || null },
+  });
+  res.json({ success: true });
 }
 
 async function getLocksmithJobReceipt(req, res) {
@@ -1896,4 +1918,6 @@ module.exports = {
   updateLocksmithPushToken,
   getLocksmithJobReceipt,
   toggleMemberOnline,
+  updateMemberLocation,
+  updateMemberPushToken,
 };
