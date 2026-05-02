@@ -47,7 +47,13 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', app: 'Vula24 API' });
+  res.json({
+    status: 'ok',
+    app: 'Vula24 API',
+    version:
+      process.env.RAILWAY_GIT_COMMIT_SHA || 'unknown',
+    deployedAt: process.env.RAILWAY_DEPLOYMENT_ID || 'unknown',
+  });
 });
 
 /** Confirms Prisma can reach Postgres (Railway: DATABASE_URL usually needs ?sslmode=require). */
