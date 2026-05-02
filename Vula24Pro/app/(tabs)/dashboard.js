@@ -23,25 +23,35 @@ import { getUser, saveUser } from '../../lib/storage';
 
 async function registerPushToken(isMember = false) {
   try {
+    console.log('[push] start, isMember:', isMember);
     const { status: existing } = await Notifications.getPermissionsAsync();
     let finalStatus = existing;
     if (existing !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
-    if (finalStatus !== 'granted') return;
-    const token = await Notifications.getExpoPushTokenAsync({
-      projectId: Constants.expoConfig?.extra?.eas?.projectId,
-    });
-    if (token?.data) {
-      if (isMember) {
-        await api.put('/api/member/push-token', { pushToken: token.data });
-      } else {
-        await api.put('/api/locksmith/push-token', { pushToken: token.data });
-      }
+    if (finalStatus !== 'granted') {
+      console.warn('[push] permission denied');
+      return;
     }
-  } catch {
-    /* ignore — never block dashboard load */
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    console.log('[push] projectId:', projectId);
+    const token = await Notifications.getExpoPushTokenAsync({
+      projectId,
+    });
+    console.log('[push] token received:', token?.data?.substring(0, 30));
+    if (token?.data) {
+      const endpoint = isMember
+        ? '/api/member/push-token'
+        : '/api/locksmith/push-token';
+      console.log('[push] sending to:', endpoint);
+      await api.put(endpoint, {
+        pushToken: token.data,
+      });
+      console.log('[push] saved successfully');
+    }
+  } catch (e) {
+    console.warn('[push] failed:', e?.message || e);
   }
 }
 
@@ -76,15 +86,19 @@ export default function DashboardScreen() {
   }, []);
 
   const loadProfile = useCallback(async () => {
-    if (isMember) {
-      const u = await getUser();
-      setUser(u);
+    const stored = await getUser();
+    const memberFlag = stored?.isMember === true;
+
+    if (memberFlag) {
+      setUser(stored);
+      setIsMember(true);
       try {
         const { data } = await api.get('/api/member/profile');
         setOnline(data.member?.isOnline || false);
       } catch { /* ignore */ }
       return;
     }
+
     try {
       const { data } = await api.get('/api/locksmith/profile');
       setUser(data.locksmith);
@@ -177,11 +191,19 @@ export default function DashboardScreen() {
   }, []);
 
   useEffect(() => {
-    if (user === null) return;
     if (pushRegisteredRef.current) return;
-    pushRegisteredRef.current = true;
-    registerPushToken(isMember);
-  }, [user, isMember]);
+
+    const tryRegister = async () => {
+      const stored = await getUser();
+      if (!stored) return;
+
+      pushRegisteredRef.current = true;
+      const memberFlag = stored?.isMember === true;
+      await registerPushToken(memberFlag);
+    };
+
+    tryRegister();
+  }, []);
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(
