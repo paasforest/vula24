@@ -177,6 +177,15 @@
       <div id="locksmiths-table-wrap"></div>
       <div id="locksmiths-err" class="err hidden"></div>
     </div>
+
+    <div class="card">
+      <h2>Team Members</h2>
+      <div class="toolbar">
+        <button type="button" class="btn btn-ghost" id="btn-refresh-members">Refresh</button>
+      </div>
+      <div id="members-table-wrap"></div>
+      <div id="members-err" class="err hidden"></div>
+    </div>
   </div>
 
   <script>
@@ -792,6 +801,87 @@
         }
       }
 
+      async function refreshMembers() {
+        const wrap = document.getElementById('members-table-wrap');
+        const err = document.getElementById('members-err');
+        err.classList.add('hidden');
+        try {
+          const data = await apiFetch('/api/admin/team-members');
+          const members = data.members || [];
+          if (members.length === 0) {
+            wrap.innerHTML =
+              '<p style="color:#888;padding:20px;text-align:center">No team members yet.</p>';
+            return;
+          }
+          let html = '<table style="width:100%;border-collapse:collapse"><thead><tr>';
+          html +=
+            '<th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#aaa">Name</th>';
+          html +=
+            '<th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#aaa">Phone</th>';
+          html +=
+            '<th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#aaa">Business</th>';
+          html +=
+            '<th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#aaa">Active</th>';
+          html +=
+            '<th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#aaa">Online</th>';
+          html +=
+            '<th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#aaa">Location</th>';
+          html +=
+            '<th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#aaa">Push</th>';
+          html += '</tr></thead><tbody>';
+
+          for (const m of members) {
+            const hasLocation = m.currentLat != null && m.currentLng != null;
+            const hasPush = !!m.pushToken;
+            const biz =
+              m.business?.businessName || m.business?.name || '';
+            html += '<tr>';
+            html +=
+              '<td style="padding:8px;border-bottom:1px solid #222;color:#fff">' +
+              escapeHtml(m.name || '') +
+              '</td>';
+            html +=
+              '<td style="padding:8px;border-bottom:1px solid #222;color:#aaa">' +
+              escapeHtml(m.phone || '') +
+              '</td>';
+            html +=
+              '<td style="padding:8px;border-bottom:1px solid #222;color:#aaa">' +
+              escapeHtml(biz) +
+              '</td>';
+            html +=
+              '<td style="padding:8px;border-bottom:1px solid #222;color:' +
+              (m.isActive ? '#34c759' : '#888') +
+              '">' +
+              (m.isActive ? 'Yes' : 'No') +
+              '</td>';
+            html +=
+              '<td style="padding:8px;border-bottom:1px solid #222;color:' +
+              (m.isOnline ? '#34c759' : '#888') +
+              '">' +
+              (m.isOnline ? 'Yes' : 'No') +
+              '</td>';
+            html +=
+              '<td style="padding:8px;border-bottom:1px solid #222;color:' +
+              (hasLocation ? '#34c759' : '#ff4444') +
+              '">' +
+              (hasLocation ? 'Set' : 'MISSING') +
+              '</td>';
+            html +=
+              '<td style="padding:8px;border-bottom:1px solid #222;color:' +
+              (hasPush ? '#34c759' : '#ff4444') +
+              '">' +
+              (hasPush ? 'Set' : 'MISSING') +
+              '</td>';
+            html += '</tr>';
+          }
+          html += '</tbody></table>';
+          wrap.innerHTML = html;
+        } catch (e) {
+          err.textContent = e.message || 'Error loading team members';
+          err.classList.remove('hidden');
+        }
+      }
+
       async function setSuspended(id, suspended, btn) {
         btn.disabled = true;
         try {
@@ -857,6 +947,7 @@
         refreshDisputes();
         refreshJobs();
         refreshLocksmiths();
+        refreshMembers();
       }
 
       document.getElementById('btn-login').onclick = doLogin;

@@ -494,6 +494,23 @@ async function deleteLocksmith(req, res) {
   res.json({ success: true, deleted: locksmith.name });
 }
 
+async function listAdminTeamMembers(req, res) {
+  const members = await prisma.teamMember.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      business: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          businessName: true,
+        },
+      },
+    },
+  });
+  res.json({ members });
+}
+
 module.exports = {
   adminLogin,
   listPendingLocksmiths,
@@ -508,4 +525,5 @@ module.exports = {
   strikeCustomer,
   resolveDispute,
   deleteLocksmith,
+  listAdminTeamMembers,
 };
