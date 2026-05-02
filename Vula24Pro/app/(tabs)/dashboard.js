@@ -161,20 +161,27 @@ export default function DashboardScreen() {
   }, [isMember, online]);
 
   useEffect(() => {
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync(
+        'job-requests',
+        {
+          name: 'Job Requests',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#D4A017',
+          sound: 'default',
+          enableVibrate: true,
+        }
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user === null) return;
     if (pushRegisteredRef.current) return;
     pushRegisteredRef.current = true;
     registerPushToken(isMember);
-    if (Platform.OS === 'android') {
-      Notifications.setNotificationChannelAsync('job-requests', {
-        name: 'Job Requests',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#D4A017',
-        sound: 'default',
-        enableVibrate: true,
-      });
-    }
-  }, [isMember]);
+  }, [user, isMember]);
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(
