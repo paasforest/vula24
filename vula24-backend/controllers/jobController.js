@@ -774,15 +774,19 @@ async function createScheduledJob(req, res) {
   const svcLabel = String(serviceType).replace(/_/g, ' ');
   const pushBody = `${svcLabel} — ${customerAddress || ''}`;
   for (const { locksmith } of eligible) {
+    const recipientId = locksmith.isMember ? locksmith.memberId : locksmith.id;
+    const pushToken = locksmith.isMember ? locksmith.memberPushToken : locksmith.pushToken;
+
     await prisma.notification.create({
       data: {
-        recipientId: locksmith.id,
+        recipientId,
         recipientType: 'LOCKSMITH',
         title: 'New Quote Request',
         message: pushBody,
       },
     });
-    sendPushNotification(locksmith.pushToken, 'New Quote Request', pushBody, {
+
+    sendPushNotification(pushToken, 'New Quote Request', pushBody, {
       jobId: String(job.id),
       screen: 'scheduled-quotes',
     });
