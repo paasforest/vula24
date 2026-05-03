@@ -54,6 +54,13 @@ async function registerPushToken(isMember = false) {
   }
 }
 
+function startOfDay(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+export default function DashboardScreen() {
   const [user, setUser] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [wallet, setWallet] = useState(null);
