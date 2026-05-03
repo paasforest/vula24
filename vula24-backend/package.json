@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node scripts/start.js",
     "setup:patrick": "node scripts/setupLocksmith.js",
+    "setup:test-customer": "node scripts/createTestCustomer.js",
+    "inspect:locksmith": "node scripts/inspectLocksmithByEmail.js",
     "dev": "node --watch index.js",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",

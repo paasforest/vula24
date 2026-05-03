@@ -95,7 +95,13 @@ export default function DashboardScreen() {
       try {
         const { data } = await api.get('/api/member/profile');
         setOnline(data.member?.isOnline || false);
-      } catch { /* ignore */ }
+      } catch (e) {
+        console.warn(
+          '[loadProfile] member profile failed:',
+          e?.response?.status,
+          e?.response?.data
+        );
+      }
       return;
     }
 
@@ -288,33 +294,38 @@ export default function DashboardScreen() {
     setToggleLoading(true);
     try {
       if (isMember) {
+        let body = {};
         if (value) {
           const { status } = await Location.requestForegroundPermissionsAsync();
           if (status === 'granted') {
             const loc = await Location.getCurrentPositionAsync({});
-            await api.put('/api/member/toggle-online', {
+            body = {
               lat: loc.coords.latitude,
               lng: loc.coords.longitude,
-            });
-          } else {
-            await api.put('/api/member/toggle-online');
+            };
           }
-        } else {
-          await api.put('/api/member/toggle-online');
         }
-        setOnline(value);
+        const { data } = await api.put('/api/member/toggle-online', body);
+        setOnline(!!data.isOnline);
         setToggleLoading(false);
         return;
       }
-      const { data } = await api.get('/api/locksmith/profile');
-      const currentlyOn = !!data.locksmith.isOnline;
-      if (value !== currentlyOn) {
-        await api.put('/api/locksmith/toggle-online');
+      const { data: profileData } = await api.get(
+        '/api/locksmith/profile'
+      );
+      const currentlyOnline = !!profileData.locksmith.isOnline;
+
+      if (value !== currentlyOnline) {
+        if (value) {
+          await postLocationIfPossible();
+        }
+        const { data: toggleData } = await api.put(
+          '/api/locksmith/toggle-online'
+        );
+        setOnline(!!toggleData.isOnline);
+      } else {
+        setOnline(currentlyOnline);
       }
-      if (value) {
-        await postLocationIfPossible();
-      }
-      await loadProfile();
     } catch (e) {
       const data = e.response?.data;
       if (e.response?.status === 400 && data?.incomplete) {
