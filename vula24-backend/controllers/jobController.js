@@ -1116,20 +1116,38 @@ async function listLocksmithJobs(req, res) {
 
 async function getLocksmithJobById(req, res) {
   const jobId = req.params.id;
-  const locksmithId = req.locksmith.id;
-  const job = await prisma.job.findFirst({
-    where: { id: jobId, locksithId: locksmithId },
-    include: {
-      customer: {
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-          email: true,
-        },
+  const customerInclude = {
+    customer: {
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
       },
     },
-  });
+  };
+
+  let job;
+  if (req.locksmith) {
+    job = await prisma.job.findFirst({
+      where: { id: jobId, locksithId: req.locksmith.id },
+      include: customerInclude,
+    });
+  } else if (req.member) {
+    const businessId = req.member.businessId;
+    const memberId = req.member.id;
+    job = await prisma.job.findFirst({
+      where: {
+        id: jobId,
+        locksithId: businessId,
+        OR: [{ teamMemberId: memberId }, { teamMemberId: null }],
+      },
+      include: customerInclude,
+    });
+  } else {
+    throw new AppError('Forbidden', 403);
+  }
+
   if (!job) throw new AppError('Job not found', 404);
   res.json({ job });
 }

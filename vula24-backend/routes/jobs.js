@@ -5,6 +5,7 @@ const { handleValidationErrors } = require('../middleware/validate');
 const {
   authenticateCustomer,
   authenticateLocksmith,
+  authenticateLocksmithOrMember,
   authenticateJobParticipant,
   authenticateMember,
 } = require('../middleware/auth');
@@ -65,7 +66,7 @@ router.get(
 
 router.get(
   '/locksmith/job/:id',
-  authenticateLocksmith,
+  authenticateLocksmithOrMember,
   [param('id').isUUID()],
   handleValidationErrors,
   asyncHandler(jobs.getLocksmithJobById)

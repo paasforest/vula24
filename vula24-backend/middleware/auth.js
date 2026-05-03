@@ -67,6 +67,36 @@ async function authenticateMember(req, res, next) {
   }
 }
 
+/** Business locksmith JWT or team member JWT (same routes where both need access). */
+async function authenticateLocksmithOrMember(req, res, next) {
+  try {
+    const token = getBearerToken(req);
+    if (!token) return next(new AppError('Authentication required', 401));
+    const payload = verifyUserToken(token);
+    if (payload.type === 'locksmith') {
+      const locksmith = await prisma.locksmith.findUnique({
+        where: { id: payload.sub },
+      });
+      if (!locksmith) return next(new AppError('Locksmith not found', 401));
+      req.locksmith = locksmith;
+      return next();
+    }
+    if (payload.type === 'member') {
+      const member = await prisma.teamMember.findUnique({
+        where: { id: payload.memberId || payload.sub },
+      });
+      if (!member || !member.isActive) {
+        return next(new AppError('Team member not found or inactive', 401));
+      }
+      req.member = member;
+      return next();
+    }
+    return next(new AppError('Invalid token for this resource', 403));
+  } catch {
+    next(new AppError('Invalid or expired token', 401));
+  }
+}
+
 async function authenticateAdmin(req, res, next) {
   try {
     const token = getBearerToken(req);
@@ -164,6 +194,7 @@ module.exports = {
   authenticateCustomer,
   authenticateLocksmith,
   authenticateMember,
+  authenticateLocksmithOrMember,
   authenticateAdmin,
   authenticateJobParticipant,
   authenticateCustomerOrLocksmith,
