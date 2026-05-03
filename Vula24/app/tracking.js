@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,28 @@ function vehicleColorAndType(lock) {
   return line || null;
 }
 
+const DEFAULT_MAP_REGION = {
+  latitude: -26.2,
+  longitude: 28.05,
+  latitudeDelta: 0.1,
+  longitudeDelta: 0.1,
+};
+
+function safeRegion(region) {
+  if (!region) return null;
+  if (
+    typeof region.latitude !== 'number' ||
+    isNaN(region.latitude)
+  )
+    return null;
+  if (
+    typeof region.longitude !== 'number' ||
+    isNaN(region.longitude)
+  )
+    return null;
+  return region;
+}
+
 export default function TrackingScreen() {
   const { jobId: jid } = useLocalSearchParams();
   const jobId = Array.isArray(jid) ? jid[0] : jid;
@@ -39,59 +61,81 @@ export default function TrackingScreen() {
   const [ll, setLl] = useState({ lat: null, lng: null });
   const completedNavigated = useRef(false);
 
-  const poll = useCallback(async () => {
-    if (!jobId) return;
-    try {
-      const { data } = await api.get(`/api/jobs/${jobId}`);
-      setJob(data.job);
-      const lockLat = data.job?.locksmith?.currentLat;
-      const lockLng = data.job?.locksmith?.currentLng;
-      if (lockLat != null && lockLng != null) {
-        setLl({ lat: lockLat, lng: lockLng });
-      }
-      if (data.job?.status === 'COMPLETED' && !completedNavigated.current) {
-        completedNavigated.current = true;
-        if (data.job?.finalPaid) {
-          router.replace({
-            pathname: '/review',
-            params: { jobId },
-          });
-        } else {
-          router.replace({
-            pathname: '/payment',
-            params: { jobId },
-          });
-        }
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [jobId]);
-
   useEffect(() => {
+    if (!jobId) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      if (cancelled) return;
+      try {
+        const { data } = await api.get(`/api/jobs/${jobId}`);
+        if (cancelled) return;
+        setJob(data.job);
+
+        const lat = data.job?.locksmith?.currentLat;
+        const lng = data.job?.locksmith?.currentLng;
+        if (
+          typeof lat === 'number' &&
+          typeof lng === 'number' &&
+          !isNaN(lat) &&
+          !isNaN(lng)
+        ) {
+          setLl({ lat, lng });
+        }
+
+        if (data.job?.status === 'COMPLETED' && !completedNavigated.current) {
+          completedNavigated.current = true;
+          if (data.job?.finalPaid) {
+            router.replace({
+              pathname: '/review',
+              params: { jobId },
+            });
+          } else {
+            router.replace({
+              pathname: '/payment',
+              params: { jobId },
+            });
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+
     poll();
     const t = setInterval(poll, 5000);
-    return () => clearInterval(t);
-  }, [poll]);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [jobId]);
 
   const custLat = job?.customerLat;
   const custLng = job?.customerLng;
   const lock = job?.locksmith;
 
-  const region =
-    custLat != null && custLng != null
+  const custLatOk =
+    typeof custLat === 'number' && !isNaN(custLat);
+  const custLngOk =
+    typeof custLng === 'number' && !isNaN(custLng);
+  const llLatOk =
+    typeof ll.lat === 'number' && !isNaN(ll.lat);
+  const llLngOk =
+    typeof ll.lng === 'number' && !isNaN(ll.lng);
+
+  const rawRegion =
+    custLatOk && custLngOk
       ? {
-          latitude: (custLat + (ll.lat || custLat)) / 2,
-          longitude: (custLng + (ll.lng || custLng)) / 2,
+          latitude:
+            (custLat + (llLatOk ? ll.lat : custLat)) / 2,
+          longitude:
+            (custLng + (llLngOk ? ll.lng : custLng)) / 2,
           latitudeDelta: 0.08,
           longitudeDelta: 0.08,
         }
-      : {
-          latitude: -26.2,
-          longitude: 28.05,
-          latitudeDelta: 0.1,
-          longitudeDelta: 0.1,
-        };
+      : DEFAULT_MAP_REGION;
+
+  const region = safeRegion(rawRegion) ?? DEFAULT_MAP_REGION;
 
   const banner = () => {
     if (job?.isDisputed) {
@@ -135,13 +179,31 @@ export default function TrackingScreen() {
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         region={region}
       >
-        {custLat != null && custLng != null ? (
-          <Marker coordinate={{ latitude: custLat, longitude: custLng }} tracksViewChanges={false}>
+        {typeof custLat === 'number' &&
+        typeof custLng === 'number' &&
+        !isNaN(custLat) &&
+        !isNaN(custLng) ? (
+          <Marker
+            coordinate={{
+              latitude: custLat,
+              longitude: custLng,
+            }}
+            tracksViewChanges={false}
+          >
             <View style={styles.pinGold} />
           </Marker>
         ) : null}
-        {ll.lat != null && ll.lng != null ? (
-          <Marker coordinate={{ latitude: ll.lat, longitude: ll.lng }} tracksViewChanges={false}>
+        {typeof ll.lat === 'number' &&
+        typeof ll.lng === 'number' &&
+        !isNaN(ll.lat) &&
+        !isNaN(ll.lng) ? (
+          <Marker
+            coordinate={{
+              latitude: ll.lat,
+              longitude: ll.lng,
+            }}
+            tracksViewChanges={false}
+          >
             <View style={styles.pinWhite} />
           </Marker>
         ) : null}

@@ -19,7 +19,17 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      getUser().then(setUser);
+      let cancelled = false;
+      getUser()
+        .then((u) => {
+          if (!cancelled) setUser(u);
+        })
+        .catch((e) =>
+          console.warn('[profile] getUser failed:', e?.message)
+        );
+      return () => {
+        cancelled = true;
+      };
     }, [])
   );
 

@@ -111,8 +111,28 @@ export default function MyJobsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      let cancelled = false;
+      (async () => {
+        try {
+          const { data } = await api.get(
+            '/api/jobs/customer/my-jobs'
+          );
+          if (!cancelled) {
+            setJobs(data.jobs || []);
+          }
+        } catch (e) {
+          if (!cancelled) {
+            console.warn(
+              '[my-jobs] load failed:',
+              e?.message
+            );
+          }
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [])
   );
 
   const onRefresh = async () => {
