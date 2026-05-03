@@ -37,7 +37,8 @@
         "ACCESS_COARSE_LOCATION",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "READ_MEDIA_IMAGES"
+        "READ_MEDIA_IMAGES",
+        "POST_NOTIFICATIONS"
       ],
       "config": {
         "googleMaps": {
@@ -70,6 +71,8 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/icon.png",
+          "color": "#D4A017",
           "sounds": [],
           "mode": "production"
         }

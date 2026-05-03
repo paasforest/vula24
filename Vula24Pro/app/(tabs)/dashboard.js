@@ -8,7 +8,6 @@ import {
   Switch,
   AppState,
   Alert,
-  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
@@ -55,21 +54,6 @@ async function registerPushToken(isMember = false) {
   }
 }
 
-function startOfDay(d) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
-
-export default function DashboardScreen() {
   const [user, setUser] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [wallet, setWallet] = useState(null);
@@ -179,22 +163,6 @@ export default function DashboardScreen() {
     }, 30000);
     return () => clearInterval(interval);
   }, [isMember, online]);
-
-  useEffect(() => {
-    if (Platform.OS === 'android') {
-      Notifications.setNotificationChannelAsync(
-        'job-requests',
-        {
-          name: 'Job Requests',
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#D4A017',
-          sound: 'default',
-          enableVibrate: true,
-        }
-      );
-    }
-  }, []);
 
   useEffect(() => {
     if (pushRegisteredRef.current) return;
