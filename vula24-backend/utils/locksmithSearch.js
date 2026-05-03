@@ -76,12 +76,14 @@ async function findLocksmithsByDistance({
       return {
         locksmith: {
           ...m.business,
+          id: m.business.id,
           currentLat: m.currentLat,
           currentLng: m.currentLng,
           isMember: true,
           memberId: m.id,
           memberName: m.name,
           memberPushToken: m.pushToken,
+          businessId: m.business.id,
         },
         distanceKm: dist,
         basePrice,

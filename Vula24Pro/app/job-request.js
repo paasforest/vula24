@@ -14,6 +14,7 @@ import * as Location from 'expo-location';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
 import api from '../lib/api';
+import { getUser } from '../lib/storage';
 
 function distKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -34,8 +35,13 @@ export default function JobRequestScreen() {
   const [locksmithProfile, setLocksmithProfile] = useState(null);
   const [seconds, setSeconds] = useState(15);
   const [loading, setLoading] = useState(false);
+  const [isMember, setIsMember] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
   const timerDone = useRef(false);
+
+  useEffect(() => {
+    getUser().then((u) => setIsMember(u?.isMember === true));
+  }, []);
 
   const load = useCallback(async () => {
     if (!jobId) return;
@@ -124,13 +130,20 @@ export default function JobRequestScreen() {
     if (!jobId) return;
     setLoading(true);
     try {
-      await api.post(`/api/jobs/${jobId}/accept`);
+      if (isMember) {
+        await api.post(`/api/member/jobs/${jobId}/accept`);
+      } else {
+        await api.post(`/api/jobs/${jobId}/accept`);
+      }
       router.replace({
         pathname: '/active-job',
         params: { jobId },
       });
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Could not accept job.');
+      Alert.alert(
+        'Error',
+        e.response?.data?.error || 'Could not accept job.'
+      );
     } finally {
       setLoading(false);
     }

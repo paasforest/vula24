@@ -113,7 +113,8 @@ async function createEmergencyJob(req, res) {
   const job = await prisma.job.create({
     data: {
       customerId,
-      locksithId: locksmith.id,
+      locksithId: locksmith.isMember ? locksmith.businessId : locksmith.id,
+      teamMemberId: locksmith.isMember ? locksmith.memberId : null,
       serviceType,
       mode: 'EMERGENCY',
       status: 'PENDING',
@@ -402,7 +403,12 @@ async function expirePendingJobs() {
           where: { id: job.id },
           data: {
             status: 'PENDING',
-            locksithId: next.locksmith.id,
+            locksithId: next.locksmith.isMember
+              ? next.locksmith.businessId
+              : next.locksmith.id,
+            teamMemberId: next.locksmith.isMember
+              ? next.locksmith.memberId
+              : null,
             acceptedAt: null,
             locksithBasePrice: next.basePrice,
             travelFee: pricing.travelFee,
@@ -413,10 +419,15 @@ async function expirePendingJobs() {
         });
 
         const svcLabel = String(job.serviceType).replace(/_/g, ' ');
+        const reassignPushToken = next.locksmith.isMember
+          ? next.locksmith.memberPushToken
+          : next.locksmith.pushToken;
 
         await prisma.notification.create({
           data: {
-            recipientId: next.locksmith.id,
+            recipientId: next.locksmith.isMember
+              ? next.locksmith.memberId
+              : next.locksmith.id,
             recipientType: 'LOCKSMITH',
             title: 'New job nearby',
             message: `New ${svcLabel} job — ${job.customerAddress}`,
@@ -424,7 +435,7 @@ async function expirePendingJobs() {
         });
 
         sendPushNotification(
-          next.locksmith.pushToken,
+          reassignPushToken,
           'New job nearby',
           `New ${svcLabel} — ${job.customerAddress}`,
           { jobId: String(job.id) }
@@ -450,7 +461,11 @@ async function expirePendingJobs() {
             status: 'PENDING',
             mode: 'EMERGENCY',
           },
-          data: { status: 'CANCELLED', locksithId: null },
+          data: {
+            status: 'CANCELLED',
+            locksithId: null,
+            teamMemberId: null,
+          },
         });
 
         if (updated.count === 0) continue;
@@ -501,7 +516,12 @@ async function locksmithTimeout(req, res) {
   if (!next) {
     const updated = await prisma.job.update({
       where: { id: job.id },
-      data: { status: 'CANCELLED', locksithId: null, acceptedAt: null },
+      data: {
+        status: 'CANCELLED',
+        locksithId: null,
+        teamMemberId: null,
+        acceptedAt: null,
+      },
     });
 
     const customer = await prisma.customer.findUnique({
@@ -523,11 +543,20 @@ async function locksmithTimeout(req, res) {
   const msgPush = `New ${svcLabel} — ${job.customerAddress}`;
 
   const pricing = calculateJobPrice(next.basePrice);
+  const timeoutReassignPushToken = next.locksmith.isMember
+    ? next.locksmith.memberPushToken
+    : next.locksmith.pushToken;
+
   const updated = await prisma.job.update({
     where: { id: job.id },
     data: {
       status: 'PENDING',
-      locksithId: next.locksmith.id,
+      locksithId: next.locksmith.isMember
+        ? next.locksmith.businessId
+        : next.locksmith.id,
+      teamMemberId: next.locksmith.isMember
+        ? next.locksmith.memberId
+        : null,
       acceptedAt: null,
       locksithBasePrice: next.basePrice,
       travelFee: pricing.travelFee,
@@ -540,14 +569,16 @@ async function locksmithTimeout(req, res) {
 
   await prisma.notification.create({
     data: {
-      recipientId: next.locksmith.id,
+      recipientId: next.locksmith.isMember
+        ? next.locksmith.memberId
+        : next.locksmith.id,
       recipientType: 'LOCKSMITH',
       title: 'New job nearby',
       message: msgDb,
     },
   });
   sendPushNotification(
-    next.locksmith.pushToken,
+    timeoutReassignPushToken,
     'New job nearby',
     msgPush,
     { jobId: String(job.id) }
@@ -671,7 +702,12 @@ async function cancelJob(req, res) {
     if (!next) {
       const updated = await prisma.job.update({
         where: { id: job.id },
-        data: { status: 'CANCELLED', locksithId: null, acceptedAt: null },
+        data: {
+          status: 'CANCELLED',
+          locksithId: null,
+          teamMemberId: null,
+          acceptedAt: null,
+        },
       });
       return res.json({
         job: updated,
@@ -704,7 +740,12 @@ async function cancelJob(req, res) {
       where: { id: job.id },
       data: {
         status: 'PENDING',
-        locksithId: next.locksmith.id,
+        locksithId: next.locksmith.isMember
+          ? next.locksmith.businessId
+          : next.locksmith.id,
+        teamMemberId: next.locksmith.isMember
+          ? next.locksmith.memberId
+          : null,
         acceptedAt: null,
         locksithBasePrice: next.basePrice,
         travelFee: pricing.travelFee,
@@ -1215,12 +1256,21 @@ async function upsertServicePricing(req, res) {
 }
 
 async function listMemberAvailableJobs(req, res) {
+  const memberId = req.member.id;
   const businessId = req.member.businessId;
   const jobs = await prisma.job.findMany({
     where: {
-      locksithId: businessId,
+      OR: [
+        { teamMemberId: memberId },
+        {
+          AND: [
+            { locksithId: businessId },
+            { teamMemberId: null },
+          ],
+        },
+      ],
       status: 'PENDING',
-      teamMemberId: null,
+      mode: 'EMERGENCY',
     },
     orderBy: { createdAt: 'desc' },
     include: {
@@ -1240,12 +1290,19 @@ async function memberAcceptJob(req, res) {
   const updated = await prisma.$transaction(async (tx) => {
     const job = await tx.job.findUnique({ where: { id: jobId } });
     if (!job) throw new AppError('Job not found', 404);
-    if (job.locksithId !== businessId) {
-      throw new AppError('This job is not assigned to your business', 403);
+
+    const isForMe = job.teamMemberId === memberId;
+    const isForBusiness =
+      job.locksithId === businessId && job.teamMemberId === null;
+
+    if (!isForMe && !isForBusiness) {
+      throw new AppError('This job is not assigned to you', 403);
     }
-    if (job.status !== 'PENDING' || job.teamMemberId) {
+
+    if (job.status !== 'PENDING') {
       throw new AppError('Job is not available to accept', 400);
     }
+
     return tx.job.update({
       where: { id: jobId },
       data: {
@@ -1255,6 +1312,17 @@ async function memberAcceptJob(req, res) {
       },
     });
   });
+
+  const customer = await prisma.customer.findUnique({
+    where: { id: updated.customerId },
+    select: { pushToken: true },
+  });
+  sendPushNotification(
+    customer?.pushToken,
+    'Locksmith found',
+    'A locksmith accepted your job. Complete payment to confirm.',
+    { jobId: String(jobId) }
+  );
 
   res.json({ job: updated });
 }
