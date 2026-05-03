@@ -223,6 +223,12 @@ export default function ProfileScreen() {
     { key: 'help', label: 'Help & Support', icon: 'help-circle-outline', path: '/help' },
     { key: 'terms', label: 'Terms & Privacy', icon: 'document-text-outline', path: '/terms' },
   ] : [
+    {
+      key: 'edit',
+      label: 'Edit Account Details',
+      icon: 'create-outline',
+      path: '/edit-account',
+    },
     { key: 'sched', label: 'Scheduled quote requests', icon: 'calendar-outline', path: '/scheduled-quotes' },
     { key: 'pricing', label: 'My Services & Pricing', icon: 'pricetags-outline', path: '/pricing' },
     { key: 'docs', label: 'My Documents', icon: 'document-text-outline', path: '/documents' },

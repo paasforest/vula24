@@ -33,3 +33,11 @@ export async function getIsMember() {
 export async function clearAuth() {
   await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
 }
+
+export async function clearToken() {
+  await AsyncStorage.removeItem(TOKEN_KEY);
+}
+
+export async function clearUser() {
+  await AsyncStorage.removeItem(USER_KEY);
+}

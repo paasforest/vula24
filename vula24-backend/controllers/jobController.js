@@ -1391,6 +1391,9 @@ async function uploadLocksmithDocument(req, res) {
 async function updateLocksmithProfile(req, res) {
   const id = req.locksmith.id;
   const allowed = [
+    'name',
+    'phone',
+    'businessName',
     'bankName',
     'bankAccountNumber',
     'bankAccountHolder',

@@ -100,6 +100,9 @@ router.put(
   '/profile',
   authenticateLocksmith,
   [
+    body('name').optional().isString().trim(),
+    body('phone').optional().isString().trim(),
+    body('businessName').optional().isString().trim(),
     body('bankName').optional().isString().trim(),
     body('bankAccountNumber').optional().isString().trim(),
     body('bankAccountHolder').optional().isString().trim(),

@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
 import api from '../lib/api';
-import { saveUser, getUser } from '../lib/storage';
+import { saveUser, getUser, clearToken, clearUser } from '../lib/storage';
 
 export default function PendingScreen() {
   const [profile, setProfile] = useState(null);
@@ -74,15 +74,30 @@ export default function PendingScreen() {
         ))}
 
         <GoldButton
-          title="Update Documents"
+          title="Edit Profile"
           variant="outline"
-          onPress={() =>
-            Alert.alert(
-              'Update documents',
-              'Contact support or resubmit via a future in-app upload. For now, ensure your email is correct on your profile.'
-            )
-          }
+          onPress={() => router.push('/(tabs)/profile')}
         />
+        <TouchableOpacity
+          style={{
+            marginTop: 12,
+            alignItems: 'center',
+          }}
+          onPress={async () => {
+            await clearToken();
+            await clearUser();
+            router.replace('/welcome');
+          }}
+        >
+          <Text
+            style={{
+              color: COLORS.textMuted,
+              fontSize: 14,
+            }}
+          >
+            Log out
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );

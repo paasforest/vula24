@@ -250,6 +250,23 @@ export default function RegisterScreen() {
             We will notify you within 24 hours once your profile is approved.
           </Text>
           <GoldButton title="Continue" onPress={continueAfterSuccess} />
+          <TouchableOpacity
+            style={{
+              marginTop: 16,
+              alignItems: 'center',
+            }}
+            onPress={() => router.replace('/(tabs)/profile')}
+          >
+            <Text
+              style={{
+                color: COLORS.accent,
+                fontSize: 14,
+                fontWeight: '600',
+              }}
+            >
+              Edit Profile First
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     );
