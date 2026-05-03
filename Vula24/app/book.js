@@ -180,22 +180,44 @@ export default function BookScreen() {
 
   useEffect(() => {
     if (initialGpsDoneRef.current) return;
+    let mounted = true;
+
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-      const loc = await Location.getCurrentPositionAsync({});
-      if (userChosePlaceBeforeGpsRef.current) {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (!mounted) return;
+        if (status !== 'granted') {
+          initialGpsDoneRef.current = true;
+          return;
+        }
+
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeout: 10000,
+        });
+
+        if (!mounted) return;
+        if (userChosePlaceBeforeGpsRef.current) {
+          initialGpsDoneRef.current = true;
+          return;
+        }
+
         initialGpsDoneRef.current = true;
-        return;
+        const { latitude, longitude } = loc.coords;
+        setPlacesBiasLat(latitude);
+        setPlacesBiasLng(longitude);
+        setLat(latitude);
+        setLng(longitude);
+        animateMapTo(latitude, longitude);
+      } catch (e) {
+        console.warn('[book] location failed:', e?.message || e);
+        initialGpsDoneRef.current = true;
       }
-      initialGpsDoneRef.current = true;
-      const { latitude, longitude } = loc.coords;
-      setPlacesBiasLat(latitude);
-      setPlacesBiasLng(longitude);
-      setLat(latitude);
-      setLng(longitude);
-      animateMapTo(latitude, longitude);
     })();
+
+    return () => {
+      mounted = false;
+    };
   }, [animateMapTo]);
 
   useEffect(() => {

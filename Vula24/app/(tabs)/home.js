@@ -147,32 +147,47 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      getUser().then(setUser);
+      let cancelled = false;
+      getUser().then((u) => {
+        if (!cancelled) setUser(u);
+      });
+      return () => {
+        cancelled = true;
+      };
     }, [])
   );
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Location',
-          'Location permission is needed to show your position on the map.'
-        );
-        return;
-      }
       try {
-        const loc = await Location.getCurrentPositionAsync({});
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (cancelled) return;
+        if (status !== 'granted') {
+          Alert.alert(
+            'Location',
+            'Location permission is needed to show your position on the map.'
+          );
+          return;
+        }
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeout: 10000,
+        });
+        if (cancelled) return;
         setRegion({
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         });
-      } catch {
-        /* keep default */
+      } catch (e) {
+        console.warn('[home] location failed:', e?.message || e);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
