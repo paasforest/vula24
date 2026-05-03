@@ -79,12 +79,18 @@ async function registerPushToken() {
       });
     }
     if (Platform.OS === 'android') {
-      Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#D4A017',
-      });
+      (async () => {
+        try {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'default',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#D4A017',
+          });
+        } catch (e) {
+          console.warn('[home] channel failed:', e?.message);
+        }
+      })();
     }
   } catch {
     /* ignore — never block home load */
@@ -250,18 +256,30 @@ export default function HomeScreen() {
                 <View style={styles.userPinInner} />
               </View>
             </Marker>
-            {nearbyLocksmiths.map((lm) => (
-              <Marker
-                key={lm.id}
-                coordinate={{
-                  latitude: lm.currentLat,
-                  longitude: lm.currentLng,
-                }}
-                tracksViewChanges={false}
-              >
-                <View style={styles.bluePin} />
-              </Marker>
-            ))}
+            {nearbyLocksmiths
+              .filter(
+                (lm) =>
+                  typeof lm.currentLat === 'number' &&
+                  typeof lm.currentLng === 'number' &&
+                  !isNaN(lm.currentLat) &&
+                  !isNaN(lm.currentLng) &&
+                  lm.currentLat >= -90 &&
+                  lm.currentLat <= 90 &&
+                  lm.currentLng >= -180 &&
+                  lm.currentLng <= 180
+              )
+              .map((lm) => (
+                <Marker
+                  key={lm.id}
+                  coordinate={{
+                    latitude: lm.currentLat,
+                    longitude: lm.currentLng,
+                  }}
+                  tracksViewChanges={false}
+                >
+                  <View style={styles.bluePin} />
+                </Marker>
+              ))}
           </MapView>
 
           <View style={styles.mapOverlay} pointerEvents="none">
