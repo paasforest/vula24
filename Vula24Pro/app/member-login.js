@@ -42,6 +42,7 @@ export default function MemberLoginScreen() {
         businessName: data.businessName || null,
         isMember: true,
         isVerified: true,
+        isOnline: false,
       });
       router.replace('/(tabs)/dashboard');
     } catch (e) {

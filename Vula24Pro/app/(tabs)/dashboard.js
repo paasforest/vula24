@@ -85,7 +85,12 @@ export default function DashboardScreen() {
       setIsMember(true);
       try {
         const { data } = await api.get('/api/member/profile');
-        setOnline(data.member?.isOnline || false);
+        const isOnlineServer = data.member?.isOnline || false;
+        setOnline(isOnlineServer);
+        await saveUser({
+          ...stored,
+          isOnline: isOnlineServer,
+        });
       } catch (e) {
         console.warn(
           '[loadProfile] member profile failed:',
@@ -334,6 +339,13 @@ export default function DashboardScreen() {
         }
         const { data } = await api.put('/api/member/toggle-online', body);
         setOnline(!!data.isOnline);
+        const stored = await getUser();
+        if (stored) {
+          await saveUser({
+            ...stored,
+            isOnline: !!data.isOnline,
+          });
+        }
         setToggleLoading(false);
         return;
       }
