@@ -215,25 +215,76 @@ export default function DashboardScreen() {
   );
 
   useEffect(() => {
-    if (isMember) return;
     let interval;
+
     const run = async () => {
       const u = await getUser();
-      if (!u?.id || !u.isVerified || !u.isOnline) return;
+      if (!u?.id) return;
+
+      if (isMember) {
+        // Member polling
+        if (!u.isOnline) return;
+        await loadJobs();
+
+        try {
+          const { data } = await api.get(
+            '/api/member/jobs/available'
+          );
+          const list = data.jobs || [];
+          // For members find jobs assigned
+          // to them OR to their business
+          // with no member assigned yet
+          const mine = list.find(
+            (j) =>
+              j.status === 'PENDING' &&
+              (j.teamMemberId === u.id ||
+                (j.teamMemberId === null &&
+                  j.locksithId === u.businessId))
+          );
+          if (!mine) return;
+          const dismissed = await AsyncStorage.getItem(
+            `dismiss_job_${mine.id}`
+          );
+          if (dismissed) return;
+          if (pushedJobRef.current === mine.id) return;
+          pushedJobRef.current = mine.id;
+          router.push({
+            pathname: '/job-request',
+            params: { jobId: mine.id },
+          });
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+
+      // Locksmith polling (existing logic)
+      if (!u.isVerified || !u.isOnline) return;
       await loadJobs();
       await loadWallet();
+
       try {
-        const { data: sq } = await api.get('/api/jobs/locksmith/scheduled-open');
+        const { data: sq } = await api.get(
+          '/api/jobs/locksmith/scheduled-open'
+        );
         setHasScheduledJobs((sq?.jobs?.length || 0) > 0);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
+
       try {
-        const { data } = await api.get('/api/jobs/locksmith/my-jobs');
+        const { data } = await api.get(
+          '/api/jobs/locksmith/my-jobs'
+        );
         const list = data.jobs || [];
         const mine = list.find(
-          (j) => j.status === 'PENDING' && j.locksithId === u.id
+          (j) =>
+            j.status === 'PENDING' && j.locksithId === u.id
         );
         if (!mine) return;
-        const dismissed = await AsyncStorage.getItem(`dismiss_job_${mine.id}`);
+        const dismissed = await AsyncStorage.getItem(
+          `dismiss_job_${mine.id}`
+        );
         if (dismissed) return;
         if (pushedJobRef.current === mine.id) return;
         pushedJobRef.current = mine.id;
@@ -245,6 +296,7 @@ export default function DashboardScreen() {
         /* ignore */
       }
     };
+
     run();
     interval = setInterval(run, 10000);
     return () => clearInterval(interval);
