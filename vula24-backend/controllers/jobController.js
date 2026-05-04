@@ -841,7 +841,9 @@ async function createScheduledJob(req, res) {
 
 async function submitQuote(req, res) {
   const jobId = req.params.id;
-  const locksmithId = req.locksmith.id;
+  const isMember = !!req.member;
+  const businessId = isMember ? req.member.businessId : req.locksmith.id;
+  const teamMemberId = isMember ? req.member.id : null;
   const { price, message } = req.body;
 
   const job = await prisma.job.findUnique({ where: { id: jobId } });
@@ -859,7 +861,17 @@ async function submitQuote(req, res) {
     serviceType: job.serviceType,
     maxKm: 20,
   });
-  const allowed = inZone.some((x) => x.locksmith.id === locksmithId);
+  const allowed = isMember
+    ? inZone.some(
+        (x) =>
+          x.locksmith.isMember &&
+          x.locksmith.memberId === req.member.id
+      )
+    : inZone.some(
+        (x) =>
+          !x.locksmith.isMember &&
+          x.locksmith.id === businessId
+      );
   if (!allowed) {
     throw new AppError('You are not in range for this job', 403);
   }
@@ -868,7 +880,8 @@ async function submitQuote(req, res) {
     const quote = await prisma.quote.create({
       data: {
         jobId,
-        locksithId: locksmithId,
+        locksithId: businessId,
+        teamMemberId,
         price,
         message: message || null,
       },
@@ -1153,37 +1166,51 @@ async function getLocksmithJobById(req, res) {
 }
 
 async function listOpenScheduledJobsForLocksmith(req, res) {
-  const locksmith = req.locksmith;
-  if (!locksmith.currentLat || !locksmith.currentLng) {
+  const isMember = !!req.member;
+  let lat;
+  let lng;
+
+  if (isMember) {
+    const member = await prisma.teamMember.findUnique({
+      where: { id: req.member.id },
+      select: { currentLat: true, currentLng: true },
+    });
+    lat = member?.currentLat;
+    lng = member?.currentLng;
+  } else {
+    lat = req.locksmith?.currentLat;
+    lng = req.locksmith?.currentLng;
+  }
+
+  if (lat == null || lng == null) {
     return res.json({ jobs: [] });
   }
-  const open = await prisma.job.findMany({
+
+  const allJobs = await prisma.job.findMany({
     where: {
       mode: 'SCHEDULED',
       status: 'PENDING',
       locksithId: null,
     },
-    orderBy: { createdAt: 'desc' },
     include: {
       customer: {
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-        },
+        select: { id: true, name: true, phone: true },
       },
     },
+    orderBy: { createdAt: 'desc' },
   });
-  const eligible = open.filter((job) => {
-    const km = calculateDistance(
+
+  const nearby = allJobs.filter((job) => {
+    const dist = calculateDistance(
+      lat,
+      lng,
       job.customerLat,
-      job.customerLng,
-      locksmith.currentLat,
-      locksmith.currentLng
+      job.customerLng
     );
-    return km <= 20;
+    return dist <= 20;
   });
-  res.json({ jobs: eligible });
+
+  res.json({ jobs: nearby });
 }
 
 async function getLocksmithProfile(req, res) {

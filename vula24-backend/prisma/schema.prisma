@@ -154,7 +154,8 @@ model TeamMember {
   pushToken          String?
   createdAt          DateTime  @default(now())
 
-  jobs Job[]
+  jobs   Job[]
+  quotes Quote[]
 }
 
 model ServicePricing {
@@ -211,15 +212,17 @@ model Job {
 }
 
 model Quote {
-  id         String      @id @default(uuid())
-  jobId      String
-  job        Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  locksithId String
-  locksmith  Locksmith   @relation(fields: [locksithId], references: [id], onDelete: Cascade)
-  price      Float
-  message    String?
-  status     QuoteStatus @default(PENDING)
-  createdAt  DateTime    @default(now())
+  id           String       @id @default(uuid())
+  jobId        String
+  job          Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  locksithId   String
+  locksmith    Locksmith    @relation(fields: [locksithId], references: [id], onDelete: Cascade)
+  teamMemberId String?
+  teamMember   TeamMember?  @relation(fields: [teamMemberId], references: [id], onDelete: SetNull)
+  price        Float
+  message      String?
+  status       QuoteStatus  @default(PENDING)
+  createdAt    DateTime     @default(now())
 
   @@unique([jobId, locksithId])
 }

@@ -60,7 +60,7 @@ router.get(
 
 router.get(
   '/locksmith/scheduled-open',
-  authenticateLocksmith,
+  authenticateLocksmithOrMember,
   asyncHandler(jobs.listOpenScheduledJobsForLocksmith)
 );
 
@@ -194,7 +194,7 @@ router.post(
 
 router.post(
   '/:id/quote/submit',
-  authenticateLocksmith,
+  authenticateLocksmithOrMember,
   [
     param('id').isUUID(),
     body('price').isFloat({ gt: 0 }),
