@@ -23,34 +23,73 @@ import { getUser, saveUser } from '../../lib/storage';
 async function registerPushToken(isMember = false) {
   try {
     console.log('[push] start, isMember:', isMember);
-    const { status: existing } = await Notifications.getPermissionsAsync();
+
+    const { status: existing } =
+      await Notifications.getPermissionsAsync();
+    console.log('[push] existing permission:', existing);
+
     let finalStatus = existing;
     if (existing !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
+      console.log('[push] requesting permission');
+      const { status } =
+        await Notifications.requestPermissionsAsync();
       finalStatus = status;
+      console.log('[push] permission result:', status);
     }
+
     if (finalStatus !== 'granted') {
       console.warn('[push] permission denied');
-      return;
+      return false;
     }
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId;
     console.log('[push] projectId:', projectId);
-    const token = await Notifications.getExpoPushTokenAsync({
-      projectId,
-    });
-    console.log('[push] token received:', token?.data?.substring(0, 30));
-    if (token?.data) {
-      const endpoint = isMember
-        ? '/api/member/push-token'
-        : '/api/locksmith/push-token';
-      console.log('[push] sending to:', endpoint);
-      await api.put(endpoint, {
-        pushToken: token.data,
-      });
-      console.log('[push] saved successfully');
+
+    if (!projectId) {
+      console.warn(
+        '[push] no projectId - cannot get token'
+      );
+      return false;
     }
+
+    const token =
+      await Notifications.getExpoPushTokenAsync({
+        projectId,
+      });
+
+    if (!token?.data) {
+      console.warn('[push] no token returned');
+      return false;
+    }
+
+    console.log(
+      '[push] token received:',
+      token.data.substring(0, 40)
+    );
+
+    const endpoint = isMember
+      ? '/api/member/push-token'
+      : '/api/locksmith/push-token';
+    console.log('[push] sending to:', endpoint);
+
+    const response = await api.put(endpoint, {
+      pushToken: token.data,
+    });
+
+    console.log(
+      '[push] saved successfully, status:',
+      response?.status
+    );
+    return true;
   } catch (e) {
-    console.warn('[push] failed:', e?.message || e);
+    console.warn(
+      '[push] failed at:',
+      e?.message || e,
+      'response:',
+      e?.response?.data
+    );
+    return false;
   }
 }
 
@@ -69,7 +108,6 @@ export default function DashboardScreen() {
   const [online, setOnline] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const pushedJobRef = useRef(null);
-  const pushRegisteredRef = useRef(false);
   const appStateRef = useRef(AppState.currentState);
 
   useEffect(() => {
@@ -177,18 +215,22 @@ export default function DashboardScreen() {
   }, [isMember, online]);
 
   useEffect(() => {
-    if (pushRegisteredRef.current) return;
-
     const tryRegister = async () => {
       const stored = await getUser();
       if (!stored) return;
-
-      pushRegisteredRef.current = true;
       const memberFlag = stored?.isMember === true;
-      await registerPushToken(memberFlag);
+
+      try {
+        await registerPushToken(memberFlag);
+      } catch (e) {
+        console.warn('[push] register effect:', e?.message);
+      }
     };
 
     tryRegister();
+
+    const interval = setInterval(tryRegister, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
