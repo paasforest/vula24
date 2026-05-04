@@ -26,6 +26,7 @@
     },
     "android": {
       "package": "com.vula24.customer",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 1,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {

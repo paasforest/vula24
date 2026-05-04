@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "196173870",
+    "project_id": "vula24-13c02",
+    "storage_bucket": "vula24-13c02.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:196173870:android:bdbef570c77522b61e7fbf",
+        "android_client_info": {
+          "package_name": "com.vula24.pro"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZ_7hL_97LzMvKbdB4PQOSmare2ogZ514"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
