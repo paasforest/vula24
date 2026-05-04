@@ -25,5 +25,3 @@ vula24-backend/uploads/
 .DS_Store
 Thumbs.db
 firebase-fcm-key.json
-google-services.json
-google-services *.json
