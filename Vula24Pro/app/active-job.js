@@ -54,14 +54,23 @@ export default function ActiveJobScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
       const loc = await Location.getCurrentPositionAsync({});
-      await api.post('/api/locksmith/location/update', {
-        lat: loc.coords.latitude,
-        lng: loc.coords.longitude,
-      });
+      const lat = loc.coords.latitude;
+      const lng = loc.coords.longitude;
+      if (isMember) {
+        await api.post('/api/member/location/update', {
+          lat,
+          lng,
+        });
+      } else {
+        await api.post('/api/locksmith/location/update', {
+          lat,
+          lng,
+        });
+      }
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [isMember]);
 
   useEffect(() => {
     const s = job?.status;
@@ -93,10 +102,21 @@ export default function ActiveJobScreen() {
   const action = async (path) => {
     if (!jobId) return;
     try {
-      await api.post(`/api/jobs/${jobId}${path}`);
+      if (isMember) {
+        await api.post(
+          `/api/member/jobs/${jobId}${path}`
+        );
+      } else {
+        await api.post(
+          `/api/jobs/${jobId}${path}`
+        );
+      }
       await load();
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Action failed.');
+      Alert.alert(
+        'Error',
+        e.response?.data?.error || 'Action failed.'
+      );
     }
   };
 
