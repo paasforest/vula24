@@ -20,6 +20,7 @@ import { COLORS } from '../../constants/theme';
 import { getUser, clearAuth, saveUser } from '../../lib/storage';
 import api, { postMultipart } from '../../lib/api';
 import { GoldButton } from '../../components/GoldButton';
+import * as IntentLauncher from 'expo-intent-launcher';
 
 function mimeFromUri(uri) {
   const u = String(uri).toLowerCase();
@@ -219,7 +220,32 @@ export default function ProfileScreen() {
     vehicleColor.trim().length > 0 &&
     vehiclePlateNumber.trim().length > 0;
 
+  const handleItem = (item) => {
+    if (item.action === 'openNotificationSettings') {
+      if (Platform.OS === 'android') {
+        IntentLauncher.startActivityAsync(
+          IntentLauncher.ActivityAction.APP_NOTIFICATION_SETTINGS,
+          {
+            extra: {
+              'android.provider.extra.APP_PACKAGE': 'com.vula24.pro',
+            },
+          }
+        );
+      }
+      return;
+    }
+    if (item.path) {
+      router.push(item.path);
+    }
+  };
+
   const items = isMember ? [
+    {
+      key: 'notif-settings',
+      label: 'Notification Sound',
+      icon: 'notifications-outline',
+      action: 'openNotificationSettings',
+    },
     { key: 'help', label: 'Help & Support', icon: 'help-circle-outline', path: '/help' },
     { key: 'terms', label: 'Terms & Privacy', icon: 'document-text-outline', path: '/terms' },
   ] : [
@@ -228,6 +254,12 @@ export default function ProfileScreen() {
       label: 'Edit Account Details',
       icon: 'create-outline',
       path: '/edit-account',
+    },
+    {
+      key: 'notif-settings',
+      label: 'Notification Sound',
+      icon: 'notifications-outline',
+      action: 'openNotificationSettings',
     },
     { key: 'sched', label: 'Scheduled quote requests', icon: 'calendar-outline', path: '/scheduled-quotes' },
     { key: 'pricing', label: 'My Services & Pricing', icon: 'pricetags-outline', path: '/pricing' },
@@ -365,7 +397,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
               key={it.key}
               style={styles.row}
-              onPress={() => router.push(it.path)}
+              onPress={() => handleItem(it)}
               activeOpacity={0.85}
             >
               <Ionicons name={it.icon} size={22} color={COLORS.text} />
