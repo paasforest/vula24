@@ -73,12 +73,33 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth', authLimiter);
 
-// Strict rate limit for payment endpoints
+// Relaxed limit for payment gateway webhook callbacks
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 1000,
+  message: { error: 'Too many webhook requests' },
+});
+
+// Apply webhook limiter BEFORE the strict payment limiter
+app.use('/api/payments/payfast/notify', webhookLimiter);
+app.use('/api/payments/webhook', webhookLimiter);
+app.use('/api/payments/paystack/webhook', webhookLimiter);
+
+// Strict limit for everything else
 const paymentLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
   message: { error: 'Too many payment requests' },
+  skip: (req) => {
+    const pathOnly = String(req.originalUrl || '').split('?')[0];
+    return (
+      pathOnly === '/api/payments/webhook' ||
+      pathOnly === '/api/payments/payfast/notify' ||
+      pathOnly === '/api/payments/paystack/webhook'
+    );
+  },
 });
+
 app.use('/api/payments', paymentLimiter);
 
 app.use(morgan('combined'));
