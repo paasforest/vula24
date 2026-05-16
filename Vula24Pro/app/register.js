@@ -213,6 +213,13 @@ export default function RegisterScreen() {
 
       await saveToken(data.token);
       await saveUser(data.locksmith);
+      if (!data.locksmith.phoneVerified) {
+        router.replace({
+          pathname: '/verify-phone',
+          params: { phone: phone.trim(), userType: 'locksmith' },
+        });
+        return;
+      }
       setSuccess(true);
     } catch (e) {
       const aborted = e?.name === 'AbortError';

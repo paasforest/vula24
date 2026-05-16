@@ -8,6 +8,27 @@ const auth = require('../controllers/authController');
 const router = Router();
 
 router.post(
+  '/send-otp',
+  [
+    body('phone').trim().notEmpty(),
+    body('userType').isIn(['customer', 'locksmith']),
+  ],
+  handleValidationErrors,
+  asyncHandler(auth.sendPhoneOTP)
+);
+
+router.post(
+  '/verify-otp',
+  [
+    body('phone').trim().notEmpty(),
+    body('otp').trim().isLength({ min: 6, max: 6 }),
+    body('userType').optional().isIn(['customer', 'locksmith']),
+  ],
+  handleValidationErrors,
+  asyncHandler(auth.verifyPhoneOTP)
+);
+
+router.post(
   '/customer/register',
   [
     body('name').trim().notEmpty().withMessage('name is required'),

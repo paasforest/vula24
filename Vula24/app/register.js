@@ -49,7 +49,14 @@ export default function RegisterScreen() {
       });
       await saveToken(data.token);
       await saveUser(data.customer);
-      router.replace('/(tabs)/home');
+      if (!data.customer.phoneVerified) {
+        router.replace({
+          pathname: '/verify-phone',
+          params: { phone: phone.trim(), userType: 'customer' },
+        });
+      } else {
+        router.replace('/(tabs)/home');
+      }
     } catch (e) {
       Alert.alert('Error', formatAuthError(e));
     } finally {

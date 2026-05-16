@@ -79,6 +79,9 @@ model Customer {
   phone        String   @unique
   email        String   @unique
   password     String
+  phoneVerified   Boolean   @default(false)
+  phoneOtp        String?
+  phoneOtpExpiry  DateTime?
   pushToken    String?
   profilePhoto String?
   strikeCount  Int      @default(0)
@@ -98,6 +101,9 @@ model Locksmith {
   phone             String      @unique
   email             String      @unique
   password          String
+  phoneVerified     Boolean     @default(false)
+  phoneOtp          String?
+  phoneOtpExpiry    DateTime?
   pushToken         String?
   accountType       AccountType
   businessName      String?
@@ -132,6 +138,18 @@ model Locksmith {
   reviews        Review[]
   wallet         Wallet?
   pendingPayouts PendingPayout[]
+}
+
+model OtpVerification {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  otp       String
+  expiry    DateTime
+  userType  String
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("otp_verifications")
 }
 
 model TeamMember {

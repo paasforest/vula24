@@ -8,6 +8,17 @@ const {
   signMemberToken,
 } = require('../utils/jwt');
 const { uploadLocksmithImage } = require('../lib/locksmithUploads');
+const {
+  sendOTP,
+  generateOTP,
+  normalizeSaPhone,
+} = require('../utils/smsPortal');
+
+function phoneLookupVariants(canonical) {
+  if (!canonical || canonical.length < 11) return [];
+  const local0 = `0${canonical.slice(2)}`;
+  return [canonical, `+${canonical}`, local0];
+}
 
 function stripCustomer(c) {
   if (!c) return c;
@@ -19,6 +30,143 @@ function stripLocksmith(l) {
   if (!l) return l;
   const { password, ...rest } = l;
   return rest;
+}
+
+async function sendPhoneOTP(req, res) {
+  const { phone, userType } = req.body;
+
+  if (!phone) throw new AppError('Phone is required', 400);
+
+  const cid = process.env.SMSPORTAL_CLIENT_ID?.trim();
+  const csec = process.env.SMSPORTAL_CLIENT_SECRET?.trim();
+  if (!cid || !csec) {
+    throw new AppError('SMS service is not configured', 503);
+  }
+
+  const canonical = normalizeSaPhone(phone);
+  if (!canonical || canonical.length < 11) {
+    throw new AppError('Invalid South African phone number', 400);
+  }
+
+  const otp = generateOTP();
+  const expiry = new Date(Date.now() + 10 * 60 * 1000);
+
+  const variants = phoneLookupVariants(canonical);
+
+  if (userType === 'customer') {
+    const existing = await prisma.customer.findFirst({
+      where: { phone: { in: variants } },
+    });
+    if (existing) {
+      await prisma.customer.update({
+        where: { id: existing.id },
+        data: { phoneOtp: otp, phoneOtpExpiry: expiry },
+      });
+    }
+  } else if (userType === 'locksmith') {
+    const existing = await prisma.locksmith.findFirst({
+      where: { phone: { in: variants } },
+    });
+    if (existing) {
+      await prisma.locksmith.update({
+        where: { id: existing.id },
+        data: { phoneOtp: otp, phoneOtpExpiry: expiry },
+      });
+    }
+  } else {
+    throw new AppError('Invalid userType', 400);
+  }
+
+  await prisma.otpVerification.upsert({
+    where: { phone: canonical },
+    create: { phone: canonical, otp, expiry, userType },
+    update: { otp, expiry, userType, verified: false },
+  });
+
+  const sent = await sendOTP(phone, otp);
+  if (!sent) {
+    throw new AppError('Failed to send OTP. Please try again.', 500);
+  }
+
+  res.json({
+    success: true,
+    message: 'OTP sent to your phone number',
+  });
+}
+
+async function verifyPhoneOTP(req, res) {
+  const { phone, otp, userType } = req.body;
+
+  if (!phone || !otp) {
+    throw new AppError('Phone and OTP are required', 400);
+  }
+
+  const canonical = normalizeSaPhone(phone);
+  if (!canonical || canonical.length < 11) {
+    throw new AppError('Invalid South African phone number', 400);
+  }
+
+  const record = await prisma.otpVerification.findUnique({
+    where: { phone: canonical },
+  });
+
+  if (!record) {
+    throw new AppError('OTP not found. Please request a new one.', 404);
+  }
+
+  if (userType && record.userType !== userType) {
+    throw new AppError('Verification does not match account type', 400);
+  }
+
+  if (new Date() > record.expiry) {
+    throw new AppError('OTP has expired. Please request a new one.', 400);
+  }
+
+  if (record.otp !== String(otp).trim()) {
+    throw new AppError('Invalid OTP. Please try again.', 400);
+  }
+
+  await prisma.otpVerification.update({
+    where: { phone: canonical },
+    data: { verified: true },
+  });
+
+  const variants = phoneLookupVariants(canonical);
+  if (record.userType === 'customer') {
+    const c = await prisma.customer.findFirst({
+      where: { phone: { in: variants } },
+    });
+    if (c) {
+      await prisma.customer.update({
+        where: { id: c.id },
+        data: {
+          phoneVerified: true,
+          phoneOtp: null,
+          phoneOtpExpiry: null,
+        },
+      });
+    }
+  } else if (record.userType === 'locksmith') {
+    const l = await prisma.locksmith.findFirst({
+      where: { phone: { in: variants } },
+    });
+    if (l) {
+      await prisma.locksmith.update({
+        where: { id: l.id },
+        data: {
+          phoneVerified: true,
+          phoneOtp: null,
+          phoneOtpExpiry: null,
+        },
+      });
+    }
+  }
+
+  res.json({
+    success: true,
+    verified: true,
+    message: 'Phone number verified successfully',
+  });
 }
 
 async function registerCustomer(req, res) {
@@ -44,8 +192,24 @@ async function registerCustomer(req, res) {
     throw new AppError('Email or phone already registered', 409);
   }
   const hash = await bcrypt.hash(password, 12);
+
+  const canonicalPhone = normalizeSaPhone(phone);
+  const otpRecord =
+    canonicalPhone.length >= 11
+      ? await prisma.otpVerification.findUnique({
+          where: { phone: canonicalPhone },
+        })
+      : null;
+  const phoneVerified = otpRecord?.verified === true;
+
   const customer = await prisma.customer.create({
-    data: { name, phone, email, password: hash },
+    data: {
+      name,
+      phone,
+      email,
+      password: hash,
+      phoneVerified,
+    },
   });
   const token = signCustomerToken(customer.id);
   res.status(201).json({ token, customer: stripCustomer(customer) });
@@ -118,6 +282,16 @@ async function registerLocksmith(req, res) {
 
   const hash = await bcrypt.hash(password, 12);
   const walletMinimum = accountType === 'BUSINESS' ? 500 : 200;
+
+  const canonicalPhone = normalizeSaPhone(phone);
+  const otpRecord =
+    canonicalPhone.length >= 11
+      ? await prisma.otpVerification.findUnique({
+          where: { phone: canonicalPhone },
+        })
+      : null;
+  const phoneVerified = otpRecord?.verified === true;
+
   const locksmith = await prisma.$transaction(async (tx) => {
     const l = await tx.locksmith.create({
       data: {
@@ -128,6 +302,7 @@ async function registerLocksmith(req, res) {
         accountType,
         businessName: businessName || null,
         walletMinimum,
+        phoneVerified,
         idPhotoUrl: idPhotoUrl || null,
         selfiePhotoUrl: selfiePhotoUrl || null,
         toolsPhotoUrl: toolsPhotoUrl || null,
@@ -186,6 +361,7 @@ const customerProfileSelect = {
   name: true,
   email: true,
   phone: true,
+  phoneVerified: true,
   profilePhoto: true,
   createdAt: true,
 };
@@ -276,6 +452,8 @@ module.exports = {
   registerLocksmith,
   loginLocksmith,
   loginMember,
+  sendPhoneOTP,
+  verifyPhoneOTP,
   updateCustomerPushToken,
   getCustomerProfile,
   updateCustomerProfile,
