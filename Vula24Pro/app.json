@@ -1,6 +1,6 @@
 {
   "expo": {
-    "owner": "vula24",
+    "owner": "tshepovul24",
     "name": "Vula24 Pro",
     "slug": "vula24-pro",
     "scheme": "vula24pro",
@@ -99,7 +99,7 @@
       "router": {},
       "apiUrl": "https://vula24-production.up.railway.app",
       "eas": {
-        "projectId": "7f3e60de-0428-4b93-b9b5-24d96959a43a"
+        "projectId": "40198b61-335e-4344-b290-1871616749fc"
       }
     }
   }
