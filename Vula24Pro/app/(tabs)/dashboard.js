@@ -107,12 +107,24 @@ export default function DashboardScreen() {
   const [toggleLoading, setToggleLoading] = useState(false);
   const [online, setOnline] = useState(false);
   const [isMember, setIsMember] = useState(false);
+  const [showNotifTip, setShowNotifTip] = useState(false);
   const pushedJobRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
 
   useEffect(() => {
     getUser().then((u) => setIsMember(u?.isMember === true));
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem('notif_tip_shown').then((val) => {
+      if (!val) setShowNotifTip(true);
+    });
+  }, []);
+
+  const dismissNotifTip = async () => {
+    await AsyncStorage.setItem('notif_tip_shown', '1');
+    setShowNotifTip(false);
+  };
 
   const loadProfile = useCallback(async () => {
     const stored = await getUser();
@@ -567,6 +579,52 @@ export default function DashboardScreen() {
             thumbColor={online ? '#34c759' : '#666'}
           />
         </TouchableOpacity>
+
+        {showNotifTip && !isMember && (
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#1a1a2e',
+              borderWidth: 1,
+              borderColor: COLORS.accent,
+              borderRadius: 12,
+              padding: 14,
+              marginHorizontal: 20,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+            }}
+            onPress={dismissNotifTip}
+          >
+            <Ionicons
+              name="notifications-outline"
+              size={18}
+              color={COLORS.accent}
+              style={{ marginRight: 8, marginTop: 2 }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  color: COLORS.text,
+                  fontWeight: '700',
+                  fontSize: 13,
+                  marginBottom: 4,
+                }}
+              >
+                Set your job alert sound
+              </Text>
+              <Text
+                style={{
+                  color: COLORS.textMuted,
+                  fontSize: 12,
+                  lineHeight: 18,
+                }}
+              >
+                After your first job notification arrives, go to Profile → Notification Sound to choose your
+                preferred ringtone. Tap to dismiss.
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {!profileComplete ? (
           <TouchableOpacity style={styles.incompleteBanner} onPress={() => router.push('/(tabs)/profile')}>
