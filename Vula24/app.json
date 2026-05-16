@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Vula24",
-    "owner": "vula24",
+    "owner": "tshepovul24",
     "slug": "vula24",
     "scheme": "vula24",
     "version": "1.0.0",
@@ -89,7 +89,7 @@
       "router": {},
       "googlePlacesApiKey": "AIzaSyBPS1Ek7P23ziEKh1OfawDPV4AMhu7WHAc",
       "eas": {
-        "projectId": "11b345af-ae98-47c0-910d-b5677469e70b"
+        "projectId": "d2a900ef-cefa-4976-9689-e7946cdf16d1"
       }
     }
   }

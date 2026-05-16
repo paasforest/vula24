@@ -244,6 +244,7 @@ model Wallet {
   id              String    @id @default(uuid())
   locksithId      String    @unique
   locksmith       Locksmith @relation(fields: [locksithId], references: [id], onDelete: Cascade)
+  /// Non-negative balance enforced in DB (wallet_balance_non_negative CHECK).
   balance         Float     @default(0)
   minimumBalance  Float     @default(200)
   updatedAt       DateTime  @updatedAt
@@ -252,15 +253,17 @@ model Wallet {
 }
 
 model Transaction {
-  id          String       @id @default(uuid())
-  walletId    String
-  wallet      Wallet       @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  amount      Float
-  type        WalletTxType
-  description String
-  jobId       String?
-  job         Job?         @relation("JobWalletTx", fields: [jobId], references: [id], onDelete: SetNull)
-  createdAt   DateTime     @default(now())
+  id               String       @id @default(uuid())
+  walletId         String
+  wallet           Wallet       @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  amount           Float
+  type             WalletTxType
+  description      String
+  jobId            String?
+  job              Job?         @relation("JobWalletTx", fields: [jobId], references: [id], onDelete: SetNull)
+  /// Optional dedupe key for idempotent payment releases / credits (unused until callers set it).
+  idempotencyKey   String?      @unique
+  createdAt        DateTime     @default(now())
 
   @@map("transactions")
 }

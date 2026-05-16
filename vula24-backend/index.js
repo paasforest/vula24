@@ -16,6 +16,8 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const prisma = require('./lib/prisma');
@@ -36,12 +38,49 @@ const customerRoutes = require('./routes/customer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Security headers
+app.use(helmet());
+
+// CORS - restrict to known origins
 app.use(
   cors({
-    origin: true,
+    origin: [
+      'https://vula24.co.za',
+      'https://www.vula24.co.za',
+      'https://admin.vula24.co.za',
+      'http://localhost:3000',
+      'http://localhost:8081',
+    ],
     credentials: true,
   })
 );
+
+// Global rate limit - 100 requests per minute per IP
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(globalLimiter);
+
+// Strict rate limit for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many login attempts, please try again later' },
+});
+app.use('/api/auth', authLimiter);
+
+// Strict rate limit for payment endpoints
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: 'Too many payment requests' },
+});
+app.use('/api/payments', paymentLimiter);
+
 app.use(morgan('combined'));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));

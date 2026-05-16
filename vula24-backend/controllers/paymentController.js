@@ -334,40 +334,41 @@ async function releasePendingPayouts() {
       if (jobCheck?.isDisputed) continue;
 
       await prisma.$transaction(async (tx) => {
+        // Atomic claim - only succeeds if not yet released
+        const claimed = await tx.pendingPayout.updateMany({
+          where: {
+            id: p.id,
+            released: false,
+          },
+          data: { released: true },
+        });
+
+        // If another process already claimed this payout, skip
+        if (claimed.count === 0) return;
+
         const payout = await tx.pendingPayout.findUnique({
           where: { id: p.id },
+          include: {
+            locksmith: {
+              include: { wallet: true },
+            },
+          },
         });
-        if (!payout || payout.released) {
-          return;
-        }
 
-        const wallet = await tx.wallet.findUnique({
-          where: { locksithId: payout.locksithId },
-        });
-        if (!wallet) {
-          await tx.pendingPayout.update({
-            where: { id: payout.id },
-            data: { released: true },
-          });
-          return;
-        }
+        if (!payout?.locksmith?.wallet) return;
 
         await tx.wallet.update({
-          where: { id: wallet.id },
+          where: { id: payout.locksmith.wallet.id },
           data: { balance: { increment: payout.amount } },
         });
         await tx.transaction.create({
           data: {
-            walletId: wallet.id,
+            walletId: payout.locksmith.wallet.id,
             amount: payout.amount,
             type: 'CREDIT',
             description: `Payment for job ${payout.jobId}`,
             jobId: payout.jobId,
           },
-        });
-        await tx.pendingPayout.update({
-          where: { id: payout.id },
-          data: { released: true },
         });
       });
     } catch (err) {
@@ -381,26 +382,32 @@ async function withdraw(req, res) {
   const locksmithId = req.locksmith.id;
 
   if (amount <= 0) throw new AppError('Amount must be positive', 400);
-  if (amount < 100) {
-    throw new AppError('Minimum withdrawal amount is R100', 400);
-  }
-
-  const wallet = await prisma.wallet.findUnique({
-    where: { locksithId: locksmithId },
-  });
-  if (!wallet) throw new AppError('Wallet not found', 404);
-  if (wallet.balance < amount) {
-    throw new AppError('Insufficient wallet balance', 400);
-  }
+  if (amount < 100) throw new AppError('Minimum withdrawal is R100', 400);
 
   const adminRecipientId =
     process.env.ADMIN_NOTIFICATION_RECIPIENT_ID || 'admin';
 
   await prisma.$transaction(async (tx) => {
-    await tx.wallet.update({
-      where: { id: wallet.id },
-      data: { balance: { decrement: amount } },
+    // Atomic check-and-deduct using updateMany with WHERE balance >= amount
+    const result = await tx.wallet.updateMany({
+      where: {
+        locksithId: locksmithId,
+        balance: { gte: amount },
+      },
+      data: {
+        balance: { decrement: amount },
+      },
     });
+
+    if (result.count === 0) {
+      throw new AppError('Insufficient wallet balance', 400);
+    }
+
+    const wallet = await tx.wallet.findUnique({
+      where: { locksithId: locksmithId },
+    });
+    if (!wallet) throw new AppError('Wallet not found', 404);
+
     await tx.transaction.create({
       data: {
         walletId: wallet.id,
@@ -414,7 +421,7 @@ async function withdraw(req, res) {
         recipientId: adminRecipientId,
         recipientType: 'CUSTOMER',
         title: 'Withdrawal request',
-        message: `Locksmith ${locksmithId} requested withdrawal of R${amount.toFixed(2)}`,
+        message: `Locksmith ${locksmithId} requested R${amount.toFixed(2)}`,
       },
     });
   });
