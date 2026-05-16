@@ -77,6 +77,8 @@ router.get('/locksmiths', asyncHandler(admin.listLocksmithsAdmin));
 
 router.get('/team-members', asyncHandler(admin.listAdminTeamMembers));
 
+router.get('/audit-logs', asyncHandler(admin.getAuditLogs));
+
 router.get('/stats', asyncHandler(admin.getStats));
 
 router.post(

@@ -13,6 +13,7 @@ const {
   generateOTP,
   normalizeSaPhone,
 } = require('../utils/smsPortal');
+const { audit, AuditAction } = require('../utils/auditLog');
 
 function phoneLookupVariants(canonical) {
   if (!canonical || canonical.length < 11) return [];
@@ -88,6 +89,13 @@ async function sendPhoneOTP(req, res) {
     throw new AppError('Failed to send OTP. Please try again.', 500);
   }
 
+  await audit(AuditAction.OTP_SENT, {
+    entityType: 'OTP',
+    actorType: 'SYSTEM',
+    metadata: { phone },
+    ipAddress: req.ip,
+  });
+
   res.json({
     success: true,
     message: 'OTP sent to your phone number',
@@ -162,6 +170,13 @@ async function verifyPhoneOTP(req, res) {
     }
   }
 
+  await audit(AuditAction.OTP_VERIFIED, {
+    entityType: 'OTP',
+    actorType: 'SYSTEM',
+    metadata: { phone },
+    ipAddress: req.ip,
+  });
+
   res.json({
     success: true,
     verified: true,
@@ -212,6 +227,16 @@ async function registerCustomer(req, res) {
     },
   });
   const token = signCustomerToken(customer.id);
+
+  await audit(AuditAction.CUSTOMER_REGISTER, {
+    entityType: 'CUSTOMER',
+    entityId: customer.id,
+    actorType: 'CUSTOMER',
+    actorId: customer.id,
+    metadata: { phone: customer.phone, email: customer.email },
+    ipAddress: req.ip,
+  });
+
   res.status(201).json({ token, customer: stripCustomer(customer) });
 }
 
@@ -227,8 +252,25 @@ async function loginCustomer(req, res) {
     );
   }
   const ok = await bcrypt.compare(password, customer.password);
-  if (!ok) throw new AppError('Invalid email or password', 401);
+  if (!ok) {
+    await audit(AuditAction.LOGIN_FAILED, {
+      entityType: 'CUSTOMER',
+      actorType: 'UNKNOWN',
+      metadata: { email: req.body.email },
+      ipAddress: req.ip,
+    });
+    throw new AppError('Invalid email or password', 401);
+  }
   const token = signCustomerToken(customer.id);
+
+  await audit(AuditAction.CUSTOMER_LOGIN, {
+    entityType: 'CUSTOMER',
+    entityId: customer.id,
+    actorType: 'CUSTOMER',
+    actorId: customer.id,
+    ipAddress: req.ip,
+  });
+
   res.json({ token, customer: stripCustomer(customer) });
 }
 
@@ -327,6 +369,16 @@ async function registerLocksmith(req, res) {
   });
 
   const token = signLocksmithToken(locksmith.id);
+
+  await audit(AuditAction.LOCKSMITH_REGISTER, {
+    entityType: 'LOCKSMITH',
+    entityId: locksmith.id,
+    actorType: 'LOCKSMITH',
+    actorId: locksmith.id,
+    metadata: { phone: locksmith.phone, email: locksmith.email },
+    ipAddress: req.ip,
+  });
+
   res.status(201).json({ token, locksmith: stripLocksmith(locksmith) });
 }
 

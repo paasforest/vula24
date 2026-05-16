@@ -1,6 +1,7 @@
 const prisma = require('../lib/prisma');
 const { AppError } = require('../middleware/errorHandler');
 const { buildPaymentFields, verifyItnSignature } = require('../utils/payfast');
+const { audit, AuditAction } = require('../utils/auditLog');
 
 function appBaseUrl() {
   return (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
@@ -203,6 +204,17 @@ async function payfastWebhook(req, res) {
       });
     });
 
+    await audit(AuditAction.WALLET_TOPPED_UP, {
+      entityType: 'WALLET',
+      entityId: ref.walletId,
+      actorType: 'SYSTEM',
+      metadata: {
+        amount: amountGross,
+        paymentId: body.m_payment_id,
+      },
+      ipAddress: req.ip,
+    });
+
     return res.status(200).send('OK');
   }
 
@@ -236,6 +248,18 @@ async function payfastWebhook(req, res) {
       await prisma.job.update({
         where: { id: job.id },
         data: { depositPaid: true },
+      });
+      await audit(AuditAction.PAYMENT_RECEIVED, {
+        entityType: 'JOB',
+        entityId: ref.jobId,
+        actorType: 'SYSTEM',
+        metadata: {
+          amount: amountGross,
+          kind: ref.kind,
+          paymentId: body.m_payment_id,
+          partial: true,
+        },
+        ipAddress: req.ip,
       });
       return res.status(200).send('OK');
     }
@@ -274,6 +298,17 @@ async function payfastWebhook(req, res) {
         },
       });
     });
+    await audit(AuditAction.PAYMENT_RECEIVED, {
+      entityType: 'JOB',
+      entityId: ref.jobId,
+      actorType: 'SYSTEM',
+      metadata: {
+        amount: amountGross,
+        kind: ref.kind,
+        paymentId: body.m_payment_id,
+      },
+      ipAddress: req.ip,
+    });
     return res.status(200).send('OK');
   }
 
@@ -311,6 +346,17 @@ async function payfastWebhook(req, res) {
         });
       }
     });
+    await audit(AuditAction.PAYMENT_RECEIVED, {
+      entityType: 'JOB',
+      entityId: ref.jobId,
+      actorType: 'SYSTEM',
+      metadata: {
+        amount: amountGross,
+        kind: ref.kind,
+        paymentId: body.m_payment_id,
+      },
+      ipAddress: req.ip,
+    });
     return res.status(200).send('OK');
   }
 
@@ -332,6 +378,9 @@ async function releasePendingPayouts() {
         select: { isDisputed: true },
       });
       if (jobCheck?.isDisputed) continue;
+
+      let payoutReleased = false;
+      let releaseAudit = null;
 
       await prisma.$transaction(async (tx) => {
         // Atomic claim - only succeeds if not yet released
@@ -357,6 +406,13 @@ async function releasePendingPayouts() {
 
         if (!payout?.locksmith?.wallet) return;
 
+        releaseAudit = {
+          payoutId: payout.id,
+          jobId: payout.jobId,
+          amount: payout.amount,
+          locksithId: payout.locksithId,
+        };
+
         await tx.wallet.update({
           where: { id: payout.locksmith.wallet.id },
           data: { balance: { increment: payout.amount } },
@@ -370,7 +426,21 @@ async function releasePendingPayouts() {
             jobId: payout.jobId,
           },
         });
+        payoutReleased = true;
       });
+
+      if (payoutReleased && releaseAudit) {
+        await audit(AuditAction.PAYOUT_RELEASED, {
+          entityType: 'PAYOUT',
+          entityId: releaseAudit.payoutId,
+          actorType: 'SYSTEM',
+          metadata: {
+            jobId: releaseAudit.jobId,
+            amount: releaseAudit.amount,
+            locksithId: releaseAudit.locksithId,
+          },
+        });
+      }
     } catch (err) {
       console.error('releasePendingPayouts', p.id, err);
     }
@@ -424,6 +494,19 @@ async function withdraw(req, res) {
         message: `Locksmith ${locksmithId} requested R${amount.toFixed(2)}`,
       },
     });
+  });
+
+  const updatedWallet = await prisma.wallet.findUnique({
+    where: { locksithId: locksmithId },
+  });
+
+  await audit(AuditAction.WITHDRAWAL_REQUESTED, {
+    entityType: 'WALLET',
+    entityId: updatedWallet?.id,
+    actorType: 'LOCKSMITH',
+    actorId: locksmithId,
+    metadata: { amount, newBalance: updatedWallet?.balance },
+    ipAddress: req.ip,
   });
 
   res.json({ success: true });

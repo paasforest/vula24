@@ -186,6 +186,24 @@
       <div id="members-table-wrap"></div>
       <div id="members-err" class="err hidden"></div>
     </div>
+
+    <div class="card">
+      <h2>Audit Logs</h2>
+      <div class="toolbar">
+        <select id="audit-action-filter">
+          <option value="">All actions</option>
+          <option value="WITHDRAWAL_REQUESTED">Withdrawals</option>
+          <option value="PAYOUT_RELEASED">Payouts</option>
+          <option value="PAYMENT_RECEIVED">Payments</option>
+          <option value="LOGIN_FAILED">Failed logins</option>
+          <option value="LOCKSMITH_APPROVED">Approvals</option>
+          <option value="DISPUTE_RESOLVED">Disputes</option>
+          <option value="LOCKSMITH_SUSPENDED">Suspensions</option>
+        </select>
+        <button type="button" class="btn btn-ghost" id="btn-refresh-audit">Refresh</button>
+      </div>
+      <div id="audit-table-wrap"></div>
+    </div>
   </div>
 
   <script>
@@ -941,6 +959,54 @@
         }
       }
 
+      async function refreshAuditLogs() {
+        const action = document.getElementById('audit-action-filter').value;
+        const url =
+          '/api/admin/audit-logs?limit=50' + (action ? '&action=' + encodeURIComponent(action) : '');
+        const wrap = document.getElementById('audit-table-wrap');
+        wrap.innerHTML = '<p style="color:#888;padding:20px">Loading…</p>';
+        try {
+          const data = await apiFetch(url);
+          const logs = data.logs || [];
+          if (logs.length === 0) {
+            wrap.innerHTML = '<p style="color:#888;padding:20px">No logs found.</p>';
+            return;
+          }
+          let html = '<table style="width:100%;border-collapse:collapse">';
+          html += '<thead><tr>';
+          ['Time', 'Action', 'Entity', 'Actor', 'IP', 'Details'].forEach((h) => {
+            html +=
+              `<th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#aaa;font-size:12px">${escapeHtml(h)}</th>`;
+          });
+          html += '</tr></thead><tbody>';
+          for (const log of logs) {
+            const time = new Date(log.createdAt).toLocaleString('en-ZA');
+            const metaStr = log.metadata ? JSON.stringify(log.metadata) : '';
+            const metaCell = !metaStr
+              ? '-'
+              : metaStr.length > 50
+                ? escapeHtml(metaStr.substring(0, 50)) + '…'
+                : escapeHtml(metaStr);
+            const ent =
+              log.entityType + (log.entityId ? ' ' + shortId(log.entityId) : '');
+            const act =
+              log.actorType + (log.actorId ? ' ' + shortId(log.actorId) : '');
+            html += '<tr>';
+            html += `<td style="padding:8px;border-bottom:1px solid #222;color:#888;font-size:12px">${escapeHtml(time)}</td>`;
+            html += `<td style="padding:8px;border-bottom:1px solid #222;color:#D4A017;font-size:12px">${escapeHtml(log.action)}</td>`;
+            html += `<td style="padding:8px;border-bottom:1px solid #222;color:#aaa;font-size:12px">${escapeHtml(ent)}</td>`;
+            html += `<td style="padding:8px;border-bottom:1px solid #222;color:#aaa;font-size:12px">${escapeHtml(act)}</td>`;
+            html += `<td style="padding:8px;border-bottom:1px solid #222;color:#888;font-size:12px">${escapeHtml(log.ipAddress || '-')}</td>`;
+            html += `<td style="padding:8px;border-bottom:1px solid #222;color:#888;font-size:12px">${metaCell}</td>`;
+            html += '</tr>';
+          }
+          html += '</tbody></table>';
+          wrap.innerHTML = html;
+        } catch (e) {
+          wrap.innerHTML = '<p style="color:red">Error loading audit logs</p>';
+        }
+      }
+
       function refreshAll() {
         refreshStats();
         refreshPending();
@@ -948,6 +1014,7 @@
         refreshJobs();
         refreshLocksmiths();
         refreshMembers();
+        refreshAuditLogs();
       }
 
       document.getElementById('btn-login').onclick = doLogin;
@@ -965,6 +1032,9 @@
       document.getElementById('btn-refresh-jobs').onclick = refreshJobs;
       document.getElementById('jobs-status-filter').onchange = refreshJobs;
       document.getElementById('btn-refresh-locksmiths').onclick = refreshLocksmiths;
+
+      document.getElementById('btn-refresh-audit')?.addEventListener('click', refreshAuditLogs);
+      document.getElementById('audit-action-filter')?.addEventListener('change', refreshAuditLogs);
 
       document.getElementById('api-base').value = getApiBase();
 

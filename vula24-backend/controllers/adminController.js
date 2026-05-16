@@ -2,6 +2,7 @@ const prisma = require('../lib/prisma');
 const { AppError } = require('../middleware/errorHandler');
 const { signAdminToken } = require('../utils/jwt');
 const { sendPushNotification } = require('../utils/pushNotifications');
+const { audit, AuditAction } = require('../utils/auditLog');
 
 async function adminLogin(req, res) {
   const { secret } = req.body;
@@ -66,6 +67,14 @@ async function approveLocksmith(req, res) {
     return l;
   });
 
+  await audit(AuditAction.LOCKSMITH_APPROVED, {
+    entityType: 'LOCKSMITH',
+    entityId: id,
+    actorType: 'ADMIN',
+    metadata: { reason: 'Admin approved' },
+    ipAddress: req.ip,
+  });
+
   res.json({ locksmith: updated });
 }
 
@@ -108,6 +117,13 @@ async function suspendLocksmith(req, res) {
     },
   });
 
+  await audit(AuditAction.LOCKSMITH_SUSPENDED, {
+    entityType: 'LOCKSMITH',
+    entityId: id,
+    actorType: 'ADMIN',
+    ipAddress: req.ip,
+  });
+
   res.json({ locksmith: updated });
 }
 
@@ -133,6 +149,15 @@ async function setLocksmithSuspended(req, res) {
       isVerified: true,
     },
   });
+
+  if (suspended) {
+    await audit(AuditAction.LOCKSMITH_SUSPENDED, {
+      entityType: 'LOCKSMITH',
+      entityId: id,
+      actorType: 'ADMIN',
+      ipAddress: req.ip,
+    });
+  }
 
   res.json({ locksmith: updated });
 }
@@ -470,8 +495,39 @@ async function resolveDispute(req, res) {
     );
   }
 
+  await audit(AuditAction.DISPUTE_RESOLVED, {
+    entityType: 'JOB',
+    entityId: jobId,
+    actorType: 'ADMIN',
+    metadata: { favour: winner },
+    ipAddress: req.ip,
+  });
+
   const updatedJob = await prisma.job.findUnique({ where: { id: jobId } });
   res.json({ job: updatedJob });
+}
+
+async function getAuditLogs(req, res) {
+  const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+  const limit = Math.min(
+    200,
+    Math.max(1, parseInt(String(req.query.limit || '50'), 10) || 50)
+  );
+  const { action, actorType } = req.query;
+  const where = {};
+  if (action) where.action = String(action);
+  if (actorType) where.actorType = String(actorType);
+
+  const logs = await prisma.auditLog.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    skip: (page - 1) * limit,
+  });
+
+  const total = await prisma.auditLog.count({ where });
+
+  res.json({ logs, total, page });
 }
 
 async function deleteLocksmith(req, res) {
@@ -526,4 +582,5 @@ module.exports = {
   resolveDispute,
   deleteLocksmith,
   listAdminTeamMembers,
+  getAuditLogs,
 };
