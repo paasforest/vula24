@@ -1,7 +1,5 @@
 const axios = require('axios');
 
-const CLIENT_ID = process.env.SMSPORTAL_CLIENT_ID;
-const CLIENT_SECRET = process.env.SMSPORTAL_CLIENT_SECRET;
 const BASE_URL = 'https://rest.smsportal.com/v1';
 
 /** Canonical SA mobile digits only, e.g. 27821234567 (no +). */
@@ -16,9 +14,16 @@ function normalizeSaPhone(input) {
 }
 
 async function getAuthToken() {
-  const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString(
-    'base64'
-  );
+  const clientId = process.env.SMSPORTAL_CLIENT_ID;
+  const clientSecret = process.env.SMSPORTAL_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error('SMS Portal credentials not configured');
+  }
+
+  const credentials = Buffer.from(
+    `${clientId}:${clientSecret}`
+  ).toString('base64');
 
   const { data } = await axios.post(
     `${BASE_URL}/Authentication`,
