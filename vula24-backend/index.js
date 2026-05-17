@@ -85,13 +85,15 @@ app.use('/api/payments/payfast/notify', webhookLimiter);
 app.use('/api/payments/webhook', webhookLimiter);
 app.use('/api/payments/paystack/webhook', webhookLimiter);
 
-// Strict limit for everything else
+// Strict limit for everything else (/api/wallet uses global limiter only)
 const paymentLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 30,
   message: { error: 'Too many payment requests' },
   skip: (req) => {
-    const pathOnly = String(req.originalUrl || '').split('?')[0];
+    const pathOnly = String(
+      req.originalUrl || ''
+    ).split('?')[0];
     return (
       pathOnly === '/api/payments/webhook' ||
       pathOnly === '/api/payments/payfast/notify' ||

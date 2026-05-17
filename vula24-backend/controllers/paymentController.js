@@ -454,6 +454,26 @@ async function withdraw(req, res) {
   if (amount <= 0) throw new AppError('Amount must be positive', 400);
   if (amount < 100) throw new AppError('Minimum withdrawal is R100', 400);
 
+  const locksmith = await prisma.locksmith.findUnique({
+    where: { id: locksmithId },
+    select: {
+      bankName: true,
+      bankAccountNumber: true,
+      bankAccountHolder: true,
+    },
+  });
+
+  if (
+    !locksmith?.bankName?.trim() ||
+    !locksmith?.bankAccountNumber?.trim() ||
+    !locksmith?.bankAccountHolder?.trim()
+  ) {
+    throw new AppError(
+      'Please add your bank details before withdrawing. Go to Profile → Bank Details.',
+      400
+    );
+  }
+
   const adminRecipientId =
     process.env.ADMIN_NOTIFICATION_RECIPIENT_ID || 'admin';
 

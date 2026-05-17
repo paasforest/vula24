@@ -89,11 +89,12 @@ export default function EarningsScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
+      const pollMs = isMember ? 30000 : 60000;
       const id = setInterval(() => {
         load();
-      }, 30000);
+      }, pollMs);
       return () => clearInterval(id);
-    }, [load])
+    }, [load, isMember])
   );
 
   const onRefresh = async () => {
