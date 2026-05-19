@@ -5,11 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../components/GoldButton';
+import { PayFastWebView } from '../components/PayFastWebView';
 import { COLORS } from '../constants/theme';
 import api from '../lib/api';
 
@@ -19,6 +21,9 @@ export default function PaymentScreen() {
 
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [payUrl, setPayUrl] = useState(null);
+  const [payFields, setPayFields] = useState(null);
+  const [webViewVisible, setWebViewVisible] = useState(false);
   const sentToReviewRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -63,16 +68,56 @@ export default function PaymentScreen() {
     }
   };
 
+  const startPayment = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.post('/api/payments/deposit', { jobId });
+      setPayUrl(data.payUrl);
+      setPayFields(data.fields);
+      setWebViewVisible(true);
+    } catch (e) {
+      Alert.alert(
+        'Error',
+        e.response?.data?.error || 'Could not initiate payment.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePaymentReturn = async (url) => {
+    setWebViewVisible(false);
+    if (
+      url.includes('status=deposit') ||
+      url.includes('status=complete')
+    ) {
+      try {
+        if (job?.mode === 'EMERGENCY') {
+          await api.post(`/api/jobs/${jobId}/dispatch`);
+        }
+        router.replace({
+          pathname: '/tracking',
+          params: { jobId },
+        });
+      } catch (e) {
+        Alert.alert(
+          'Error',
+          'Payment received but could not dispatch. Please contact support.'
+        );
+      }
+    } else {
+      Alert.alert(
+        'Payment cancelled',
+        'Your payment was cancelled. Please try again.'
+      );
+    }
+  };
+
   const serviceLabel = job?.serviceType?.replace(/_/g, ' ') || '—';
   const paid = job?.depositPaid && job?.finalPaid;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <View style={styles.testBanner}>
-        <Text style={styles.testBannerText}>
-          TEST MODE — PayFast not configured
-        </Text>
-      </View>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.h1}>Payment</Text>
         <Text style={styles.subtitle}>
@@ -101,33 +146,41 @@ export default function PaymentScreen() {
             <Text style={styles.stepText}>Simulate payment (test mode)</Text>
           </View>
           {!paid ? (
-            <GoldButton
-              title="Simulate Payment (Test Mode)"
-              onPress={simulateAndContinue}
-              loading={loading}
-            />
+            <>
+              <GoldButton
+                title="Pay Now"
+                onPress={startPayment}
+                loading={loading}
+              />
+              {__DEV__ && (
+                <TouchableOpacity
+                  onPress={simulateAndContinue}
+                  style={{ marginTop: 12, alignItems: 'center' }}
+                >
+                  <Text style={{ color: COLORS.textMuted, fontSize: 12 }}>
+                    [DEV] Simulate payment
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
           ) : (
             <Text style={styles.paid}>Payment received — thank you</Text>
           )}
         </View>
       </ScrollView>
+      <PayFastWebView
+        visible={webViewVisible}
+        payUrl={payUrl}
+        fields={payFields}
+        onClose={() => setWebViewVisible(false)}
+        onReturnUrl={handlePaymentReturn}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
-  testBanner: {
-    backgroundColor: '#8B0000',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  testBannerText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
   scroll: { padding: 20, paddingBottom: 40 },
   h1: { color: COLORS.text, fontSize: 24, fontWeight: '700', marginBottom: 10 },
   subtitle: {
