@@ -121,10 +121,6 @@ export default function RootLayout() {
                 Notifications.AndroidNotificationVisibility.PUBLIC,
             }
           );
-          console.log(
-            '[notifications] channel created:',
-            result?.id || 'no result'
-          );
         } catch (e) {
           console.error(
             '[notifications] channel failed:',

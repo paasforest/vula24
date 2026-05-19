@@ -78,7 +78,6 @@ export default function EarningsScreen() {
         api.get('/api/wallet/pending-payouts').catch(() => ({ data: { pendingPayouts: [] } })),
       ]);
       setWallet(w.data);
-      console.log('wallet data:', JSON.stringify(w.data));
       setProfile(p.data.locksmith);
       setPendingPayouts(pend.data?.pendingPayouts || []);
     } catch (e) {

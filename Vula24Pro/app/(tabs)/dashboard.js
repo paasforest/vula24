@@ -22,19 +22,14 @@ import { getUser, saveUser } from '../../lib/storage';
 
 async function registerPushToken(isMember = false) {
   try {
-    console.log('[push] start, isMember:', isMember);
-
     const { status: existing } =
       await Notifications.getPermissionsAsync();
-    console.log('[push] existing permission:', existing);
 
     let finalStatus = existing;
     if (existing !== 'granted') {
-      console.log('[push] requesting permission');
       const { status } =
         await Notifications.requestPermissionsAsync();
       finalStatus = status;
-      console.log('[push] permission result:', status);
     }
 
     if (finalStatus !== 'granted') {
@@ -44,7 +39,6 @@ async function registerPushToken(isMember = false) {
 
     const projectId =
       Constants.expoConfig?.extra?.eas?.projectId;
-    console.log('[push] projectId:', projectId);
 
     if (!projectId) {
       console.warn(
@@ -63,24 +57,14 @@ async function registerPushToken(isMember = false) {
       return false;
     }
 
-    console.log(
-      '[push] token received:',
-      token.data.substring(0, 40)
-    );
-
     const endpoint = isMember
       ? '/api/member/push-token'
       : '/api/locksmith/push-token';
-    console.log('[push] sending to:', endpoint);
 
-    const response = await api.put(endpoint, {
+    await api.put(endpoint, {
       pushToken: token.data,
     });
 
-    console.log(
-      '[push] saved successfully, status:',
-      response?.status
-    );
     return true;
   } catch (e) {
     console.warn(
