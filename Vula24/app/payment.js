@@ -121,8 +121,7 @@ export default function PaymentScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.h1}>Payment</Text>
         <Text style={styles.subtitle}>
-          Development only: simulate a successful payment without PayFast. After
-          simulate, the job is dispatched and you go to tracking.
+          Complete your secure payment via PayFast to confirm your booking.
         </Text>
 
         <View style={styles.card}>
@@ -143,7 +142,7 @@ export default function PaymentScreen() {
             ) : (
               <View style={styles.stepDot} />
             )}
-            <Text style={styles.stepText}>Simulate payment (test mode)</Text>
+            <Text style={styles.stepText}>Complete payment</Text>
           </View>
           {!paid ? (
             <>
