@@ -284,36 +284,6 @@ export default function DashboardScreen() {
         // Member polling
         if (!u.isOnline) return;
         await loadJobs();
-
-        try {
-          const { data } = await api.get(
-            '/api/member/jobs/available'
-          );
-          const list = data.jobs || [];
-          // For members find jobs assigned
-          // to them OR to their business
-          // with no member assigned yet
-          const mine = list.find(
-            (j) =>
-              j.status === 'PENDING' &&
-              (j.teamMemberId === u.id ||
-                (j.teamMemberId === null &&
-                  j.locksithId === u.businessId))
-          );
-          if (!mine) return;
-          const dismissed = await AsyncStorage.getItem(
-            `dismiss_job_${mine.id}`
-          );
-          if (dismissed) return;
-          if (pushedJobRef.current === mine.id) return;
-          pushedJobRef.current = mine.id;
-          router.push({
-            pathname: '/job-request',
-            params: { jobId: mine.id },
-          });
-        } catch {
-          /* ignore */
-        }
         return;
       }
 
@@ -330,36 +300,71 @@ export default function DashboardScreen() {
       } catch {
         /* ignore */
       }
-
-      try {
-        const { data } = await api.get(
-          '/api/jobs/locksmith/my-jobs'
-        );
-        const list = data.jobs || [];
-        const mine = list.find(
-          (j) =>
-            j.status === 'PENDING' && j.locksithId === u.id
-        );
-        if (!mine) return;
-        const dismissed = await AsyncStorage.getItem(
-          `dismiss_job_${mine.id}`
-        );
-        if (dismissed) return;
-        if (pushedJobRef.current === mine.id) return;
-        pushedJobRef.current = mine.id;
-        router.push({
-          pathname: '/job-request',
-          params: { jobId: mine.id },
-        });
-      } catch {
-        /* ignore */
-      }
     };
 
     run();
     interval = setInterval(run, 10000);
     return () => clearInterval(interval);
   }, [isMember, loadJobs, loadWallet]);
+
+  useEffect(() => {
+    if (!online || !isMember) return;
+
+    const checkForPendingMemberJob = async () => {
+      const u = await getUser();
+      if (!u?.id || !u.isOnline) return;
+
+      const mine = jobs.find(
+        (j) =>
+          j.status === 'PENDING' &&
+          (j.teamMemberId === u.id ||
+            (j.teamMemberId === null && j.locksithId === u.businessId))
+      );
+      if (!mine) return;
+
+      const dismissed = await AsyncStorage.getItem(`dismiss_job_${mine.id}`);
+      if (dismissed) return;
+      if (pushedJobRef.current === mine.id) return;
+
+      pushedJobRef.current = mine.id;
+      router.push({
+        pathname: '/job-request',
+        params: { jobId: mine.id },
+      });
+    };
+
+    checkForPendingMemberJob();
+  }, [jobs, online, isMember]);
+
+  useEffect(() => {
+    if (!online || isMember) return;
+
+    const checkForPendingJob = async () => {
+      const u = await getUser();
+      if (!u?.id) return;
+
+      const pendingJob = jobs.find(
+        (j) =>
+          j.status === 'PENDING' && j.locksithId === u.id
+      );
+
+      if (!pendingJob) return;
+
+      const dismissed = await AsyncStorage.getItem(
+        `dismiss_job_${pendingJob.id}`
+      );
+      if (dismissed) return;
+      if (pushedJobRef.current === pendingJob.id) return;
+
+      pushedJobRef.current = pendingJob.id;
+      router.push({
+        pathname: '/job-request',
+        params: { jobId: pendingJob.id },
+      });
+    };
+
+    checkForPendingJob();
+  }, [jobs, online, isMember]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (next) => {

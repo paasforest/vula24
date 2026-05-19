@@ -55,10 +55,10 @@ app.use(
   })
 );
 
-// Global rate limit - 100 requests per minute per IP
+// Global rate limit - 300 requests per minute per IP
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 100,
+  max: 300,
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
