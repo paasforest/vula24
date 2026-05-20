@@ -4,6 +4,7 @@ import { Platform, View, Text, TouchableOpacity } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -105,7 +106,7 @@ export default function RootLayout() {
           if (status !== 'granted') {
             await Notifications.requestPermissionsAsync();
           }
-          const result = await Notifications.setNotificationChannelAsync(
+          await Notifications.setNotificationChannelAsync(
             'job-requests',
             {
               name: 'Job Requests',
@@ -121,6 +122,20 @@ export default function RootLayout() {
                 Notifications.AndroidNotificationVisibility.PUBLIC,
             }
           );
+
+          const shown = await AsyncStorage.getItem('battery_opt_requested');
+          if (!shown) {
+            await AsyncStorage.setItem('battery_opt_requested', '1');
+            try {
+              await IntentLauncher.startActivityAsync(
+                IntentLauncher.ActivityAction
+                  .REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                { data: 'package:com.vula24.pro' }
+              );
+            } catch {
+              // ignore
+            }
+          }
         } catch (e) {
           console.error(
             '[notifications] channel failed:',

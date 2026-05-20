@@ -21,6 +21,7 @@ import { getUser, clearAuth, saveUser } from '../../lib/storage';
 import api, { postMultipart } from '../../lib/api';
 import { GoldButton } from '../../components/GoldButton';
 import * as IntentLauncher from 'expo-intent-launcher';
+import * as Notifications from 'expo-notifications';
 
 function mimeFromUri(uri) {
   const u = String(uri).toLowerCase();
@@ -220,7 +221,7 @@ export default function ProfileScreen() {
     vehicleColor.trim().length > 0 &&
     vehiclePlateNumber.trim().length > 0;
 
-  const handleItem = (item) => {
+  const handleItem = async (item) => {
     if (item.action === 'openNotificationSettings') {
       if (Platform.OS === 'android') {
         IntentLauncher.startActivityAsync(
@@ -234,6 +235,26 @@ export default function ProfileScreen() {
       }
       return;
     }
+    if (item.action === 'testNotification') {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'New Job Request',
+          body: 'Test alert — if you see and hear this, notifications are working!',
+          sound: 'default',
+          android: {
+            channelId: 'job-requests',
+            priority: 'max',
+            vibrate: [0, 500, 250, 500],
+          },
+        },
+        trigger: null,
+      });
+      Alert.alert(
+        'Test sent',
+        'You should hear and feel the job alert now. If not, check Settings → Vula24 Pro → Notifications → Job Requests and ensure sound is ON.'
+      );
+      return;
+    }
     if (item.path) {
       router.push(item.path);
     }
@@ -245,6 +266,12 @@ export default function ProfileScreen() {
       label: 'Notification Sound',
       icon: 'notifications-outline',
       action: 'openNotificationSettings',
+    },
+    {
+      key: 'test-notif',
+      label: 'Test Job Alert',
+      icon: 'notifications-circle-outline',
+      action: 'testNotification',
     },
     { key: 'help', label: 'Help & Support', icon: 'help-circle-outline', path: '/help' },
     { key: 'terms', label: 'Terms & Privacy', icon: 'document-text-outline', path: '/terms' },
@@ -260,6 +287,12 @@ export default function ProfileScreen() {
       label: 'Notification Sound',
       icon: 'notifications-outline',
       action: 'openNotificationSettings',
+    },
+    {
+      key: 'test-notif',
+      label: 'Test Job Alert',
+      icon: 'notifications-circle-outline',
+      action: 'testNotification',
     },
     { key: 'sched', label: 'Scheduled quote requests', icon: 'calendar-outline', path: '/scheduled-quotes' },
     { key: 'pricing', label: 'My Services & Pricing', icon: 'pricetags-outline', path: '/pricing' },

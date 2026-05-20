@@ -12,6 +12,13 @@ async function sendPushNotification(pushToken, title, body, data) {
       channelId: 'job-requests',
       ttl: 300,
       expiration: Math.floor(Date.now() / 1000) + 300,
+      android: {
+        channelId: 'job-requests',
+        priority: 'max',
+        sound: 'default',
+        vibrate: [0, 500, 250, 500],
+        sticky: false,
+      },
     };
     if (data != null && typeof data === 'object') {
       payload.data = data;
