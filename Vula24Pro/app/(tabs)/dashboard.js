@@ -412,6 +412,13 @@ export default function DashboardScreen() {
           '/api/locksmith/toggle-online'
         );
         setOnline(!!toggleData.isOnline);
+        const stored = await getUser();
+        if (stored) {
+          await saveUser({
+            ...stored,
+            isOnline: !!toggleData.isOnline,
+          });
+        }
       } else {
         setOnline(currentlyOnline);
       }
@@ -420,7 +427,7 @@ export default function DashboardScreen() {
       if (e.response?.status === 400 && data?.incomplete) {
         Alert.alert(
           'Profile incomplete',
-          'Add your profile photo and vehicle details before going online.',
+          'To go online you need to add:\n- Profile photo\n- Vehicle type, colour and plate number\nGo to Profile → Edit Account to complete.',
           [
             {
               text: 'Complete Profile',
