@@ -231,7 +231,7 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
+      async (response) => {
         const data = response.notification.request.content.data;
         if (data?.screen === 'scheduled-quotes') {
           router.push('/scheduled-quotes');
@@ -239,9 +239,16 @@ export default function DashboardScreen() {
         }
         const jobId = data?.jobId;
         if (jobId) {
+          const jid = String(jobId);
+          const dismissed = await AsyncStorage.getItem(
+            `dismiss_job_${jid}`
+          );
+          if (dismissed) return;
+          if (pushedJobRef.current === jid) return;
+          pushedJobRef.current = jid;
           router.push({
             pathname: '/job-request',
-            params: { jobId: String(jobId) },
+            params: { jobId: jid },
           });
         }
       }
