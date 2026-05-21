@@ -79,10 +79,12 @@ function verifyItnSignature(body) {
   const passphrase = process.env.PAYFAST_PASSPHRASE || '';
   const received = body.signature;
   if (!received) return false;
-
   const copy = { ...body };
   delete copy.signature;
   const computed = generateSignature(copy, passphrase);
+  console.log('[webhook] received sig:', received);
+  console.log('[webhook] computed sig:', computed);
+  console.log('[webhook] passphrase:', passphrase ? 'SET' : 'EMPTY');
   return computed === received;
 }
 
