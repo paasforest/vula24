@@ -29,9 +29,9 @@ function generateSignature(data, passphrase) {
     });
 
   let query = pairs.join('&');
-  if (passphrase) {
-    const p = String(passphrase).trim();
-    query += `&passphrase=${encodeURIComponent(p).replace(/%20/g, '+')}`;
+  const trimmedPassphrase = String(passphrase || '').trim();
+  if (trimmedPassphrase) {
+    query += `&passphrase=${encodeURIComponent(trimmedPassphrase).replace(/%20/g, '+')}`;
   }
   return crypto.createHash('md5').update(query).digest('hex');
 }
@@ -82,9 +82,13 @@ function verifyItnSignature(body) {
   const copy = { ...body };
   delete copy.signature;
   const computed = generateSignature(copy, passphrase);
-  console.log('[webhook] received sig:', received);
-  console.log('[webhook] computed sig:', computed);
-  console.log('[webhook] passphrase:', passphrase ? 'SET' : 'EMPTY');
+  console.log('[webhook] body keys:', Object.keys(body).sort().join(','));
+  console.log('[webhook] received:', received);
+  console.log('[webhook] computed:', computed);
+  console.log(
+    '[webhook] passphrase empty:',
+    !String(process.env.PAYFAST_PASSPHRASE || '').trim()
+  );
   return computed === received;
 }
 

@@ -36,6 +36,10 @@ const notificationRoutes = require('./routes/notifications');
 const customerRoutes = require('./routes/customer');
 
 const app = express();
+
+// Trust Railway's proxy
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 3000;
 
 // Security headers
