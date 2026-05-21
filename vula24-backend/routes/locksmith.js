@@ -82,8 +82,11 @@ router.post(
         if (!SERVICE_TYPES.includes(item.serviceType)) {
           throw new Error('Invalid serviceType');
         }
-        if (typeof item.basePrice !== 'number' || item.basePrice <= 0) {
-          throw new Error('basePrice must be a positive number');
+        if (typeof item.basePrice !== 'number' || item.basePrice < 150) {
+          throw new Error('Minimum price is R150 per service');
+        }
+        if (item.basePrice > 10000) {
+          throw new Error('Maximum price is R10,000 per service');
         }
         if (typeof item.isOffered !== 'boolean') {
           throw new Error('isOffered must be a boolean');

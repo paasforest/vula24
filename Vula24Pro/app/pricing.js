@@ -93,13 +93,17 @@ export default function PricingScreen() {
     const payload = SERVICES.map((s) => {
       const r = rows[s.key] || { isOffered: false, basePrice: '' };
       const bp = parseFloat(String(r.basePrice), 10);
-      if (r.isOffered && (Number.isNaN(bp) || bp <= 0)) {
-        Alert.alert('Pricing', `Enter a valid price for ${s.label}.`);
+      if (r.isOffered && (Number.isNaN(bp) || bp < 150)) {
+        Alert.alert('Pricing', `Minimum price for ${s.label} is R150.`);
+        throw new Error('validation');
+      }
+      if (r.isOffered && bp > 10000) {
+        Alert.alert('Pricing', `Maximum price for ${s.label} is R10,000.`);
         throw new Error('validation');
       }
       return {
         serviceType: s.key,
-        basePrice: r.isOffered ? bp : 1,
+        basePrice: r.isOffered ? bp : 150,
         isOffered: !!r.isOffered,
       };
     });
@@ -172,11 +176,11 @@ export default function PricingScreen() {
                     value={r.basePrice}
                     onChangeText={(t) => updatePrice(s.key, t)}
                     keyboardType="decimal-pad"
-                    placeholder="0"
+                    placeholder="Min R150"
                   />
                   <Text style={styles.priceHelper}>
-                    Set your price for this service. Include your callout fee, travel costs, and
-                    labour. Customers will see a final price that includes our service fee.
+                    Min R150, max R10,000. Include callout, travel, and labour. Customers see a
+                    final price that includes our service fee.
                   </Text>
                   {preview ? (
                     <Text style={styles.customer}>
