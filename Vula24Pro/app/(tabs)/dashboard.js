@@ -305,9 +305,11 @@ export default function DashboardScreen() {
       const u = await getUser();
       if (!u?.id || !u.isOnline) return;
 
+      const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000);
       const mine = jobs.find(
         (j) =>
           j.status === 'PENDING' &&
+          new Date(j.createdAt) > threeMinutesAgo &&
           (j.teamMemberId === u.id ||
             (j.teamMemberId === null && j.locksithId === u.businessId))
       );
@@ -317,7 +319,11 @@ export default function DashboardScreen() {
       if (dismissed) return;
       if (pushedJobRef.current === mine.id) return;
 
+      const alreadyPushed = await AsyncStorage.getItem(`pushed_job_${mine.id}`);
+      if (alreadyPushed) return;
+
       pushedJobRef.current = mine.id;
+      await AsyncStorage.setItem(`pushed_job_${mine.id}`, '1');
       router.push({
         pathname: '/job-request',
         params: { jobId: mine.id },
@@ -334,9 +340,12 @@ export default function DashboardScreen() {
       const u = await getUser();
       if (!u?.id) return;
 
+      const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000);
       const pendingJob = jobs.find(
         (j) =>
-          j.status === 'PENDING' && j.locksithId === u.id
+          j.status === 'PENDING' &&
+          j.locksithId === u.id &&
+          new Date(j.createdAt) > threeMinutesAgo
       );
 
       if (!pendingJob) return;
@@ -347,7 +356,13 @@ export default function DashboardScreen() {
       if (dismissed) return;
       if (pushedJobRef.current === pendingJob.id) return;
 
+      const alreadyPushed = await AsyncStorage.getItem(
+        `pushed_job_${pendingJob.id}`
+      );
+      if (alreadyPushed) return;
+
       pushedJobRef.current = pendingJob.id;
+      await AsyncStorage.setItem(`pushed_job_${pendingJob.id}`, '1');
       router.push({
         pathname: '/job-request',
         params: { jobId: pendingJob.id },

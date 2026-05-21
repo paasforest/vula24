@@ -123,6 +123,30 @@ export default function RootLayout() {
             }
           );
 
+          const channelRegistered = await AsyncStorage.getItem(
+            'channel_registered_v1'
+          );
+          if (!channelRegistered) {
+            await AsyncStorage.setItem('channel_registered_v1', '1');
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: 'Job alerts ready',
+                body: 'Tap to set your alert sound: Settings → Vula24 Pro → Notifications → Job Requests → Sound',
+                sound: 'default',
+                sticky: false,
+                autoDismiss: true,
+                android: {
+                  channelId: 'job-requests',
+                  priority: 'default',
+                  autoDismiss: true,
+                  ongoing: false,
+                },
+              },
+              trigger: null,
+            });
+          }
+
           const shown = await AsyncStorage.getItem('battery_opt_requested');
           if (!shown) {
             await AsyncStorage.setItem('battery_opt_requested', '1');
