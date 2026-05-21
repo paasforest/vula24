@@ -93,8 +93,8 @@ export default function PricingScreen() {
     const payload = SERVICES.map((s) => {
       const r = rows[s.key] || { isOffered: false, basePrice: '' };
       const bp = parseFloat(String(r.basePrice), 10);
-      if (r.isOffered && (Number.isNaN(bp) || bp < 150)) {
-        Alert.alert('Pricing', `Minimum price for ${s.label} is R150.`);
+      if (r.isOffered && (Number.isNaN(bp) || bp < 20)) {
+        Alert.alert('Pricing', `Minimum price for ${s.label} is R20.`);
         throw new Error('validation');
       }
       if (r.isOffered && bp > 10000) {
@@ -176,7 +176,7 @@ export default function PricingScreen() {
                     value={r.basePrice}
                     onChangeText={(t) => updatePrice(s.key, t)}
                     keyboardType="decimal-pad"
-                    placeholder="Min R150"
+                    placeholder="Min R20"
                   />
                   <Text style={styles.priceHelper}>
                     Min R150, max R10,000. Include callout, travel, and labour. Customers see a
