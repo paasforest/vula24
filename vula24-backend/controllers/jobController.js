@@ -336,6 +336,7 @@ async function expireAcceptedJobs() {
       mode: 'EMERGENCY',
       status: 'ACCEPTED',
       depositPaid: false,
+      paymentInitiatedAt: null,
       updatedAt: { lt: fiveMinutesAgo },
     },
   });
@@ -371,6 +372,7 @@ async function expirePendingJobs() {
       mode: 'EMERGENCY',
       status: 'PENDING',
       createdAt: { lt: twoMinutesAgo },
+      paymentInitiatedAt: null,
     },
     select: {
       id: true,
@@ -382,8 +384,6 @@ async function expirePendingJobs() {
       customerAddress: true,
     },
   });
-
-  if (stale.length === 0) return;
 
   let reassigned = 0;
   let cancelled = 0;
@@ -488,9 +488,44 @@ async function expirePendingJobs() {
     }
   }
 
-  console.log(
-    `[expirePendingJobs] reassigned ${reassigned}, cancelled ${cancelled}`
-  );
+  if (stale.length > 0) {
+    console.log(
+      `[expirePendingJobs] reassigned ${reassigned}, cancelled ${cancelled}`
+    );
+  }
+
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+  const abandonedPayments = await prisma.job.findMany({
+    where: {
+      mode: 'EMERGENCY',
+      status: { in: ['PENDING', 'ACCEPTED'] },
+      paymentInitiatedAt: {
+        not: null,
+        lt: tenMinutesAgo,
+      },
+      depositPaid: false,
+    },
+    select: {
+      id: true,
+      locksithId: true,
+      teamMemberId: true,
+    },
+  });
+
+  for (const job of abandonedPayments) {
+    await prisma.job.update({
+      where: { id: job.id },
+      data: {
+        status: 'CANCELLED',
+        locksithId: null,
+        teamMemberId: null,
+      },
+    });
+    console.log(
+      '[expiry] Abandoned payment job cancelled:',
+      job.id
+    );
+  }
 }
 
 async function locksmithTimeout(req, res) {

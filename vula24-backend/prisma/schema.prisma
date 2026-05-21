@@ -211,6 +211,7 @@ model Job {
   locksithEarning   Float
   depositPaid       Boolean     @default(false)
   finalPaid         Boolean     @default(false)
+  paymentInitiatedAt DateTime?
   paymentMethod     PaymentMethod @default(APP)
   cashCollected     Float?
   isDisputed        Boolean     @default(false)

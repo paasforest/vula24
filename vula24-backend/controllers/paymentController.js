@@ -84,6 +84,11 @@ async function createDepositPayment(req, res) {
   if (!job) throw new AppError('Job not found', 404);
   if (job.customerId !== customerId) throw new AppError('Forbidden', 403);
 
+  await prisma.job.update({
+    where: { id: jobId },
+    data: { paymentInitiatedAt: new Date() },
+  });
+
   const amount = job.totalPrice;
   if (amount <= 0) throw new AppError('Invalid job total for payment', 400);
 
