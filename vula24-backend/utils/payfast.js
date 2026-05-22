@@ -83,9 +83,11 @@ function verifyItnSignature(body) {
   const copy = { ...body };
   delete copy.signature;
 
-  // PayFast uses NO URL encoding
-  // Include ALL fields, sort alphabetically
+  // Exclude empty fields - PayFast excludes them when signing
   const pairs = Object.keys(copy)
+    .filter(
+      (k) => copy[k] !== '' && copy[k] !== null && copy[k] !== undefined
+    )
     .sort()
     .map((k) => `${k}=${copy[k]}`)
     .join('&');
@@ -97,7 +99,6 @@ function verifyItnSignature(body) {
 
   const computed = crypto.createHash('md5').update(query).digest('hex');
 
-  console.log('[webhook] query:', query);
   console.log('[webhook] computed:', computed);
   console.log('[webhook] received:', received);
   console.log('[webhook] match:', computed === received);
