@@ -153,6 +153,7 @@ async function createWalletTopup(req, res) {
 
 async function payfastWebhook(req, res) {
   const body = req.body;
+  console.log('[webhook] RAW BODY:', JSON.stringify(req.body, null, 2));
   if (!verifyItnSignature(body)) {
     return res.status(400).send('INVALID');
   }
