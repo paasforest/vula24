@@ -109,8 +109,20 @@ const paymentLimiter = rateLimit({
 app.use('/api/payments', paymentLimiter);
 
 app.use(morgan('combined'));
+
+// Capture the raw request body on the webhook route so we can log the exact
+// bytes PayFast sent before any URL-decoding or field filtering takes place.
+// express.urlencoded's `verify` callback fires before the parsed body is set,
+// giving us the original Buffer as `buf`.
+app.use(
+  express.urlencoded({
+    extended: true,
+    verify: (req, _res, buf) => {
+      req.rawBody = buf.toString('utf8');
+    },
+  })
+);
 app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true }));
 
 app.get('/health', (req, res) => {
   res.json({
