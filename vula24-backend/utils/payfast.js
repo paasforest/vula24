@@ -79,16 +79,29 @@ function verifyItnSignature(body) {
   const passphrase = process.env.PAYFAST_PASSPHRASE || '';
   const received = body.signature;
   if (!received) return false;
+
   const copy = { ...body };
   delete copy.signature;
-  const computed = generateSignature(copy, passphrase);
-  console.log('[webhook] body keys:', Object.keys(body).sort().join(','));
-  console.log('[webhook] received:', received);
+
+  // PayFast uses NO URL encoding
+  // Include ALL fields, sort alphabetically
+  const pairs = Object.keys(copy)
+    .sort()
+    .map((k) => `${k}=${copy[k]}`)
+    .join('&');
+
+  let query = pairs;
+  if (passphrase.trim()) {
+    query += `&passphrase=${passphrase.trim()}`;
+  }
+
+  const computed = crypto.createHash('md5').update(query).digest('hex');
+
+  console.log('[webhook] query:', query);
   console.log('[webhook] computed:', computed);
-  console.log(
-    '[webhook] passphrase empty:',
-    !String(process.env.PAYFAST_PASSPHRASE || '').trim()
-  );
+  console.log('[webhook] received:', received);
+  console.log('[webhook] match:', computed === received);
+
   return computed === received;
 }
 
