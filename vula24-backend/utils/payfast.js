@@ -75,32 +75,18 @@ function buildPaymentFields({
 /**
  * Verify ITN (webhook) signature from PayFast POST body (flat object)
  */
-function verifyItnSignature(body) {
-  const passphrase = process.env.PAYFAST_PASSPHRASE || '';
+function verifyItnSignature(body, rawBody) {
   const received = body.signature;
   if (!received) return false;
+  if (!rawBody) return false;
 
-  const copy = { ...body };
-  delete copy.signature;
-
-  // Exclude empty fields - PayFast excludes them when signing
-  const pairs = Object.keys(copy)
-    .filter(
-      (k) => copy[k] !== '' && copy[k] !== null && copy[k] !== undefined
-    )
-    .sort()
-    .map((k) => `${k}=${copy[k]}`)
+  const withoutSig = rawBody
+    .split('&')
+    .filter((p) => !p.startsWith('signature='))
     .join('&');
 
-  let query = pairs;
-  if (passphrase.trim()) {
-    query += `&passphrase=${passphrase.trim()}`;
-  }
+  const computed = crypto.createHash('md5').update(withoutSig).digest('hex');
 
-  const computed = crypto.createHash('md5').update(query).digest('hex');
-
-  console.log('[webhook] computed:', computed);
-  console.log('[webhook] received:', received);
   console.log('[webhook] match:', computed === received);
 
   return computed === received;
