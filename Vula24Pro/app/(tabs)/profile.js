@@ -173,6 +173,16 @@ export default function ProfileScreen() {
           vehicleColor: vehicleColor.trim() || undefined,
           vehiclePlateNumber: vehiclePlateNumber.trim() || undefined,
         });
+        const stored = await getUser();
+        if (stored) {
+          await saveUser({
+            ...stored,
+            vehicleType: vehicleType.trim() || stored.vehicleType,
+            vehicleColor: vehicleColor.trim() || stored.vehicleColor,
+            vehiclePlateNumber:
+              vehiclePlateNumber.trim() || stored.vehiclePlateNumber,
+          });
+        }
         Alert.alert('Saved', 'Vehicle info updated.');
         return;
       }

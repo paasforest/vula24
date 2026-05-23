@@ -124,13 +124,21 @@ export default function DashboardScreen() {
         await saveUser({
           ...stored,
           isOnline: isOnlineServer,
+          profilePhoto: data.member?.profilePhoto || stored?.profilePhoto,
+          vehicleType: data.member?.vehicleType || stored?.vehicleType,
+          vehicleColor: data.member?.vehicleColor || stored?.vehicleColor,
+          vehiclePlateNumber:
+            data.member?.vehiclePlateNumber || stored?.vehiclePlateNumber,
         });
+        setUser((prev) => ({
+          ...prev,
+          profilePhoto: data.member?.profilePhoto,
+          vehicleType: data.member?.vehicleType,
+          vehicleColor: data.member?.vehicleColor,
+          vehiclePlateNumber: data.member?.vehiclePlateNumber,
+        }));
       } catch (e) {
-        console.warn(
-          '[loadProfile] member profile failed:',
-          e?.response?.status,
-          e?.response?.data
-        );
+        console.warn('[loadProfile] member:', e?.message);
       }
       return;
     }
@@ -174,25 +182,28 @@ export default function DashboardScreen() {
     }
   }, [isMember]);
 
-  const postLocationIfPossible = async () => {
+  const postLocationIfPossible = useCallback(async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return;
     try {
       const loc = await Location.getCurrentPositionAsync({});
-      await api.post('/api/locksmith/location/update', {
+      const endpoint = isMember
+        ? '/api/member/location/update'
+        : '/api/locksmith/location/update';
+      await api.post(endpoint, {
         lat: loc.coords.latitude,
         lng: loc.coords.longitude,
       });
     } catch {
       /* ignore */
     }
-  };
+  }, [isMember]);
 
   useEffect(() => {
     if (!online) return;
     const interval = setInterval(postLocationIfPossible, 30000);
     return () => clearInterval(interval);
-  }, [online]);
+  }, [online, postLocationIfPossible]);
 
   useEffect(() => {
     if (!isMember || !online) return;
@@ -388,9 +399,13 @@ export default function DashboardScreen() {
   }, [loadProfile]);
 
   const onToggleOnline = async (value) => {
+    if (toggleLoading) return;
+    const storedForMember = await getUser();
+    const currentIsMember =
+      storedForMember?.isMember === true || isMember;
     setToggleLoading(true);
     try {
-      if (isMember) {
+      if (currentIsMember) {
         let body = {};
         if (value) {
           const { status } = await Location.requestForegroundPermissionsAsync();

@@ -107,7 +107,9 @@ export default function JobRequestScreen() {
         timerDone.current = true;
         (async () => {
           try {
-            await api.post(`/api/jobs/${jobId}/locksmith-timeout`);
+            if (!isMember) {
+              await api.post(`/api/jobs/${jobId}/locksmith-timeout`);
+            }
           } catch {
             /* ignore */
           }
