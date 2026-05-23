@@ -130,6 +130,35 @@
     </div>
 
     <div class="card">
+      <h2>Payment History</h2>
+      <div class="toolbar">
+        <button type="button" class="btn btn-ghost" id="btn-refresh-payments">Refresh</button>
+        <button type="button" class="btn btn-ghost" id="btn-payments-prev">Previous</button>
+        <button type="button" class="btn btn-ghost" id="btn-payments-next">Next</button>
+        <span id="payments-page-info" style="color:var(--muted);font-size:0.85rem;align-self:center"></span>
+      </div>
+      <div id="payments-table-wrap"></div>
+      <div id="payments-err" class="err hidden"></div>
+    </div>
+
+    <div class="card">
+      <h2>Withdrawal Requests</h2>
+      <div class="toolbar">
+        <div>
+          <label>Status</label>
+          <select id="withdrawals-status-filter">
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="paid">Paid</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-ghost" id="btn-refresh-withdrawals">Refresh</button>
+      </div>
+      <div id="withdrawals-table-wrap"></div>
+      <div id="withdrawals-err" class="err hidden"></div>
+    </div>
+
+    <div class="card">
       <h2>Pending locksmiths</h2>
       <div class="toolbar">
         <button type="button" class="btn btn-ghost" id="btn-refresh-pending">Refresh</button>
@@ -193,6 +222,7 @@
         <select id="audit-action-filter">
           <option value="">All actions</option>
           <option value="WITHDRAWAL_REQUESTED">Withdrawals</option>
+          <option value="WITHDRAWAL_PAID">Withdrawals paid</option>
           <option value="PAYOUT_RELEASED">Payouts</option>
           <option value="PAYMENT_RECEIVED">Payments</option>
           <option value="LOGIN_FAILED">Failed logins</option>
@@ -576,6 +606,161 @@
 
       let allJobsCache = [];
       var pendingLocksmithById = {};
+      let paymentsPage = 1;
+      const paymentsLimit = 50;
+
+      async function refreshPayments() {
+        elErr('payments-err', '');
+        const wrap = document.getElementById('payments-table-wrap');
+        wrap.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+        const prevBtn = document.getElementById('btn-payments-prev');
+        const nextBtn = document.getElementById('btn-payments-next');
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        try {
+          const data = await apiFetch(
+            '/api/admin/payments?page=' +
+              paymentsPage +
+              '&limit=' +
+              paymentsLimit
+          );
+          const rows = data.jobs || [];
+          const total = data.total || 0;
+          const totalPages = Math.max(1, Math.ceil(total / paymentsLimit));
+          document.getElementById('payments-page-info').textContent =
+            'Page ' + paymentsPage + ' of ' + totalPages + ' (' + total + ' total)';
+          prevBtn.disabled = paymentsPage <= 1;
+          nextBtn.disabled = paymentsPage >= totalPages;
+
+          if (!rows.length) {
+            wrap.innerHTML = '<p style="color:var(--muted)">No paid deposits yet.</p>';
+            return;
+          }
+
+          let html =
+            '<table><thead><tr><th>Date</th><th>Customer</th><th>Locksmith</th><th>Service</th><th>Amount</th><th>Platform fee</th><th>Job ID</th></tr></thead><tbody>';
+          for (const j of rows) {
+            const cust =
+              escapeHtml(j.customer?.name || '—') +
+              (j.customer?.phone ? '<br><span style="color:var(--muted)">' + escapeHtml(j.customer.phone) + '</span>' : '');
+            const lm =
+              escapeHtml(j.locksmith?.name || '—') +
+              (j.locksmith?.phone ? '<br><span style="color:var(--muted)">' + escapeHtml(j.locksmith.phone) + '</span>' : '');
+            html +=
+              '<tr><td>' +
+              escapeHtml(fmtDate(j.updatedAt || j.createdAt)) +
+              '</td><td>' +
+              cust +
+              '</td><td>' +
+              lm +
+              '</td><td>' +
+              escapeHtml(String(j.serviceType || '').replace(/_/g, ' ')) +
+              '</td><td>R ' +
+              Number(j.totalPrice || 0).toFixed(2) +
+              '</td><td>R ' +
+              Number(j.platformFee || 0).toFixed(2) +
+              '</td><td class="mono">' +
+              shortId(j.id) +
+              '</td></tr>';
+          }
+          html += '</tbody></table>';
+          wrap.innerHTML = html;
+        } catch (e) {
+          wrap.innerHTML = '';
+          elErr('payments-err', e.message);
+        }
+      }
+
+      async function refreshWithdrawals() {
+        elErr('withdrawals-err', '');
+        const wrap = document.getElementById('withdrawals-table-wrap');
+        wrap.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+        try {
+          const status = document.getElementById('withdrawals-status-filter').value;
+          const q = status ? '?status=' + encodeURIComponent(status) : '';
+          const data = await apiFetch('/api/admin/withdrawals' + q);
+          const rows = data.transactions || [];
+          if (!rows.length) {
+            wrap.innerHTML = '<p style="color:var(--muted)">No withdrawal requests.</p>';
+            return;
+          }
+
+          let html =
+            '<table><thead><tr><th>Date</th><th>Locksmith</th><th>Bank</th><th>Account</th><th>Holder</th><th>Amount</th><th>Status</th><th>Reference</th><th>Actions</th></tr></thead><tbody>';
+          for (const t of rows) {
+            const ls = t.wallet?.locksmith || {};
+            const paid = !!t.withdrawalPaidAt;
+            const statusLabel = paid ? 'Paid' : 'Pending';
+            const statusColor = paid ? '#34c759' : '#ff9500';
+            const lm =
+              escapeHtml(ls.name || '—') +
+              (ls.phone ? '<br><span style="color:var(--muted)">' + escapeHtml(ls.phone) + '</span>' : '');
+            html +=
+              '<tr><td>' +
+              escapeHtml(fmtDate(t.createdAt)) +
+              '</td><td>' +
+              lm +
+              '</td><td>' +
+              escapeHtml(ls.bankName || '—') +
+              '</td><td class="mono">' +
+              escapeHtml(ls.bankAccountNumber || '—') +
+              '</td><td>' +
+              escapeHtml(ls.bankAccountHolder || '—') +
+              '</td><td>R ' +
+              Number(t.amount || 0).toFixed(2) +
+              '</td><td style="color:' +
+              statusColor +
+              ';font-weight:600">' +
+              statusLabel +
+              '</td><td class="mono">' +
+              escapeHtml(t.withdrawalReference || '—') +
+              '</td><td>';
+            if (!paid) {
+              html +=
+                '<div class="row-actions" style="margin-top:0">' +
+                '<input type="text" class="withdrawal-ref-input" data-id="' +
+                t.id +
+                '" placeholder="Bank ref" style="min-width:100px;max-width:140px;padding:6px 8px;font-size:0.8rem" />' +
+                '<button type="button" class="btn btn-gold btn-mark-paid" data-id="' +
+                t.id +
+                '">Mark as Paid</button></div>';
+            } else {
+              html += '—';
+            }
+            html += '</td></tr>';
+          }
+          html += '</tbody></table>';
+          wrap.innerHTML = html;
+
+          wrap.querySelectorAll('.btn-mark-paid').forEach(function (b) {
+            b.onclick = function () {
+              markWithdrawalPaid(b.getAttribute('data-id'), b);
+            };
+          });
+        } catch (e) {
+          wrap.innerHTML = '';
+          elErr('withdrawals-err', e.message);
+        }
+      }
+
+      async function markWithdrawalPaid(id, btn) {
+        const row = btn.closest('tr');
+        const input = row ? row.querySelector('.withdrawal-ref-input') : null;
+        const reference = input ? input.value.trim() : '';
+        if (!window.confirm('Mark this withdrawal as paid?')) return;
+        btn.disabled = true;
+        try {
+          await apiFetch('/api/admin/withdrawals/' + encodeURIComponent(id) + '/paid', {
+            method: 'PUT',
+            body: JSON.stringify({ reference: reference || null }),
+          });
+          await refreshWithdrawals();
+        } catch (e) {
+          alert(e.message);
+        } finally {
+          btn.disabled = false;
+        }
+      }
 
       function reviewLocksmith(r) {
         if (!r) return;
@@ -1009,6 +1194,9 @@
 
       function refreshAll() {
         refreshStats();
+        refreshCommission();
+        refreshPayments();
+        refreshWithdrawals();
         refreshPending();
         refreshDisputes();
         refreshJobs();
@@ -1027,6 +1215,19 @@
         alert('API URL saved');
       };
       document.getElementById('btn-refresh-stats').onclick = refreshStats;
+      document.getElementById('btn-refresh-payments').onclick = refreshPayments;
+      document.getElementById('btn-payments-prev').onclick = function () {
+        if (paymentsPage > 1) {
+          paymentsPage -= 1;
+          refreshPayments();
+        }
+      };
+      document.getElementById('btn-payments-next').onclick = function () {
+        paymentsPage += 1;
+        refreshPayments();
+      };
+      document.getElementById('btn-refresh-withdrawals').onclick = refreshWithdrawals;
+      document.getElementById('withdrawals-status-filter').onchange = refreshWithdrawals;
       document.getElementById('btn-refresh-pending').onclick = refreshPending;
       document.getElementById('btn-refresh-disputes').onclick = refreshDisputes;
       document.getElementById('btn-refresh-jobs').onclick = refreshJobs;

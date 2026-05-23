@@ -81,6 +81,17 @@ router.get('/audit-logs', asyncHandler(admin.getAuditLogs));
 
 router.get('/stats', asyncHandler(admin.getStats));
 
+router.get('/payments', asyncHandler(admin.getPaymentHistory));
+
+router.get('/withdrawals', asyncHandler(admin.getWithdrawals));
+
+router.put(
+  '/withdrawals/:id/paid',
+  [param('id').isUUID()],
+  handleValidationErrors,
+  asyncHandler(admin.markWithdrawalPaid)
+);
+
 router.post(
   '/customer/:id/strike',
   [param('id').isUUID()],

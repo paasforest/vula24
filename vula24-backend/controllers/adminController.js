@@ -567,6 +567,93 @@ async function listAdminTeamMembers(req, res) {
   res.json({ members });
 }
 
+async function getPaymentHistory(req, res) {
+  const { page = 1, limit = 50 } = req.query;
+  const jobs = await prisma.job.findMany({
+    where: { depositPaid: true },
+    orderBy: { updatedAt: 'desc' },
+    take: parseInt(limit),
+    skip: (parseInt(page) - 1) * parseInt(limit),
+    select: {
+      id: true,
+      serviceType: true,
+      mode: true,
+      totalPrice: true,
+      platformFee: true,
+      locksithEarning: true,
+      depositPaid: true,
+      createdAt: true,
+      updatedAt: true,
+      customer: {
+        select: { name: true, phone: true },
+      },
+      locksmith: {
+        select: { name: true, phone: true },
+      },
+    },
+  });
+  const total = await prisma.job.count({
+    where: { depositPaid: true },
+  });
+  res.json({ jobs, total });
+}
+
+async function getWithdrawals(req, res) {
+  const { status } = req.query;
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      type: 'DEBIT',
+      description: 'Withdrawal request',
+      ...(status === 'pending' && {
+        withdrawalPaidAt: null,
+      }),
+      ...(status === 'paid' && {
+        withdrawalPaidAt: { not: null },
+      }),
+    },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      wallet: {
+        include: {
+          locksmith: {
+            select: {
+              name: true,
+              phone: true,
+              bankName: true,
+              bankAccountNumber: true,
+              bankAccountHolder: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  res.json({ transactions });
+}
+
+async function markWithdrawalPaid(req, res) {
+  const { id } = req.params;
+  const { reference } = req.body;
+
+  const transaction = await prisma.transaction.update({
+    where: { id },
+    data: {
+      withdrawalPaidAt: new Date(),
+      withdrawalReference: reference || null,
+    },
+  });
+
+  await audit(AuditAction.WITHDRAWAL_PAID, {
+    entityType: 'TRANSACTION',
+    entityId: id,
+    actorType: 'ADMIN',
+    metadata: { reference },
+    ipAddress: req.ip,
+  });
+
+  res.json({ success: true, transaction });
+}
+
 module.exports = {
   adminLogin,
   listPendingLocksmiths,
@@ -583,4 +670,7 @@ module.exports = {
   deleteLocksmith,
   listAdminTeamMembers,
   getAuditLogs,
+  getPaymentHistory,
+  getWithdrawals,
+  markWithdrawalPaid,
 };

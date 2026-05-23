@@ -282,6 +282,8 @@ model Transaction {
   job              Job?         @relation("JobWalletTx", fields: [jobId], references: [id], onDelete: SetNull)
   /// Optional dedupe key for idempotent payment releases / credits (unused until callers set it).
   idempotencyKey   String?      @unique
+  withdrawalPaidAt    DateTime?
+  withdrawalReference String?
   createdAt        DateTime     @default(now())
 
   @@map("transactions")
