@@ -488,12 +488,6 @@ async function expirePendingJobs() {
     }
   }
 
-  if (stale.length > 0) {
-    console.log(
-      `[expirePendingJobs] reassigned ${reassigned}, cancelled ${cancelled}`
-    );
-  }
-
   const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
   const abandonedPayments = await prisma.job.findMany({
     where: {
@@ -521,10 +515,6 @@ async function expirePendingJobs() {
         teamMemberId: null,
       },
     });
-    console.log(
-      '[expiry] Abandoned payment job cancelled:',
-      job.id
-    );
   }
 }
 

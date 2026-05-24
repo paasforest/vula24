@@ -87,8 +87,6 @@ function verifyItnSignature(body, rawBody) {
 
   const computed = crypto.createHash('md5').update(withoutSig).digest('hex');
 
-  console.log('[webhook] match:', computed === received);
-
   return computed === received;
 }
 
