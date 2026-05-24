@@ -1551,6 +1551,7 @@ async function updateLocksmithProfile(req, res) {
     'toolsPhotoUrl',
     'proofOfAddressUrl',
     'profilePhoto',
+    'vehicleMake',
     'vehicleType',
     'vehicleColor',
     'vehiclePlateNumber',
@@ -1946,9 +1947,10 @@ async function getMemberProfile(req, res) {
 }
 
 async function updateMemberProfile(req, res) {
-  const { vehicleType, vehicleColor, vehiclePlateNumber, profilePhoto } =
+  const { vehicleMake, vehicleType, vehicleColor, vehiclePlateNumber, profilePhoto } =
     req.body;
   const updateData = {};
+  if (vehicleMake !== undefined) updateData.vehicleMake = vehicleMake;
   if (vehicleType !== undefined) updateData.vehicleType = vehicleType;
   if (vehicleColor !== undefined) updateData.vehicleColor = vehicleColor;
   if (vehiclePlateNumber !== undefined)

@@ -111,6 +111,59 @@ async function authenticateAdmin(req, res, next) {
   }
 }
 
+async function authenticateCustomerLocksmithOrMember(req, res, next) {
+  try {
+    const token = getBearerToken(req);
+    if (!token) return next(new AppError('Authentication required', 401));
+    const payload = verifyUserToken(token);
+
+    if (payload.type === 'customer') {
+      const customer = await prisma.customer.findUnique({
+        where: { id: payload.sub },
+      });
+      if (!customer) return next(new AppError('Customer not found', 401));
+      req.customer = customer;
+      req.notificationRecipient = {
+        id: customer.id,
+        type: 'CUSTOMER',
+      };
+      return next();
+    }
+
+    if (payload.type === 'locksmith') {
+      const locksmith = await prisma.locksmith.findUnique({
+        where: { id: payload.sub },
+      });
+      if (!locksmith) return next(new AppError('Locksmith not found', 401));
+      req.locksmith = locksmith;
+      req.notificationRecipient = {
+        id: locksmith.id,
+        type: 'LOCKSMITH',
+      };
+      return next();
+    }
+
+    if (payload.type === 'member') {
+      const member = await prisma.teamMember.findUnique({
+        where: { id: payload.memberId || payload.sub },
+      });
+      if (!member || !member.isActive) {
+        return next(new AppError('Member not found', 401));
+      }
+      req.member = member;
+      req.notificationRecipient = {
+        id: member.id,
+        type: 'TEAM_MEMBER',
+      };
+      return next();
+    }
+
+    return next(new AppError('Invalid token', 403));
+  } catch {
+    next(new AppError('Invalid or expired token', 401));
+  }
+}
+
 /**
  * Customer or locksmith JWT for shared resources (e.g. notifications).
  * Sets req.notificationRecipient = { id, type: 'CUSTOMER' | 'LOCKSMITH' }.
@@ -198,4 +251,5 @@ module.exports = {
   authenticateAdmin,
   authenticateJobParticipant,
   authenticateCustomerOrLocksmith,
+  authenticateCustomerLocksmithOrMember,
 };

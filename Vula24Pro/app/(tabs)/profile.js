@@ -43,6 +43,7 @@ export default function ProfileScreen() {
   const [user, setUser] = useState(null);
   const [memberData, setMemberData] = useState(null);
   const [memberLoading, setMemberLoading] = useState(false);
+  const [vehicleMake, setVehicleMake] = useState('');
   const [vehicleType, setVehicleType] = useState('');
   const [vehicleColor, setVehicleColor] = useState('');
   const [vehiclePlateNumber, setVehiclePlateNumber] = useState('');
@@ -61,6 +62,7 @@ export default function ProfileScreen() {
       try {
         const { data } = await api.get('/api/member/profile');
         setMemberData(data.member);
+        setVehicleMake(data.member?.vehicleMake || '');
         setVehicleType(data.member?.vehicleType || '');
         setVehicleColor(data.member?.vehicleColor || '');
         setVehiclePlateNumber(data.member?.vehiclePlateNumber || '');
@@ -78,6 +80,7 @@ export default function ProfileScreen() {
         setMemberData(null);
         const u = await getUser();
         setUser(u);
+        setVehicleMake(u?.vehicleMake || '');
         setVehicleType(u?.vehicleType || '');
         setVehicleColor(u?.vehicleColor || '');
         setVehiclePlateNumber(u?.vehiclePlateNumber || '');
@@ -92,12 +95,14 @@ export default function ProfileScreen() {
       const ls = data.locksmith;
       setUser(ls);
       await saveUser(ls);
+      setVehicleMake(ls?.vehicleMake || '');
       setVehicleType(ls?.vehicleType || '');
       setVehicleColor(ls?.vehicleColor || '');
       setVehiclePlateNumber(ls?.vehiclePlateNumber || '');
     } catch {
       const u = await getUser();
       setUser(u);
+      setVehicleMake(u?.vehicleMake || '');
       setVehicleType(u?.vehicleType || '');
       setVehicleColor(u?.vehicleColor || '');
       setVehiclePlateNumber(u?.vehiclePlateNumber || '');
@@ -169,6 +174,7 @@ export default function ProfileScreen() {
     try {
       if (isMember) {
         await api.put('/api/member/profile', {
+          vehicleMake: vehicleMake.trim() || undefined,
           vehicleType: vehicleType.trim() || undefined,
           vehicleColor: vehicleColor.trim() || undefined,
           vehiclePlateNumber: vehiclePlateNumber.trim() || undefined,
@@ -177,6 +183,7 @@ export default function ProfileScreen() {
         if (stored) {
           await saveUser({
             ...stored,
+            vehicleMake: vehicleMake.trim() || stored.vehicleMake,
             vehicleType: vehicleType.trim() || stored.vehicleType,
             vehicleColor: vehicleColor.trim() || stored.vehicleColor,
             vehiclePlateNumber:
@@ -187,6 +194,7 @@ export default function ProfileScreen() {
         return;
       }
       await api.put('/api/locksmith/profile', {
+        vehicleMake: vehicleMake.trim() || undefined,
         vehicleType: vehicleType.trim() || undefined,
         vehicleColor: vehicleColor.trim() || undefined,
         vehiclePlateNumber: vehiclePlateNumber.trim() || undefined,
@@ -195,6 +203,7 @@ export default function ProfileScreen() {
       const merged = {
         ...prev,
         ...user,
+        vehicleMake: vehicleMake.trim() || null,
         vehicleType: vehicleType.trim() || null,
         vehicleColor: vehicleColor.trim() || null,
         vehiclePlateNumber: vehiclePlateNumber.trim() || null,
@@ -464,6 +473,15 @@ export default function ProfileScreen() {
                 : 'Vehicle info required to go online'}
           </Text>
           <Text style={styles.vehicleTitle}>Vehicle information</Text>
+          <Text style={styles.inputLabel}>Vehicle make</Text>
+          <Text style={styles.inputHint}>e.g. Toyota, BMW, VW</Text>
+          <TextInput
+            style={styles.input}
+            value={vehicleMake}
+            onChangeText={setVehicleMake}
+            placeholder="e.g. Toyota, BMW, VW"
+            placeholderTextColor="#666"
+          />
           <Text style={styles.inputLabel}>Vehicle type</Text>
           <Text style={styles.inputHint}>e.g. Sedan, Bakkie, SUV</Text>
           <TextInput

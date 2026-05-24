@@ -115,6 +115,7 @@ router.put(
     body('toolsPhotoUrl').optional().isString().trim(),
     body('proofOfAddressUrl').optional().isString().trim(),
     body('profilePhoto').optional().isString().trim(),
+    body('vehicleMake').optional().isString().trim(),
     body('vehicleType').optional().isString().trim(),
     body('vehicleColor').optional().isString().trim(),
     body('vehiclePlateNumber').optional().isString().trim(),

@@ -2,20 +2,20 @@ const { Router } = require('express');
 const { param } = require('express-validator');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { handleValidationErrors } = require('../middleware/validate');
-const { authenticateCustomerOrLocksmith } = require('../middleware/auth');
+const { authenticateCustomerLocksmithOrMember } = require('../middleware/auth');
 const notifications = require('../controllers/notificationController');
 
 const router = Router();
 
 router.get(
   '/',
-  authenticateCustomerOrLocksmith,
+  authenticateCustomerLocksmithOrMember,
   asyncHandler(notifications.listNotifications)
 );
 
 router.post(
   '/:id/read',
-  authenticateCustomerOrLocksmith,
+  authenticateCustomerLocksmithOrMember,
   [param('id').isUUID()],
   handleValidationErrors,
   asyncHandler(notifications.markNotificationRead)
@@ -23,7 +23,7 @@ router.post(
 
 router.post(
   '/read-all',
-  authenticateCustomerOrLocksmith,
+  authenticateCustomerLocksmithOrMember,
   asyncHandler(notifications.markAllNotificationsRead)
 );
 

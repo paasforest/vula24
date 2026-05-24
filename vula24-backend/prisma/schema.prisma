@@ -125,6 +125,7 @@ model Locksmith {
   totalJobs         Int         @default(0)
   walletMinimum     Float       @default(200)
   profilePhoto      String?
+  vehicleMake       String?
   vehicleType       String?
   vehicleColor      String?
   vehiclePlateNumber String?
@@ -160,6 +161,7 @@ model TeamMember {
   phone              String
   idPhotoUrl         String?
   profilePhoto       String?
+  vehicleMake        String?
   vehicleType        String?
   vehicleColor       String?
   vehiclePlateNumber String?

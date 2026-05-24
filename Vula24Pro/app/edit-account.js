@@ -26,6 +26,7 @@ export default function EditAccountScreen() {
   const [phone, setPhone] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [accountType, setAccountType] = useState(null);
+  const [vehicleMake, setVehicleMake] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,6 +38,7 @@ export default function EditAccountScreen() {
       setPhone(ls?.phone || '');
       setBusinessName(ls?.businessName || '');
       setAccountType(ls?.accountType || null);
+      setVehicleMake(ls?.vehicleMake || '');
     } catch (e) {
       Alert.alert(
         'Error',
@@ -69,6 +71,9 @@ export default function EditAccountScreen() {
       };
       if (accountType === 'BUSINESS') {
         body.businessName = businessName.trim();
+      }
+      if (vehicleMake.trim()) {
+        body.vehicleMake = vehicleMake.trim();
       }
       const { data } = await api.put('/api/locksmith/profile', body);
       const ls = data.locksmith;
@@ -154,6 +159,15 @@ export default function EditAccountScreen() {
             />
           ) : null}
 
+          <Text style={styles.sectionTitle}>Vehicle information</Text>
+          <FormInput
+            label="Vehicle make"
+            value={vehicleMake}
+            onChangeText={setVehicleMake}
+            placeholder="e.g. Toyota, BMW, VW"
+            autoCapitalize="words"
+          />
+
           <GoldButton title="Save" onPress={save} loading={saving} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -192,5 +206,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     marginBottom: 20,
+  },
+  sectionTitle: {
+    color: COLORS.accent,
+    fontSize: 17,
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 12,
   },
 });

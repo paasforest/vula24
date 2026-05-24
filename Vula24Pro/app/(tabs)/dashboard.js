@@ -125,6 +125,7 @@ export default function DashboardScreen() {
           ...stored,
           isOnline: isOnlineServer,
           profilePhoto: data.member?.profilePhoto || stored?.profilePhoto,
+          vehicleMake: data.member?.vehicleMake || stored?.vehicleMake,
           vehicleType: data.member?.vehicleType || stored?.vehicleType,
           vehicleColor: data.member?.vehicleColor || stored?.vehicleColor,
           vehiclePlateNumber:
@@ -133,6 +134,7 @@ export default function DashboardScreen() {
         setUser((prev) => ({
           ...prev,
           profilePhoto: data.member?.profilePhoto,
+          vehicleMake: data.member?.vehicleMake,
           vehicleType: data.member?.vehicleType,
           vehicleColor: data.member?.vehicleColor,
           vehiclePlateNumber: data.member?.vehiclePlateNumber,
@@ -560,9 +562,11 @@ export default function DashboardScreen() {
             <Text style={styles.headerGreet}>Good {timeOfDay()}, {name}</Text>
             <Text style={styles.headerSub}>{online ? 'You are online' : 'You are offline'}</Text>
           </View>
+          {!isMember && (
           <TouchableOpacity style={styles.notifBtn} onPress={() => router.push('/notifications')}>
             <Ionicons name="notifications-outline" size={22} color={COLORS.accent} />
           </TouchableOpacity>
+          )}
         </View>
 
         {isMember && (
