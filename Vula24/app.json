@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Vula24",
-    "owner": "paasvula24",
+    "owner": "advula24",
     "slug": "vula24",
     "scheme": "vula24",
     "version": "1.0.0",
@@ -50,7 +50,10 @@
               "host": "www.vula24.co.za"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "config": {
@@ -102,7 +105,7 @@
       "router": {},
       "googlePlacesApiKey": "AIzaSyBPS1Ek7P23ziEKh1OfawDPV4AMhu7WHAc",
       "eas": {
-        "projectId": "c1833db0-53d0-4b4f-b4f5-2bd5bebe1aaf"
+        "projectId": "90a721be-d782-4919-a768-ffc8d4fc830a"
       }
     }
   }
