@@ -1,6 +1,6 @@
 {
   "expo": {
-    "owner": "paasvula24",
+    "owner": "advula24",
     "name": "Vula24 Pro",
     "slug": "vula24-pro",
     "scheme": "vula24pro",
@@ -51,7 +51,10 @@
               "host": "www.vula24.co.za"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "config": {
@@ -111,7 +114,7 @@
       "router": {},
       "apiUrl": "https://vula24-production.up.railway.app",
       "eas": {
-        "projectId": "12427641-e48b-4663-910c-92769a22aded"
+        "projectId": "7c324f24-225a-489b-b9dc-e91837fa86af"
       }
     }
   }
