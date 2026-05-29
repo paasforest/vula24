@@ -122,21 +122,17 @@ export default function ActiveJobScreen() {
 
   const openNavigation = () => {
     if (!custLat || !custLng) return;
-    const label = encodeURIComponent(job?.customerAddress || 'Customer');
-    const url = Platform.select({
-      ios: `maps://?daddr=${custLat},${custLng}&q=${label}`,
-      android: `google.navigation:q=${custLat},${custLng}`,
+    const googleMapsUrl =
+      'https://www.google.com/maps/dir/?api=1' +
+      '&destination=' + custLat + ',' + custLng +
+      '&travelmode=driving';
+    Linking.openURL(googleMapsUrl).catch(() => {
+      Alert.alert(
+        'Navigation Error',
+        'Could not open maps. Please use ' +
+        job?.customerAddress + ' to navigate.'
+      );
     });
-    const fallback = `https://www.google.com/maps/dir/?api=1&destination=${custLat},${custLng}`;
-    Linking.canOpenURL(url)
-      .then((supported) => {
-        if (supported) {
-          Linking.openURL(url);
-        } else {
-          Linking.openURL(fallback);
-        }
-      })
-      .catch(() => Linking.openURL(fallback));
   };
 
   const custLat = job?.customerLat;
@@ -196,7 +192,7 @@ export default function ActiveJobScreen() {
             ? 'Dispute in progress — check notifications'
             : jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY'
               ? 'Waiting for customer payment…'
-              : 'Head out now — navigate to the customer pin'}
+              : 'En route to customer'}
         </Text>
       </SafeAreaView>
 
@@ -230,6 +226,17 @@ export default function ActiveJobScreen() {
           ) : primary ? (
             <GoldButton title={primary.label} onPress={primary.onPress} />
           ) : null}
+
+          {(jobStatus === 'DISPATCHED' || jobStatus === 'ARRIVED') &&
+            custLat && custLng && (
+            <TouchableOpacity
+              style={styles.navigateBtn}
+              onPress={openNavigation}
+            >
+              <Ionicons name="navigate-circle" size={20} color="#111111" />
+              <Text style={styles.navigateBtnText}>Open Navigation</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={styles.call}
@@ -358,4 +365,21 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   callText: { color: COLORS.bg, fontWeight: '700', fontSize: 16 },
+  navigateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#D4A017',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  navigateBtnText: {
+    color: '#111111',
+    fontWeight: '700',
+    fontSize: 15,
+  },
 });
