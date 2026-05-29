@@ -120,6 +120,25 @@ export default function ActiveJobScreen() {
     }
   };
 
+  const openNavigation = () => {
+    if (!custLat || !custLng) return;
+    const label = encodeURIComponent(job?.customerAddress || 'Customer');
+    const url = Platform.select({
+      ios: `maps://?daddr=${custLat},${custLng}&q=${label}`,
+      android: `google.navigation:q=${custLat},${custLng}`,
+    });
+    const fallback = `https://www.google.com/maps/dir/?api=1&destination=${custLat},${custLng}`;
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          Linking.openURL(fallback);
+        }
+      })
+      .catch(() => Linking.openURL(fallback));
+  };
+
   const custLat = job?.customerLat;
   const custLng = job?.customerLng;
   const region =
