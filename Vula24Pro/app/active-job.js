@@ -25,8 +25,13 @@ export default function ActiveJobScreen() {
   const [job, setJob] = useState(null);
   const [isMember, setIsMember] = useState(false);
   const [nearCustomer, setNearCustomer] = useState(false);
+  const [currentDistance, setCurrentDistance] = useState(null);
   const locInterval = useRef(null);
   const proximityIntervalRef = useRef(null);
+
+  const custLat = job?.customerLat;
+  const custLng = job?.customerLng;
+  const jobStatus = job?.status;
 
   useEffect(() => {
     getUser().then((u) => setIsMember(u?.isMember === true));
@@ -146,7 +151,11 @@ export default function ActiveJobScreen() {
 
     const checkProximity = async () => {
       try {
-        const { status } = await Location.getForegroundPermissionsAsync();
+        let { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          const result = await Location.requestForegroundPermissionsAsync();
+          status = result.status;
+        }
         if (status !== 'granted') return;
         const loc = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
@@ -157,15 +166,16 @@ export default function ActiveJobScreen() {
           custLat,
           custLng
         );
-        if (distance <= 300) {
+        setCurrentDistance(Math.round(distance));
+        if (distance <= 500) {
           setNearCustomer(true);
           if (proximityIntervalRef.current) {
             clearInterval(proximityIntervalRef.current);
             proximityIntervalRef.current = null;
           }
         }
-      } catch {
-        /* ignore location errors */
+      } catch (e) {
+        console.warn('[proximity] error:', e?.message);
       }
     };
 
@@ -203,8 +213,6 @@ export default function ActiveJobScreen() {
     });
   };
 
-  const custLat = job?.customerLat;
-  const custLng = job?.customerLng;
   const region =
     custLat != null && custLng != null
       ? {
@@ -220,7 +228,6 @@ export default function ActiveJobScreen() {
           longitudeDelta: 0.1,
         };
 
-  const jobStatus = job?.status;
   const jobMode = job?.mode;
   const isDisputed = job?.isDisputed === true;
   let primary = null;
@@ -295,7 +302,9 @@ export default function ActiveJobScreen() {
                 />
               ) : (
                 <Text style={styles.proximityHint}>
-                  "I Have Arrived" will appear when you are near the customer
+                  {currentDistance !== null
+                    ? `${currentDistance}m away — "I Have Arrived" appears within 500m`
+                    : '"I Have Arrived" appears when you are near the customer'}
                 </Text>
               )}
             </>
