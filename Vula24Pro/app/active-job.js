@@ -24,7 +24,9 @@ export default function ActiveJobScreen() {
 
   const [job, setJob] = useState(null);
   const [isMember, setIsMember] = useState(false);
+  const [nearCustomer, setNearCustomer] = useState(false);
   const locInterval = useRef(null);
+  const proximityIntervalRef = useRef(null);
 
   useEffect(() => {
     getUser().then((u) => setIsMember(u?.isMember === true));
@@ -99,6 +101,19 @@ export default function ActiveJobScreen() {
     };
   }, [job?.status, job?.mode, sendLocation]);
 
+  function getDistanceMeters(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) *
+      Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
   const action = async (path) => {
     if (!jobId) return;
     try {
@@ -119,6 +134,59 @@ export default function ActiveJobScreen() {
       );
     }
   };
+
+  useEffect(() => {
+    if (jobStatus !== 'DISPATCHED' || !custLat || !custLng) {
+      if (proximityIntervalRef.current) {
+        clearInterval(proximityIntervalRef.current);
+        proximityIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const checkProximity = async () => {
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        const distance = getDistanceMeters(
+          loc.coords.latitude,
+          loc.coords.longitude,
+          custLat,
+          custLng
+        );
+        if (distance <= 300) {
+          setNearCustomer(true);
+          if (proximityIntervalRef.current) {
+            clearInterval(proximityIntervalRef.current);
+            proximityIntervalRef.current = null;
+          }
+        }
+      } catch {
+        /* ignore location errors */
+      }
+    };
+
+    checkProximity();
+    proximityIntervalRef.current = setInterval(checkProximity, 30000);
+
+    return () => {
+      if (proximityIntervalRef.current) {
+        clearInterval(proximityIntervalRef.current);
+      }
+    };
+  }, [jobStatus, custLat, custLng]);
+
+  useEffect(() => {
+    if (jobStatus === 'DISPATCHED' && custLat && custLng) {
+      const timer = setTimeout(() => {
+        openNavigation();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [jobStatus, custLat, custLng]);
 
   const openNavigation = () => {
     if (!custLat || !custLng) return;
@@ -209,12 +277,41 @@ export default function ActiveJobScreen() {
             <Text style={styles.waitPay}>Waiting for customer payment…</Text>
           ) : null}
 
-          {isDisputed ? (
+          {/* DISPATCHED: Navigation flow */}
+          {jobStatus === 'DISPATCHED' && !isDisputed && (
+            <>
+              <TouchableOpacity
+                style={styles.navigateBtn}
+                onPress={openNavigation}
+              >
+                <Ionicons name="navigate-circle" size={20} color="#111111" />
+                <Text style={styles.navigateBtnText}>Open Navigation</Text>
+              </TouchableOpacity>
+
+              {nearCustomer ? (
+                <GoldButton
+                  title="I Have Arrived"
+                  onPress={() => action('/arrived')}
+                />
+              ) : (
+                <Text style={styles.proximityHint}>
+                  "I Have Arrived" will appear when you are near the customer
+                </Text>
+              )}
+            </>
+          )}
+
+          {/* ARRIVED, IN_PROGRESS: normal flow */}
+          {jobStatus !== 'DISPATCHED' && !isDisputed && primary && (
+            <GoldButton title={primary.label} onPress={primary.onPress} />
+          )}
+
+          {/* Dispute card */}
+          {isDisputed && (
             <View style={styles.disputeCard}>
               <Text style={styles.disputeTitle}>Dispute in progress</Text>
               <Text style={styles.disputeBody}>
-                A dispute has been raised for this job. Your payout is on hold until it is
-                resolved. Please check your notifications for updates or contact support.
+                This job is under review. Contact support for assistance.
               </Text>
               <TouchableOpacity
                 style={styles.disputeBtn}
@@ -223,29 +320,13 @@ export default function ActiveJobScreen() {
                 <Text style={styles.disputeBtnText}>Contact Support</Text>
               </TouchableOpacity>
             </View>
-          ) : primary ? (
-            <GoldButton title={primary.label} onPress={primary.onPress} />
-          ) : null}
-
-          {(jobStatus === 'DISPATCHED' || jobStatus === 'ARRIVED') &&
-            custLat && custLng && (
-            <TouchableOpacity
-              style={styles.navigateBtn}
-              onPress={openNavigation}
-            >
-              <Ionicons name="navigate-circle" size={20} color="#111111" />
-              <Text style={styles.navigateBtnText}>Open Navigation</Text>
-            </TouchableOpacity>
           )}
 
           <TouchableOpacity
             style={styles.call}
-            onPress={() => {
-              if (phone) Linking.openURL(`tel:${phone}`);
-              else Alert.alert('Phone', 'No phone on file.');
-            }}
+            onPress={() => Linking.openURL('tel:' + job?.customer?.phone)}
           >
-            <Ionicons name="call" size={22} color={COLORS.bg} style={{ marginRight: 8 }} />
+            <Ionicons name="call" size={18} color="#D4A017" />
             <Text style={styles.callText}>Call customer</Text>
           </TouchableOpacity>
 
@@ -364,7 +445,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 12,
   },
-  callText: { color: COLORS.bg, fontWeight: '700', fontSize: 16 },
+  callText: { color: COLORS.bg, fontWeight: '700', fontSize: 16, marginLeft: 8 },
+  proximityHint: {
+    textAlign: 'center',
+    color: '#AAAAAA',
+    fontSize: 13,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 20,
+  },
   navigateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
