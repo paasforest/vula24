@@ -54,6 +54,29 @@ const SERVICES = {
   ],
 };
 
+export const SERVICE_DESCRIPTIONS = {
+  CAR_LOCKOUT: "Locked out of your vehicle? Our verified locksmith will get you back in safely and quickly — no damage to your car guaranteed.",
+  HOUSE_LOCKOUT: "Locked out of your home? We'll get your door open fast and professionally, day or night.",
+  OFFICE_LOCKOUT: "Locked out of your office or business premises? Our locksmith will have you back inside with minimal disruption.",
+  KEY_DUPLICATION: "Need a spare key? We cut precise duplicates for most residential and commercial locks on the spot.",
+  LOST_KEY_REPLACEMENT: "Lost all your keys? We'll replace your locks and cut new keys so you're secure again.",
+  CAR_KEY_PROGRAMMING: "Need a new car key programmed? We program transponder keys and remote fobs for most vehicle makes and models.",
+  CAR_KEY_CUTTING: "Need a car key cut? We cut precision keys for most vehicles on site at your location.",
+  BROKEN_KEY_EXTRACTION: "Key snapped in the lock? We'll extract the broken piece safely without damaging your lock.",
+  IGNITION_REPAIR: "Ignition problems? We repair and replace ignition cylinders for most vehicle makes and models.",
+  LOCK_REPLACEMENT: "Need a lock replaced? We supply and fit quality locks for doors, gates and cabinets.",
+  LOCK_REPAIR: "Lock not working properly? We diagnose and repair faulty locks quickly and professionally.",
+  LOCK_UPGRADE: "Upgrade your security with a high-quality deadlock or multipoint locking system fitted by a verified professional.",
+  DEADLOCK_INSTALLATION: "Boost your home security with a professional deadlock installation. We supply and fit top-quality deadlocks.",
+  SAFE_OPENING: "Locked out of your safe? We open safes without damaging the contents — combination, key and electronic safes.",
+  GATE_MOTOR_REPAIR: "Gate motor not working? We diagnose and repair all major gate motor brands quickly.",
+  ACCESS_CONTROL: "Install or repair access control systems for your home or business — keypads, intercoms and card readers.",
+  PADLOCK_REMOVAL: "Padlock lost its key or jammed? We remove padlocks quickly without damaging the hasp or gate.",
+  GARAGE_DOOR: "Garage door not opening or closing properly? We repair and service all types of garage doors and motors.",
+  SECURITY_GATE: "Security gate won't open or lock properly? We repair and adjust security gates for homes and businesses.",
+  ELECTRIC_FENCE_GATE: "Electric fence gate faulty or not responding? We repair electric fence gates and access systems.",
+};
+
 function greeting() {
   const h = new Date().getHours();
   if (h < 12) return 'Good morning';
@@ -353,6 +376,7 @@ export default function HomeScreen() {
                   <Ionicons name={s.icon} size={26} color="#ff3b30" />
                 </View>
                 <Text style={styles.emergencyLabel}>{s.label}</Text>
+                <Text style={styles.fromPrice}>From R350</Text>
                 <View style={styles.urgentBadge}>
                   <Text style={styles.urgentText}>Urgent</Text>
                 </View>
@@ -390,6 +414,7 @@ export default function HomeScreen() {
                 <Text style={styles.scheduledLabel} numberOfLines={2}>
                   {s.label}
                 </Text>
+                <Text style={styles.fromPrice}>From R350</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -551,5 +576,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     marginTop: 10,
+  },
+  fromPrice: {
+    fontSize: 11,
+    color: '#AAAAAA',
+    marginTop: 3,
+    textAlign: 'center',
   },
 });

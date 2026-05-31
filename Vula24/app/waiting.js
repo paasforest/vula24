@@ -210,6 +210,9 @@ export default function WaitingScreen() {
         <Text style={styles.sub}>
           We are matching you with the nearest available locksmith
         </Text>
+        <Text style={styles.etaHint}>
+          Most locksmiths arrive within 15–30 minutes
+        </Text>
         {showReassurance ? (
           <Text style={styles.reassurance}>Still searching…</Text>
         ) : null}
@@ -254,6 +257,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     lineHeight: 22,
+  },
+  etaHint: {
+    fontSize: 13,
+    color: '#AAAAAA',
+    textAlign: 'center',
+    marginTop: 8,
   },
   reassurance: {
     color: COLORS.textMuted,

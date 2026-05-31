@@ -31,6 +31,16 @@ import {
   reverseGeocodeFormatted,
   formatExpoReversePlace,
 } from '../lib/googleGeocoding';
+import { SERVICE_DESCRIPTIONS } from './(tabs)/home';
+
+const CAR_SERVICES = [
+  'CAR_LOCKOUT',
+  'CAR_KEY_PROGRAMMING',
+  'CAR_KEY_CUTTING',
+  'IGNITION_REPAIR',
+  'BROKEN_KEY_EXTRACTION',
+  'LOST_KEY_REPLACEMENT',
+];
 
 function readPlaceLatLng(details) {
   if (!details?.geometry?.location) return null;
@@ -72,6 +82,9 @@ export default function BookScreen() {
   const [photoUri, setPhotoUri] = useState(null);
   const [loading, setLoading] = useState(false);
   const [keyboardBottomInset, setKeyboardBottomInset] = useState(0);
+  const [vehicleMake, setVehicleMake] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [vehicleColor, setVehicleColor] = useState('');
 
   const placesApiKey =
     (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
@@ -299,6 +312,11 @@ export default function BookScreen() {
         customerLng: lng,
         customerAddress: address.trim(),
         customerNote: note.trim() || undefined,
+        vehicleDetails: CAR_SERVICES.includes(serviceType) ? {
+          make: vehicleMake.trim(),
+          model: vehicleModel.trim(),
+          color: vehicleColor.trim(),
+        } : null,
       });
       router.replace({
         pathname: '/waiting',
@@ -368,6 +386,11 @@ export default function BookScreen() {
         customerLat: lat,
         customerLng: lng,
         customerAddress: address.trim(),
+        vehicleDetails: CAR_SERVICES.includes(serviceType) ? {
+          make: vehicleMake.trim(),
+          model: vehicleModel.trim(),
+          color: vehicleColor.trim(),
+        } : null,
       });
       router.replace({
         pathname: '/quotes',
@@ -498,6 +521,11 @@ export default function BookScreen() {
             <Text style={styles.serviceType}>
               {serviceType?.replace(/_/g, ' ') || '—'}
             </Text>
+            {SERVICE_DESCRIPTIONS[serviceType] && (
+              <Text style={styles.serviceDesc}>
+                {SERVICE_DESCRIPTIONS[serviceType]}
+              </Text>
+            )}
 
             <Text style={styles.sheetAddrLabel}>Pickup / service address</Text>
             <Text style={styles.sheetAddress} numberOfLines={4}>
@@ -505,6 +533,34 @@ export default function BookScreen() {
                 ? 'Locating…'
                 : address.trim() || 'Locating…'}
             </Text>
+
+            {CAR_SERVICES.includes(serviceType) && (
+              <View style={styles.vehicleSection}>
+                <Text style={styles.vehicleTitle}>Vehicle Details</Text>
+                <Text style={styles.vehicleHint}>Help your locksmith find you faster</Text>
+                <TextInput
+                  style={styles.vehicleInput}
+                  placeholder="Vehicle make (e.g. Toyota)"
+                  placeholderTextColor="#666"
+                  value={vehicleMake}
+                  onChangeText={setVehicleMake}
+                />
+                <TextInput
+                  style={styles.vehicleInput}
+                  placeholder="Model (e.g. Corolla)"
+                  placeholderTextColor="#666"
+                  value={vehicleModel}
+                  onChangeText={setVehicleModel}
+                />
+                <TextInput
+                  style={styles.vehicleInput}
+                  placeholder="Colour (e.g. Silver)"
+                  placeholderTextColor="#666"
+                  value={vehicleColor}
+                  onChangeText={setVehicleColor}
+                />
+              </View>
+            )}
 
             {isEmergency ? (
               <View style={styles.sheetSection}>
@@ -768,6 +824,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 16,
   },
+  serviceDesc: {
+    fontSize: 13,
+    color: '#AAAAAA',
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 10,
+    lineHeight: 19,
+    paddingHorizontal: 8,
+  },
   sheetAddrLabel: {
     color: COLORS.textMuted,
     fontSize: 13,
@@ -822,4 +887,30 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   dtText: { color: COLORS.text, fontSize: 16 },
+  vehicleSection: {
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  vehicleTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  vehicleHint: {
+    fontSize: 12,
+    color: '#AAAAAA',
+    marginBottom: 8,
+  },
+  vehicleInput: {
+    backgroundColor: '#222222',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
 });

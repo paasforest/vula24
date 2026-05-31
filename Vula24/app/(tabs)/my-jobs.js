@@ -8,6 +8,7 @@ import {
   Modal,
   Alert,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -169,9 +170,23 @@ export default function MyJobsScreen() {
               {item.customerAddress}
             </Text>
             {item.locksithId && item.locksmith?.name ? (
-              <Text style={styles.locksmith} numberOfLines={1}>
-                Locksmith: {item.locksmith.name}
-              </Text>
+              <View style={styles.locksmithRow}>
+                {item.locksmith?.profilePhoto ? (
+                  <Image
+                    source={{ uri: item.locksmith.profilePhoto }}
+                    style={styles.locksmithThumb}
+                  />
+                ) : (
+                  <View style={styles.locksmithInitial}>
+                    <Text style={styles.initialText}>
+                      {(item.locksmith?.name || 'L').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <Text style={styles.locksmithName}>
+                  {item.locksmith?.name || 'Locksmith'}
+                </Text>
+              </View>
             ) : null}
           </View>
         </View>
@@ -336,7 +351,36 @@ const styles = StyleSheet.create({
   service: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
   date: { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
   addr: { color: COLORS.textMuted, fontSize: 14, marginTop: 6 },
-  locksmith: { color: COLORS.textMuted, fontSize: 13, marginTop: 6, fontWeight: '600' },
+  locksmithRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  locksmithThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D4A017',
+  },
+  locksmithInitial: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#D4A017',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  initialText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#111111',
+  },
+  locksmithName: {
+    fontSize: 13,
+    color: '#AAAAAA',
+  },
   cardBot: {
     flexDirection: 'row',
     justifyContent: 'space-between',

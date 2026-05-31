@@ -280,6 +280,23 @@ export default function ActiveJobScreen() {
           <Text style={styles.svc}>{job?.serviceType?.replace(/_/g, ' ')}</Text>
           <Text style={styles.addr}>{job?.customerAddress}</Text>
 
+          {job?.vehicleDetails && (
+            job.vehicleDetails.make ||
+            job.vehicleDetails.model ||
+            job.vehicleDetails.color
+          ) && (
+            <View style={styles.vehicleCard}>
+              <Ionicons name="car-outline" size={14} color="#D4A017" />
+              <Text style={styles.vehicleText}>
+                {[
+                  job.vehicleDetails.make,
+                  job.vehicleDetails.model,
+                  job.vehicleDetails.color,
+                ].filter(Boolean).join(' · ')}
+              </Text>
+            </View>
+          )}
+
           {!isDisputed && jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY' ? (
             <Text style={styles.waitPay}>Waiting for customer payment…</Text>
           ) : null}
@@ -479,5 +496,22 @@ const styles = StyleSheet.create({
     color: '#111111',
     fontWeight: '700',
     fontSize: 15,
+  },
+  vehicleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
+  vehicleText: {
+    fontSize: 13,
+    color: '#D4A017',
+    fontWeight: '500',
   },
 });

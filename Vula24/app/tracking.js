@@ -38,6 +38,14 @@ const DEFAULT_MAP_REGION = {
   longitudeDelta: 0.1,
 };
 
+function getETA(distanceKm) {
+  if (!distanceKm) return null;
+  const minutes = Math.round((distanceKm / 40) * 60);
+  if (minutes < 2) return 'Arriving now';
+  if (minutes > 60) return 'Over 1 hour';
+  return '~' + minutes + ' min away';
+}
+
 function safeRegion(region) {
   if (!region) return null;
   if (
@@ -122,6 +130,22 @@ export default function TrackingScreen() {
     typeof ll.lat === 'number' && !isNaN(ll.lat);
   const llLngOk =
     typeof ll.lng === 'number' && !isNaN(ll.lng);
+
+  const distanceKm =
+    custLatOk && custLngOk && llLatOk && llLngOk
+      ? (() => {
+          const R = 6371;
+          const dLat = (custLat - ll.lat) * Math.PI / 180;
+          const dLng = (custLng - ll.lng) * Math.PI / 180;
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(ll.lat * Math.PI / 180) *
+            Math.cos(custLat * Math.PI / 180) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+          return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        })()
+      : null;
+  const eta = job?.status === 'DISPATCHED' ? getETA(distanceKm) : null;
 
   const rawRegion =
     custLatOk && custLngOk
@@ -227,6 +251,9 @@ export default function TrackingScreen() {
               <Text style={styles.name} numberOfLines={1}>
                 {lock?.name || 'Locksmith'}
               </Text>
+              {eta && (
+                <Text style={styles.eta}>{eta}</Text>
+              )}
               <Text style={styles.ratingJobsLine}>
                 ★ {Number(lock?.rating ?? 5).toFixed(1)} · {lock?.totalJobs ?? 0} jobs
               </Text>
@@ -254,6 +281,46 @@ export default function TrackingScreen() {
               </View>
             </View>
           ) : null}
+          <View style={styles.divider} />
+          <View style={styles.receiptSection}>
+            <View style={styles.receiptRow}>
+              <Text style={styles.receiptLabel}>Service</Text>
+              <Text style={styles.receiptValue}>
+                {job?.serviceType?.replace(/_/g, ' ')}
+              </Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={styles.receiptLabel}>Booking ID</Text>
+              <Text style={styles.receiptValue}>
+                #{job?.id?.slice(0, 8).toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={styles.receiptLabel}>Service charge</Text>
+              <Text style={styles.receiptValue}>
+                R{job?.locksithEarning?.toFixed(2)}
+              </Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={styles.receiptLabel}>Platform fee</Text>
+              <Text style={styles.receiptValue}>
+                R{job?.platformFee?.toFixed(2)}
+              </Text>
+            </View>
+            <View style={[styles.receiptRow, styles.receiptTotal]}>
+              <Text style={styles.receiptTotalLabel}>Total</Text>
+              <Text style={styles.receiptTotalValue}>
+                R{job?.totalPrice?.toFixed(2)}
+              </Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={styles.receiptLabel}>Payment status</Text>
+              <Text style={[styles.receiptValue,
+                { color: job?.depositPaid ? '#43A047' : '#D4A017' }]}>
+                {job?.depositPaid ? 'Paid' : 'Pending'}
+              </Text>
+            </View>
+          </View>
         </View>
         <TouchableOpacity style={styles.sos} onPress={() => Linking.openURL('tel:10111')}>
           <Text style={styles.sosText}>SOS</Text>
@@ -362,6 +429,12 @@ const styles = StyleSheet.create({
   },
   cardMid: { flex: 1, marginLeft: 12, marginRight: 8, minWidth: 0, justifyContent: 'center' },
   name: { color: COLORS.text, fontSize: 18, fontWeight: '700' },
+  eta: {
+    color: '#D4A017',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   ratingJobsLine: {
     color: COLORS.textMuted,
     fontSize: 13,
@@ -414,4 +487,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sosText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  divider: {
+    height: 1,
+    backgroundColor: '#333333',
+    marginVertical: 12,
+  },
+  receiptSection: {
+    width: '100%',
+  },
+  receiptRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  receiptLabel: {
+    fontSize: 13,
+    color: '#AAAAAA',
+  },
+  receiptValue: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  receiptTotal: {
+    marginTop: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#333333',
+  },
+  receiptTotalLabel: {
+    fontSize: 15,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  receiptTotalValue: {
+    fontSize: 15,
+    color: '#D4A017',
+    fontWeight: '700',
+  },
 });
