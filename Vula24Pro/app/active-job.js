@@ -99,7 +99,7 @@ export default function ActiveJobScreen() {
       return undefined;
     }
     sendLocation();
-    locInterval.current = setInterval(sendLocation, 10000);
+    locInterval.current = setInterval(sendLocation, 5000);
     return () => {
       if (locInterval.current) clearInterval(locInterval.current);
       locInterval.current = null;
