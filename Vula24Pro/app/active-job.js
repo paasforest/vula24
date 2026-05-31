@@ -7,9 +7,13 @@ import {
   Alert,
   TouchableOpacity,
   Platform,
+  AppState,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapViewDirections from 'react-native-maps-directions';
+
+const GOOGLE_MAPS_KEY = 'AIzaSyBPS1Ek7P23ziEKh1OfawDPV4AMhu7WHAc';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +32,10 @@ export default function ActiveJobScreen() {
   const [currentDistance, setCurrentDistance] = useState(null);
   const locInterval = useRef(null);
   const proximityIntervalRef = useRef(null);
+  const appStateRef = useRef(AppState.currentState);
+  const [myLat, setMyLat] = useState(null);
+  const [myLng, setMyLng] = useState(null);
+  const mapRef = useRef(null);
 
   const custLat = job?.customerLat;
   const custLng = job?.customerLng;
@@ -63,6 +71,8 @@ export default function ActiveJobScreen() {
       const loc = await Location.getCurrentPositionAsync({});
       const lat = loc.coords.latitude;
       const lng = loc.coords.longitude;
+      setMyLat(lat);
+      setMyLng(lng);
       if (isMember) {
         await api.post('/api/member/location/update', {
           lat,
@@ -180,7 +190,7 @@ export default function ActiveJobScreen() {
     };
 
     checkProximity();
-    proximityIntervalRef.current = setInterval(checkProximity, 30000);
+    proximityIntervalRef.current = setInterval(checkProximity, 10000);
 
     return () => {
       if (proximityIntervalRef.current) {
@@ -190,28 +200,45 @@ export default function ActiveJobScreen() {
   }, [jobStatus, custLat, custLng]);
 
   useEffect(() => {
-    if (jobStatus === 'DISPATCHED' && custLat && custLng) {
-      const timer = setTimeout(() => {
-        openNavigation();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
+    const subscription = AppState.addEventListener(
+      'change',
+      async (nextState) => {
+        if (
+          appStateRef.current.match(/inactive|background/) &&
+          nextState === 'active' &&
+          jobStatus === 'DISPATCHED' &&
+          custLat && custLng
+        ) {
+          try {
+            let { status } = await Location.getForegroundPermissionsAsync();
+            if (status !== 'granted') {
+              const result = await Location.requestForegroundPermissionsAsync();
+              status = result.status;
+            }
+            if (status !== 'granted') return;
+            const loc = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+            const distance = getDistanceMeters(
+              loc.coords.latitude,
+              loc.coords.longitude,
+              custLat,
+              custLng
+            );
+            setCurrentDistance(Math.round(distance));
+            if (distance <= 500) {
+              setNearCustomer(true);
+            }
+          } catch (e) {
+            console.warn('[appstate proximity]', e?.message);
+          }
+        }
+        appStateRef.current = nextState;
+      }
+    );
+    return () => subscription.remove();
   }, [jobStatus, custLat, custLng]);
 
-  const openNavigation = () => {
-    if (!custLat || !custLng) return;
-    const googleMapsUrl =
-      'https://www.google.com/maps/dir/?api=1' +
-      '&destination=' + custLat + ',' + custLng +
-      '&travelmode=driving';
-    Linking.openURL(googleMapsUrl).catch(() => {
-      Alert.alert(
-        'Navigation Error',
-        'Could not open maps. Please use ' +
-        job?.customerAddress + ' to navigate.'
-      );
-    });
-  };
 
   const region =
     custLat != null && custLng != null
@@ -250,15 +277,51 @@ export default function ActiveJobScreen() {
   return (
     <View style={styles.flex}>
       <MapView
+        ref={mapRef}
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         region={region}
+        showsUserLocation={true}
+        showsMyLocationButton={false}
       >
-        {custLat != null && custLng != null ? (
-          <Marker coordinate={{ latitude: custLat, longitude: custLng }} tracksViewChanges={false}>
+        {custLat != null && custLng != null && (
+          <Marker
+            coordinate={{ latitude: custLat, longitude: custLng }}
+            tracksViewChanges={false}
+          >
             <View style={styles.pin} />
           </Marker>
-        ) : null}
+        )}
+
+        {jobStatus === 'DISPATCHED' &&
+          myLat && myLng &&
+          custLat && custLng && (
+          <MapViewDirections
+            origin={{ latitude: myLat, longitude: myLng }}
+            destination={{ latitude: custLat, longitude: custLng }}
+            apikey={GOOGLE_MAPS_KEY}
+            strokeWidth={4}
+            strokeColor="#D4A017"
+            optimizeWaypoints={true}
+            onReady={result => {
+              mapRef.current?.fitToCoordinates(
+                result.coordinates,
+                {
+                  edgePadding: {
+                    top: 80,
+                    right: 40,
+                    bottom: 300,
+                    left: 40,
+                  },
+                  animated: true,
+                }
+              );
+            }}
+            onError={() => {
+              // Silently fail — map still works
+            }}
+          />
+        )}
       </MapView>
 
       <SafeAreaView style={styles.topBar} edges={['top']}>
@@ -267,7 +330,7 @@ export default function ActiveJobScreen() {
             ? 'Dispute in progress — check notifications'
             : jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY'
               ? 'Waiting for customer payment…'
-              : 'En route to customer'}
+              : 'Follow the route to the customer'}
         </Text>
       </SafeAreaView>
 
@@ -304,23 +367,16 @@ export default function ActiveJobScreen() {
           {/* DISPATCHED: Navigation flow */}
           {jobStatus === 'DISPATCHED' && !isDisputed && (
             <>
-              <TouchableOpacity
-                style={styles.navigateBtn}
-                onPress={openNavigation}
-              >
-                <Ionicons name="navigate-circle" size={20} color="#111111" />
-                <Text style={styles.navigateBtnText}>Open Navigation</Text>
-              </TouchableOpacity>
-
-              {nearCustomer ? (
+              {nearCustomer && (
                 <GoldButton
                   title="I Have Arrived"
                   onPress={() => action('/arrived')}
                 />
-              ) : (
+              )}
+              {!nearCustomer && (
                 <Text style={styles.proximityHint}>
                   {currentDistance !== null
-                    ? `${currentDistance}m away — "I Have Arrived" appears within 500m`
+                    ? currentDistance + 'm away — "I Have Arrived" appears within 500m'
                     : '"I Have Arrived" appears when you are near the customer'}
                 </Text>
               )}
@@ -479,23 +535,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 4,
     paddingHorizontal: 20,
-  },
-  navigateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#D4A017',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  navigateBtnText: {
-    color: '#111111',
-    fontWeight: '700',
-    fontSize: 15,
   },
   vehicleCard: {
     flexDirection: 'row',
