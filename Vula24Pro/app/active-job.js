@@ -300,6 +300,11 @@ export default function ActiveJobScreen() {
         {jobStatus === 'DISPATCHED' &&
           myLat && myLng &&
           custLat && custLng && (
+          console.log(
+            '[route] rendering directions',
+            'from:', myLat, myLng,
+            'to:', custLat, custLng
+          ),
           <MapViewDirections
             origin={{ latitude: myLat, longitude: myLng }}
             destination={{ latitude: custLat, longitude: custLng }}
@@ -308,6 +313,13 @@ export default function ActiveJobScreen() {
             strokeColor="#D4A017"
             optimizeWaypoints={true}
             onReady={result => {
+              console.log(
+                '[MapViewDirections] ready, distance:',
+                result.distance,
+                'km, duration:',
+                result.duration,
+                'min'
+              );
               mapRef.current?.fitToCoordinates(
                 result.coordinates,
                 {
@@ -321,8 +333,16 @@ export default function ActiveJobScreen() {
                 }
               );
             }}
-            onError={() => {
-              // Silently fail — map still works
+            onError={(errorMessage) => {
+              console.warn(
+                '[MapViewDirections] error:',
+                errorMessage
+              );
+              Alert.alert(
+                'Navigation',
+                'Route unavailable. ' + errorMessage,
+                [{ text: 'OK' }]
+              );
             }}
           />
         )}
