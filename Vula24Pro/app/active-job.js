@@ -68,7 +68,11 @@ export default function ActiveJobScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
-      const loc = await Location.getCurrentPositionAsync({});
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 5000,
+        distanceInterval: 10,
+      });
       const lat = loc.coords.latitude;
       const lng = loc.coords.longitude;
       setMyLat(lat);
@@ -84,8 +88,8 @@ export default function ActiveJobScreen() {
           lng,
         });
       }
-    } catch {
-      /* ignore */
+    } catch (e) {
+      console.warn('[sendLocation]', e?.message);
     }
   }, [isMember]);
 
@@ -324,6 +328,12 @@ export default function ActiveJobScreen() {
         )}
       </MapView>
 
+      {jobStatus === 'DISPATCHED' && (!myLat || !myLng) && (
+        <View style={styles.routeLoading}>
+          <Text style={styles.routeLoadingText}>Getting your location...</Text>
+        </View>
+      )}
+
       <SafeAreaView style={styles.topBar} edges={['top']}>
         <Text style={styles.navHint}>
           {isDisputed
@@ -552,5 +562,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#D4A017',
     fontWeight: '500',
+  },
+  routeLoading: {
+    position: 'absolute',
+    top: 60,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  routeLoadingText: {
+    color: '#FFFFFF',
+    fontSize: 13,
   },
 });

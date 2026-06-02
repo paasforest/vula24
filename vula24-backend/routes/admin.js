@@ -71,6 +71,13 @@ router.get(
   asyncHandler(admin.listAllJobs)
 );
 
+router.put(
+  '/jobs/:id/cancel',
+  [param('id').isUUID()],
+  handleValidationErrors,
+  asyncHandler(admin.cancelJob)
+);
+
 router.get('/disputes', asyncHandler(admin.listDisputes));
 
 router.get('/locksmiths', asyncHandler(admin.listLocksmithsAdmin));

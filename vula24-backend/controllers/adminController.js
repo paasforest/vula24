@@ -654,6 +654,31 @@ async function markWithdrawalPaid(req, res) {
   res.json({ success: true, transaction });
 }
 
+async function cancelJob(req, res) {
+  const { id } = req.params;
+  const job = await prisma.job.findUnique({
+    where: { id },
+    select: { id: true, status: true },
+  });
+  if (!job) throw new AppError('Job not found', 404);
+  await prisma.job.update({
+    where: { id },
+    data: {
+      status: 'CANCELLED',
+      locksithId: null,
+      teamMemberId: null,
+    },
+  });
+  await audit(AuditAction.JOB_CANCELLED, {
+    entityType: 'JOB',
+    entityId: id,
+    actorType: 'ADMIN',
+    metadata: { previousStatus: job.status },
+    ipAddress: req.ip,
+  });
+  res.json({ success: true });
+}
+
 module.exports = {
   adminLogin,
   listPendingLocksmiths,
@@ -673,4 +698,5 @@ module.exports = {
   getPaymentHistory,
   getWithdrawals,
   markWithdrawalPaid,
+  cancelJob,
 };

@@ -895,6 +895,35 @@
         }
       }
 
+      const ACTIVE_JOB_STATUSES = [
+        'DISPATCHED',
+        'ACCEPTED',
+        'ARRIVED',
+        'IN_PROGRESS',
+      ];
+
+      async function cancelJobAdmin(jobId, btn) {
+        if (
+          !window.confirm(
+            'Cancel this job? Status will be set to CANCELLED and the locksmith will be unassigned.'
+          )
+        ) {
+          return;
+        }
+        btn.disabled = true;
+        try {
+          await apiFetch(
+            '/api/admin/jobs/' + encodeURIComponent(jobId) + '/cancel',
+            { method: 'PUT' }
+          );
+          await refreshJobs();
+        } catch (e) {
+          alert(e.message);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
       function renderJobsTable() {
         const wrap = document.getElementById('jobs-table-wrap');
         const rows = allJobsCache.slice(0, 20);
@@ -907,7 +936,7 @@
           rows.length +
           ' of ' +
           allJobsCache.length +
-          '</p><table><thead><tr><th>ID</th><th>Service</th><th>Status</th><th>Total</th><th>Created</th></tr></thead><tbody>';
+          '</p><table><thead><tr><th>ID</th><th>Service</th><th>Status</th><th>Total</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
         for (const j of rows) {
           html +=
             '<tr><td class="mono">' +
@@ -920,10 +949,21 @@
             Number(j.totalPrice || 0).toFixed(2) +
             '</td><td>' +
             escapeHtml(fmtDate(j.createdAt)) +
+            '</td><td>' +
+            (ACTIVE_JOB_STATUSES.includes(j.status)
+              ? '<button type="button" class="btn btn-red btn-job-cancel" data-id="' +
+                j.id +
+                '">Cancel</button>'
+              : '—') +
             '</td></tr>';
         }
         html += '</tbody></table>';
         wrap.innerHTML = html;
+        wrap.querySelectorAll('.btn-job-cancel').forEach(function (b) {
+          b.onclick = function () {
+            cancelJobAdmin(b.getAttribute('data-id'), b);
+          };
+        });
       }
 
       var locksmithDetailById = {};

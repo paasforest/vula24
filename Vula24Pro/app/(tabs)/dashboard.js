@@ -92,6 +92,7 @@ export default function DashboardScreen() {
   const [online, setOnline] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [showNotifTip, setShowNotifTip] = useState(false);
+  const [dismissedJobs, setDismissedJobs] = useState([]);
   const pushedJobRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
 
@@ -103,6 +104,17 @@ export default function DashboardScreen() {
     AsyncStorage.getItem('notif_tip_shown').then((val) => {
       if (!val) setShowNotifTip(true);
     });
+  }, []);
+
+  useEffect(() => {
+    const loadDismissed = async () => {
+      const keys = await AsyncStorage.getAllKeys();
+      const dismissed = keys
+        .filter((k) => k.startsWith('dismissed_active_'))
+        .map((k) => k.replace('dismissed_active_', ''));
+      setDismissedJobs(dismissed);
+    };
+    loadDismissed();
   }, []);
 
   const dismissNotifTip = async () => {
@@ -494,8 +506,10 @@ export default function DashboardScreen() {
     earnedToday = txs.reduce((s, t) => s + (t.amount || 0), 0);
   }
 
-  const activeJob = jobs.find((j) =>
-    ['ACCEPTED', 'DISPATCHED', 'ARRIVED', 'IN_PROGRESS'].includes(j.status)
+  const activeJob = jobs.find(
+    (j) =>
+      ['ACCEPTED', 'DISPATCHED', 'ARRIVED', 'IN_PROGRESS'].includes(j.status) &&
+      !dismissedJobs.includes(j.id)
   );
 
   const recent = jobs.slice(0, 5);
@@ -691,6 +705,32 @@ export default function DashboardScreen() {
               </View>
             </View>
             <View style={styles.activeJobRight}>
+              <TouchableOpacity
+                style={styles.dismissBtn}
+                onPress={async () => {
+                  Alert.alert(
+                    'Dismiss Job',
+                    'Remove this job from your dashboard? Only dismiss if the job is already complete or cancelled.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Dismiss',
+                        style: 'destructive',
+                        onPress: async () => {
+                          await AsyncStorage.setItem(
+                            'dismissed_active_' + activeJob.id,
+                            '1'
+                          );
+                          setDismissedJobs((prev) => [...prev, activeJob.id]);
+                          loadJobs();
+                        },
+                      },
+                    ]
+                  );
+                }}
+              >
+                <Text style={styles.dismissBtnText}>Dismiss</Text>
+              </TouchableOpacity>
               <Text style={styles.activeJobBtn}>View</Text>
               <Ionicons name="chevron-forward" size={18} color={COLORS.accent} />
             </View>
@@ -899,6 +939,18 @@ const styles = StyleSheet.create({
     color: COLORS.accent,
     fontWeight: '700',
     fontSize: 14,
+  },
+  dismissBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E53935',
+  },
+  dismissBtnText: {
+    color: '#E53935',
+    fontSize: 12,
+    fontWeight: '600',
   },
   statsGrid: {
     flexDirection: 'row',
