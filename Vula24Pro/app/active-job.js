@@ -13,7 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 
-const GOOGLE_MAPS_KEY = 'AIzaSyBPS1Ek7P23ziEKh1OfawDPV4AMhu7WHAc';
+const GOOGLE_MAPS_KEY = 'AIzaSyDZ_7hL_97LzMvKbdB4PQOSmare2ogZ514';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
