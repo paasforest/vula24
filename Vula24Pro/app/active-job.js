@@ -91,21 +91,25 @@ export default function ActiveJobScreen() {
     }
   }, [isMember]);
 
-  const startNavigation = useCallback(async () => {
-    if (!custLat || !custLng || !navigationController) return;
-    try {
-      await navigationController.setDestination({
-        position: {
-          lat: custLat,
-          lng: custLng,
-        },
-        title: job?.customerAddress || 'Customer',
-      });
-      await navigationController.startGuidance();
-    } catch (e) {
-      console.warn('[navigation] start failed:', e?.message);
-    }
-  }, [custLat, custLng, navigationController, job]);
+  const startNavigation = useCallback(
+    async () => {
+      if (!custLat || !custLng || !navigationController) return;
+      try {
+        const waypoint = {
+          title: job?.customerAddress || 'Customer',
+          position: {
+            lat: custLat,
+            lng: custLng,
+          },
+        };
+        await navigationController.setDestinations([waypoint]);
+        await navigationController.startGuidance();
+      } catch (e) {
+        console.warn('[navigation] start failed:', e?.message);
+      }
+    },
+    [custLat, custLng, navigationController, job]
+  );
 
   useEffect(() => {
     if (
@@ -125,6 +129,16 @@ export default function ActiveJobScreen() {
     navigationController,
     startNavigation,
   ]);
+
+  useEffect(() => {
+    if (jobStatus !== 'DISPATCHED' && navigationController) {
+      try {
+        navigationController.stopGuidance();
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [jobStatus, navigationController]);
 
   useEffect(() => {
     const s = job?.status;
