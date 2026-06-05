@@ -6,11 +6,15 @@ import {
   Linking,
   Alert,
   TouchableOpacity,
-  Platform,
   AppState,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import {
+  NavigationView,
+  useNavigation,
+  RouteStatus,
+  useNavigationController,
+} from '@googlemaps/react-native-navigation-sdk';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,39 +23,6 @@ import { COLORS } from '../constants/theme';
 import api from '../lib/api';
 import { getUser } from '../lib/storage';
 
-const GOOGLE_MAPS_KEY = 'AIzaSyDZ_7hL_97LzMvKbdB4PQOSmare2ogZ514';
-
-function decodePolyline(encoded) {
-  const poly = [];
-  let index = 0;
-  let lat = 0;
-  let lng = 0;
-  while (index < encoded.length) {
-    let shift = 0;
-    let result = 0;
-    let byte;
-    do {
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-    lat += (result & 1) ? ~(result >> 1) : result >> 1;
-    shift = 0;
-    result = 0;
-    do {
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-    lng += (result & 1) ? ~(result >> 1) : result >> 1;
-    poly.push({
-      latitude: lat / 1e5,
-      longitude: lng / 1e5,
-    });
-  }
-  return poly;
-}
-
 export default function ActiveJobScreen() {
   const { jobId: jid } = useLocalSearchParams();
   const jobId = Array.isArray(jid) ? jid[0] : jid;
@@ -59,17 +30,12 @@ export default function ActiveJobScreen() {
   const [job, setJob] = useState(null);
   const [isMember, setIsMember] = useState(false);
   const [nearCustomer, setNearCustomer] = useState(false);
-  const [currentDistance, setCurrentDistance] = useState(null);
   const locInterval = useRef(null);
   const proximityIntervalRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
-  const [myLat, setMyLat] = useState(null);
-  const [myLng, setMyLng] = useState(null);
-  const [routeCoords, setRouteCoords] = useState([]);
-  const [eta, setEta] = useState(null);
-  const [distance, setDistance] = useState(null);
-  const [nextStep, setNextStep] = useState(null);
-  const mapRef = useRef(null);
+  const { navigationController } = useNavigation();
+  const [navReady, setNavReady] = useState(false);
+  const [navViewController, setNavViewController] = useState(null);
 
   const custLat = job?.customerLat;
   const custLng = job?.customerLng;
@@ -109,8 +75,6 @@ export default function ActiveJobScreen() {
       });
       const lat = loc.coords.latitude;
       const lng = loc.coords.longitude;
-      setMyLat(lat);
-      setMyLng(lng);
       if (isMember) {
         await api.post('/api/member/location/update', {
           lat,
@@ -127,90 +91,40 @@ export default function ActiveJobScreen() {
     }
   }, [isMember]);
 
-  const fetchRoute = useCallback(async () => {
-    if (!myLat || !myLng || !custLat || !custLng) return;
+  const startNavigation = useCallback(async () => {
+    if (!custLat || !custLng || !navigationController) return;
     try {
-      const response = await fetch(
-        'https://routes.googleapis.com/directions/v2:computeRoutes',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': GOOGLE_MAPS_KEY,
-            'X-Goog-FieldMask':
-              'routes.polyline.encodedPolyline,routes.legs.steps.navigationInstruction,routes.legs.steps.distanceMeters,routes.duration,routes.distanceMeters',
-          },
-          body: JSON.stringify({
-            origin: {
-              location: {
-                latLng: {
-                  latitude: myLat,
-                  longitude: myLng,
-                },
-              },
-            },
-            destination: {
-              location: {
-                latLng: {
-                  latitude: custLat,
-                  longitude: custLng,
-                },
-              },
-            },
-            travelMode: 'DRIVE',
-          }),
-        }
-      );
-      const data = await response.json();
-      const encoded = data?.routes?.[0]?.polyline?.encodedPolyline;
-      if (encoded) {
-        const coords = decodePolyline(encoded);
-        setRouteCoords(coords);
-
-        const route = data?.routes?.[0];
-        const leg = route?.legs?.[0];
-
-        const durationSecs = parseInt(
-          route?.duration?.replace('s', '') || '0',
-          10
-        );
-        const mins = Math.round(durationSecs / 60);
-        setEta(mins);
-
-        const distMeters = route?.distanceMeters;
-        if (distMeters) {
-          setDistance((distMeters / 1000).toFixed(1));
-        }
-
-        const steps = leg?.steps || [];
-        if (steps.length > 0) {
-          const instruction =
-            steps[0]?.navigationInstruction?.instructions || '';
-          setNextStep(instruction);
-        }
-
-        mapRef.current?.fitToCoordinates(coords, {
-          edgePadding: {
-            top: 80,
-            right: 40,
-            bottom: 300,
-            left: 40,
-          },
-          animated: true,
-        });
-      } else {
-        console.warn('[fetchRoute] no route:', JSON.stringify(data));
-      }
+      await navigationController.setDestination({
+        position: {
+          lat: custLat,
+          lng: custLng,
+        },
+        title: job?.customerAddress || 'Customer',
+      });
+      await navigationController.startGuidance();
     } catch (e) {
-      console.warn('[fetchRoute] error:', e?.message);
+      console.warn('[navigation] start failed:', e?.message);
     }
-  }, [myLat, myLng, custLat, custLng]);
+  }, [custLat, custLng, navigationController, job]);
 
   useEffect(() => {
-    if (jobStatus === 'DISPATCHED' && myLat && myLng && custLat && custLng) {
-      fetchRoute();
+    if (
+      jobStatus === 'DISPATCHED' &&
+      navReady &&
+      custLat &&
+      custLng &&
+      navigationController
+    ) {
+      startNavigation();
     }
-  }, [myLat, myLng, custLat, custLng, jobStatus, fetchRoute]);
+  }, [
+    jobStatus,
+    navReady,
+    custLat,
+    custLng,
+    navigationController,
+    startNavigation,
+  ]);
 
   useEffect(() => {
     const s = job?.status;
@@ -299,7 +213,6 @@ export default function ActiveJobScreen() {
           custLat,
           custLng
         );
-        setCurrentDistance(Math.round(distance));
         if (distance <= 500) {
           setNearCustomer(true);
           if (proximityIntervalRef.current) {
@@ -348,7 +261,6 @@ export default function ActiveJobScreen() {
               custLat,
               custLng
             );
-            setCurrentDistance(Math.round(distance));
             if (distance <= 500) {
               setNearCustomer(true);
             }
@@ -362,21 +274,6 @@ export default function ActiveJobScreen() {
     return () => subscription.remove();
   }, [jobStatus, custLat, custLng]);
 
-
-  const region =
-    custLat != null && custLng != null
-      ? {
-          latitude: custLat,
-          longitude: custLng,
-          latitudeDelta: 0.06,
-          longitudeDelta: 0.06,
-        }
-      : {
-          latitude: -26.2,
-          longitude: 28.05,
-          latitudeDelta: 0.1,
-          longitudeDelta: 0.1,
-        };
 
   const jobMode = job?.mode;
   const isDisputed = job?.isDisputed === true;
@@ -399,32 +296,22 @@ export default function ActiveJobScreen() {
 
   return (
     <View style={styles.flex}>
-      <MapView
-        ref={mapRef}
+      <NavigationView
         style={StyleSheet.absoluteFill}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        region={region}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-      >
-        {custLat != null && custLng != null && (
-          <Marker
-            coordinate={{ latitude: custLat, longitude: custLng }}
-            tracksViewChanges={false}
-          >
-            <View style={styles.pin} />
-          </Marker>
-        )}
-
-        {routeCoords.length > 1 && (
-          <Polyline
-            coordinates={routeCoords}
-            strokeWidth={5}
-            strokeColor="#D4A017"
-            lineDashPattern={[0]}
-          />
-        )}
-      </MapView>
+        androidStylingOptions={{
+          primaryDayModeThemeColor: '#D4A017',
+          headerDistanceValueTextColor: '#FFFFFF',
+          headerInstructionsFirstRowTextSize: '20f',
+          navigationHeaderPrimaryBackgroundColor: '#111111',
+          navigationHeaderDistanceValueTextColor: '#D4A017',
+        }}
+        onMapViewControllerCreated={(controller) => {
+          setNavViewController(controller);
+        }}
+        onNavigationViewControllerCreated={() => {
+          setNavReady(true);
+        }}
+      />
 
       <SafeAreaView style={styles.topBar} edges={['top']}>
         <Text style={styles.navHint}>
@@ -438,37 +325,6 @@ export default function ActiveJobScreen() {
 
       <SafeAreaView style={styles.cardWrap} edges={['bottom']}>
         <View style={styles.card}>
-          {jobStatus === 'DISPATCHED' && (eta || distance || nextStep) && (
-            <View style={styles.navPanel}>
-              <View style={styles.navPanelTop}>
-                {eta ? (
-                  <View style={styles.navStat}>
-                    <Text style={styles.navStatValue}>{eta} min</Text>
-                    <Text style={styles.navStatLabel}>ETA</Text>
-                  </View>
-                ) : null}
-                {distance ? (
-                  <View style={styles.navStat}>
-                    <Text style={styles.navStatValue}>{distance} km</Text>
-                    <Text style={styles.navStatLabel}>Distance</Text>
-                  </View>
-                ) : null}
-              </View>
-              {nextStep ? (
-                <View style={styles.nextStep}>
-                  <Ionicons
-                    name="arrow-forward-circle"
-                    size={18}
-                    color="#D4A017"
-                  />
-                  <Text style={styles.nextStepText} numberOfLines={2}>
-                    {nextStep}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          )}
-
           <Text style={styles.custName}>{job?.customer?.name || 'Customer'}</Text>
           {job?.customerNote ? (
             <Text style={styles.note}>{job.customerNote}</Text>
@@ -522,9 +378,9 @@ export default function ActiveJobScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {!nearCustomer && currentDistance != null && (
+              {!nearCustomer && (
                 <Text style={styles.proximityHint}>
-                  {currentDistance}m away — button enables within 500m
+                  Button enables within 500m
                 </Text>
               )}
 

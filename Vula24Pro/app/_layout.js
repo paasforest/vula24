@@ -7,6 +7,10 @@ import * as Notifications from 'expo-notifications';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  NavigationProvider,
+  TaskRemovedBehavior,
+} from '@googlemaps/react-native-navigation-sdk';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 Notifications.setNotificationHandler({
@@ -172,17 +176,26 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: '#111111' },
-            }}
-          />
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
+      <NavigationProvider
+        termsAndConditionsDialogOptions={{
+          title: 'Navigation Terms',
+          companyName: 'Vula24',
+          showOnlyDisclaimer: true,
+        }}
+        taskRemovedBehavior={TaskRemovedBehavior.CONTINUE_SERVICE}
+      >
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <SafeAreaProvider>
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: '#111111' },
+              }}
+            />
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      </NavigationProvider>
     </ErrorBoundary>
   );
 }
