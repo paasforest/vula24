@@ -10,10 +10,7 @@ import {
   AppState,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import MapViewDirections from 'react-native-maps-directions';
-
-const GOOGLE_MAPS_KEY = 'AIzaSyDZ_7hL_97LzMvKbdB4PQOSmare2ogZ514';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +18,39 @@ import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
 import api from '../lib/api';
 import { getUser } from '../lib/storage';
+
+const GOOGLE_MAPS_KEY = 'AIzaSyDZ_7hL_97LzMvKbdB4PQOSmare2ogZ514';
+
+function decodePolyline(encoded) {
+  const poly = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+  while (index < encoded.length) {
+    let shift = 0;
+    let result = 0;
+    let byte;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lat += (result & 1) ? ~(result >> 1) : result >> 1;
+    shift = 0;
+    result = 0;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lng += (result & 1) ? ~(result >> 1) : result >> 1;
+    poly.push({
+      latitude: lat / 1e5,
+      longitude: lng / 1e5,
+    });
+  }
+  return poly;
+}
 
 export default function ActiveJobScreen() {
   const { jobId: jid } = useLocalSearchParams();
@@ -35,6 +65,7 @@ export default function ActiveJobScreen() {
   const appStateRef = useRef(AppState.currentState);
   const [myLat, setMyLat] = useState(null);
   const [myLng, setMyLng] = useState(null);
+  const [routeCoords, setRouteCoords] = useState([]);
   const mapRef = useRef(null);
 
   const custLat = job?.customerLat;
@@ -92,6 +123,67 @@ export default function ActiveJobScreen() {
       console.warn('[sendLocation]', e?.message);
     }
   }, [isMember]);
+
+  const fetchRoute = useCallback(async () => {
+    if (!myLat || !myLng || !custLat || !custLng) return;
+    try {
+      const response = await fetch(
+        'https://routes.googleapis.com/directions/v2:computeRoutes',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': GOOGLE_MAPS_KEY,
+            'X-Goog-FieldMask': 'routes.polyline.encodedPolyline',
+          },
+          body: JSON.stringify({
+            origin: {
+              location: {
+                latLng: {
+                  latitude: myLat,
+                  longitude: myLng,
+                },
+              },
+            },
+            destination: {
+              location: {
+                latLng: {
+                  latitude: custLat,
+                  longitude: custLng,
+                },
+              },
+            },
+            travelMode: 'DRIVE',
+          }),
+        }
+      );
+      const data = await response.json();
+      const encoded = data?.routes?.[0]?.polyline?.encodedPolyline;
+      if (encoded) {
+        const coords = decodePolyline(encoded);
+        setRouteCoords(coords);
+        mapRef.current?.fitToCoordinates(coords, {
+          edgePadding: {
+            top: 80,
+            right: 40,
+            bottom: 300,
+            left: 40,
+          },
+          animated: true,
+        });
+      } else {
+        console.warn('[fetchRoute] no route:', JSON.stringify(data));
+      }
+    } catch (e) {
+      console.warn('[fetchRoute] error:', e?.message);
+    }
+  }, [myLat, myLng, custLat, custLng]);
+
+  useEffect(() => {
+    if (jobStatus === 'DISPATCHED' && myLat && myLng && custLat && custLng) {
+      fetchRoute();
+    }
+  }, [myLat, myLng, custLat, custLng, jobStatus, fetchRoute]);
 
   useEffect(() => {
     const s = job?.status;
@@ -297,62 +389,15 @@ export default function ActiveJobScreen() {
           </Marker>
         )}
 
-        {jobStatus === 'DISPATCHED' &&
-          myLat && myLng &&
-          custLat && custLng && (
-          console.log(
-            '[route] rendering directions',
-            'from:', myLat, myLng,
-            'to:', custLat, custLng
-          ),
-          <MapViewDirections
-            origin={{ latitude: myLat, longitude: myLng }}
-            destination={{ latitude: custLat, longitude: custLng }}
-            apikey={GOOGLE_MAPS_KEY}
-            strokeWidth={4}
+        {routeCoords.length > 1 && (
+          <Polyline
+            coordinates={routeCoords}
+            strokeWidth={5}
             strokeColor="#D4A017"
-            optimizeWaypoints={true}
-            onReady={result => {
-              console.log(
-                '[MapViewDirections] ready, distance:',
-                result.distance,
-                'km, duration:',
-                result.duration,
-                'min'
-              );
-              mapRef.current?.fitToCoordinates(
-                result.coordinates,
-                {
-                  edgePadding: {
-                    top: 80,
-                    right: 40,
-                    bottom: 300,
-                    left: 40,
-                  },
-                  animated: true,
-                }
-              );
-            }}
-            onError={(errorMessage) => {
-              console.warn(
-                '[MapViewDirections] error:',
-                errorMessage
-              );
-              Alert.alert(
-                'Navigation',
-                'Route unavailable. ' + errorMessage,
-                [{ text: 'OK' }]
-              );
-            }}
+            lineDashPattern={[0]}
           />
         )}
       </MapView>
-
-      {jobStatus === 'DISPATCHED' && (!myLat || !myLng) && (
-        <View style={styles.routeLoading}>
-          <Text style={styles.routeLoadingText}>Getting your location...</Text>
-        </View>
-      )}
 
       <SafeAreaView style={styles.topBar} edges={['top']}>
         <Text style={styles.navHint}>
