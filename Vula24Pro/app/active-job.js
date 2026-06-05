@@ -66,6 +66,9 @@ export default function ActiveJobScreen() {
   const [myLat, setMyLat] = useState(null);
   const [myLng, setMyLng] = useState(null);
   const [routeCoords, setRouteCoords] = useState([]);
+  const [eta, setEta] = useState(null);
+  const [distance, setDistance] = useState(null);
+  const [nextStep, setNextStep] = useState(null);
   const mapRef = useRef(null);
 
   const custLat = job?.customerLat;
@@ -134,7 +137,8 @@ export default function ActiveJobScreen() {
           headers: {
             'Content-Type': 'application/json',
             'X-Goog-Api-Key': GOOGLE_MAPS_KEY,
-            'X-Goog-FieldMask': 'routes.polyline.encodedPolyline',
+            'X-Goog-FieldMask':
+              'routes.polyline.encodedPolyline,routes.legs.steps.navigationInstruction,routes.legs.steps.distanceMeters,routes.duration,routes.distanceMeters',
           },
           body: JSON.stringify({
             origin: {
@@ -162,6 +166,29 @@ export default function ActiveJobScreen() {
       if (encoded) {
         const coords = decodePolyline(encoded);
         setRouteCoords(coords);
+
+        const route = data?.routes?.[0];
+        const leg = route?.legs?.[0];
+
+        const durationSecs = parseInt(
+          route?.duration?.replace('s', '') || '0',
+          10
+        );
+        const mins = Math.round(durationSecs / 60);
+        setEta(mins);
+
+        const distMeters = route?.distanceMeters;
+        if (distMeters) {
+          setDistance((distMeters / 1000).toFixed(1));
+        }
+
+        const steps = leg?.steps || [];
+        if (steps.length > 0) {
+          const instruction =
+            steps[0]?.navigationInstruction?.instructions || '';
+          setNextStep(instruction);
+        }
+
         mapRef.current?.fitToCoordinates(coords, {
           edgePadding: {
             top: 80,
@@ -411,6 +438,37 @@ export default function ActiveJobScreen() {
 
       <SafeAreaView style={styles.cardWrap} edges={['bottom']}>
         <View style={styles.card}>
+          {jobStatus === 'DISPATCHED' && (eta || distance || nextStep) && (
+            <View style={styles.navPanel}>
+              <View style={styles.navPanelTop}>
+                {eta ? (
+                  <View style={styles.navStat}>
+                    <Text style={styles.navStatValue}>{eta} min</Text>
+                    <Text style={styles.navStatLabel}>ETA</Text>
+                  </View>
+                ) : null}
+                {distance ? (
+                  <View style={styles.navStat}>
+                    <Text style={styles.navStatValue}>{distance} km</Text>
+                    <Text style={styles.navStatLabel}>Distance</Text>
+                  </View>
+                ) : null}
+              </View>
+              {nextStep ? (
+                <View style={styles.nextStep}>
+                  <Ionicons
+                    name="arrow-forward-circle"
+                    size={18}
+                    color="#D4A017"
+                  />
+                  <Text style={styles.nextStepText} numberOfLines={2}>
+                    {nextStep}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          )}
+
           <Text style={styles.custName}>{job?.customer?.name || 'Customer'}</Text>
           {job?.customerNote ? (
             <Text style={styles.note}>{job.customerNote}</Text>
@@ -442,19 +500,56 @@ export default function ActiveJobScreen() {
           {/* DISPATCHED: Navigation flow */}
           {jobStatus === 'DISPATCHED' && !isDisputed && (
             <>
-              {nearCustomer && (
-                <GoldButton
-                  title="I Have Arrived"
-                  onPress={() => action('/arrived')}
-                />
-              )}
-              {!nearCustomer && (
+              <TouchableOpacity
+                style={[
+                  styles.arrivedBtn,
+                  !nearCustomer && styles.arrivedBtnDisabled,
+                ]}
+                onPress={() => {
+                  if (nearCustomer) {
+                    action('/arrived');
+                  }
+                }}
+                activeOpacity={nearCustomer ? 0.8 : 1}
+              >
+                <Text
+                  style={[
+                    styles.arrivedBtnText,
+                    !nearCustomer && styles.arrivedBtnTextDisabled,
+                  ]}
+                >
+                  I Have Arrived
+                </Text>
+              </TouchableOpacity>
+
+              {!nearCustomer && currentDistance != null && (
                 <Text style={styles.proximityHint}>
-                  {currentDistance !== null
-                    ? currentDistance + 'm away — "I Have Arrived" appears within 500m'
-                    : '"I Have Arrived" appears when you are near the customer'}
+                  {currentDistance}m away — button enables within 500m
                 </Text>
               )}
+
+              <TouchableOpacity
+                style={styles.openMapsBtn}
+                onPress={() => {
+                  const url =
+                    'https://www.google.com/maps/dir/?api=1' +
+                    '&destination=' +
+                    custLat +
+                    ',' +
+                    custLng +
+                    '&travelmode=driving';
+                  Linking.openURL(url);
+                }}
+              >
+                <Ionicons
+                  name="navigate-outline"
+                  size={16}
+                  color="#AAAAAA"
+                />
+                <Text style={styles.openMapsBtnText}>
+                  Open in Google Maps
+                </Text>
+              </TouchableOpacity>
             </>
           )}
 
@@ -639,6 +734,75 @@ const styles = StyleSheet.create({
   },
   routeLoadingText: {
     color: '#FFFFFF',
+    fontSize: 13,
+  },
+  navPanel: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
+  navPanelTop: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 8,
+  },
+  navStat: {
+    alignItems: 'center',
+  },
+  navStatValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  navStatLabel: {
+    fontSize: 11,
+    color: '#AAAAAA',
+    marginTop: 1,
+  },
+  nextStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#333333',
+  },
+  nextStepText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  arrivedBtn: {
+    backgroundColor: '#D4A017',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  arrivedBtnDisabled: {
+    backgroundColor: '#3A3A3A',
+  },
+  arrivedBtnText: {
+    color: '#111111',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  arrivedBtnTextDisabled: {
+    color: '#666666',
+  },
+  openMapsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+  },
+  openMapsBtnText: {
+    color: '#AAAAAA',
     fontSize: 13,
   },
 });
