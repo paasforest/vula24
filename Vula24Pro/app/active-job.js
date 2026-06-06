@@ -95,6 +95,20 @@ export default function ActiveJobScreen() {
     async () => {
       if (!custLat || !custLng || !navigationController) return;
       try {
+        const termsAccepted =
+          await navigationController.showTermsAndConditionsDialog();
+
+        if (!termsAccepted) {
+          Alert.alert(
+            'Terms Required',
+            'You must accept the navigation terms to use in-app navigation.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+
+        await navigationController.init();
+
         const waypoint = {
           title: job?.customerAddress || 'Customer',
           position: {
@@ -106,6 +120,13 @@ export default function ActiveJobScreen() {
         await navigationController.startGuidance();
       } catch (e) {
         console.warn('[navigation] start failed:', e?.message);
+        Alert.alert(
+          'Navigation Error',
+          'Could not start navigation. ' +
+            (e?.message || '') +
+            '\n\nYou can use Open in Google Maps instead.',
+          [{ text: 'OK' }]
+        );
       }
     },
     [custLat, custLng, navigationController, job]
