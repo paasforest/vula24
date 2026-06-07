@@ -118,6 +118,14 @@ export default function ActiveJobScreen() {
         };
         await navigationController.setDestinations([waypoint]);
         await navigationController.startGuidance();
+
+        if (navViewController) {
+          try {
+            await navViewController.setFollowingPerspective(2);
+          } catch (e) {
+            console.warn('[camera]', e?.message);
+          }
+        }
       } catch (e) {
         console.warn('[navigation] start failed:', e?.message);
         Alert.alert(
@@ -129,7 +137,7 @@ export default function ActiveJobScreen() {
         );
       }
     },
-    [custLat, custLng, navigationController, job]
+    [custLat, custLng, navigationController, job, navViewController]
   );
 
   useEffect(() => {
@@ -340,8 +348,13 @@ export default function ActiveJobScreen() {
           navigationHeaderPrimaryBackgroundColor: '#111111',
           navigationHeaderDistanceValueTextColor: '#D4A017',
         }}
-        onMapViewControllerCreated={(controller) => {
+        onMapViewControllerCreated={async (controller) => {
           setNavViewController(controller);
+          try {
+            await controller.setFollowingPerspective(2);
+          } catch (e) {
+            console.warn('[mapview]', e?.message);
+          }
         }}
         onNavigationViewControllerCreated={() => {
           setNavReady(true);
