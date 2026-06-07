@@ -12,6 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import {
   NavigationView,
   useNavigation,
+  CameraPerspective,
   RouteStatus,
   useNavigationController,
 } from '@googlemaps/react-native-navigation-sdk';
@@ -36,6 +37,7 @@ export default function ActiveJobScreen() {
   const { navigationController } = useNavigation();
   const [navReady, setNavReady] = useState(false);
   const [navViewController, setNavViewController] = useState(null);
+  const navViewControllerRef = useRef(null);
 
   const custLat = job?.customerLat;
   const custLng = job?.customerLng;
@@ -118,10 +120,14 @@ export default function ActiveJobScreen() {
         };
         await navigationController.setDestinations([waypoint]);
         await navigationController.startGuidance();
-
-        if (navViewController) {
+        // Set camera to follow driver
+        // in tilted driving perspective
+        if (navViewControllerRef.current) {
           try {
-            await navViewController.setFollowingPerspective(2);
+            await navViewControllerRef.current
+              .setFollowingPerspective(
+                CameraPerspective.TILTED
+              );
           } catch (e) {
             console.warn('[camera]', e?.message);
           }
@@ -137,7 +143,7 @@ export default function ActiveJobScreen() {
         );
       }
     },
-    [custLat, custLng, navigationController, job, navViewController]
+    [custLat, custLng, navigationController, job]
   );
 
   useEffect(() => {
@@ -341,6 +347,7 @@ export default function ActiveJobScreen() {
     <View style={styles.flex}>
       <NavigationView
         style={StyleSheet.absoluteFill}
+        myLocationEnabled={true}
         androidStylingOptions={{
           primaryDayModeThemeColor: '#D4A017',
           headerDistanceValueTextColor: '#FFFFFF',
@@ -348,17 +355,27 @@ export default function ActiveJobScreen() {
           navigationHeaderPrimaryBackgroundColor: '#111111',
           navigationHeaderDistanceValueTextColor: '#D4A017',
         }}
-        onMapViewControllerCreated={async (controller) => {
+        onMapViewControllerCreated={(controller) => {
           setNavViewController(controller);
-          try {
-            await controller.setFollowingPerspective(2);
-          } catch (e) {
-            console.warn('[mapview]', e?.message);
+        }}
+        onNavigationViewControllerCreated={
+          async (controller) => {
+            navViewControllerRef.current =
+              controller;
+            try {
+              await controller
+                .setFollowingPerspective(
+                  CameraPerspective.TILTED
+                );
+            } catch (e) {
+              console.warn(
+                '[navViewController]',
+                e?.message
+              );
+            }
+            setNavReady(true);
           }
-        }}
-        onNavigationViewControllerCreated={() => {
-          setNavReady(true);
-        }}
+        }
       />
 
       <SafeAreaView style={styles.topBar} edges={['top']}>
