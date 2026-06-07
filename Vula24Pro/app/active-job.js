@@ -29,6 +29,7 @@ export default function ActiveJobScreen() {
   const jobId = Array.isArray(jid) ? jid[0] : jid;
 
   const [job, setJob] = useState(null);
+  const [jobLoaded, setJobLoaded] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [nearCustomer, setNearCustomer] = useState(false);
   const locInterval = useRef(null);
@@ -52,6 +53,7 @@ export default function ActiveJobScreen() {
     try {
       const { data } = await api.get(`/api/jobs/locksmith/job/${jobId}`);
       setJob(data.job);
+      setJobLoaded(true);
       if (data.job?.status === 'COMPLETED' || data.job?.status === 'CANCELLED') {
         router.replace('/(tabs)/dashboard');
       }
@@ -345,6 +347,7 @@ export default function ActiveJobScreen() {
 
   return (
     <View style={styles.flex}>
+      {jobLoaded && (
       <NavigationView
         style={StyleSheet.absoluteFill}
         myLocationEnabled={true}
@@ -377,6 +380,7 @@ export default function ActiveJobScreen() {
           }
         }
       />
+      )}
 
       <SafeAreaView style={styles.topBar} edges={['top']}>
         <Text style={styles.navHint}>
