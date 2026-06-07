@@ -37,6 +37,7 @@ export default function ActiveJobScreen() {
   const appStateRef = useRef(AppState.currentState);
   const { navigationController } = useNavigation();
   const [navReady, setNavReady] = useState(false);
+  const [navStarted, setNavStarted] = useState(false);
   const [navViewController, setNavViewController] = useState(null);
   const navViewControllerRef = useRef(null);
 
@@ -57,8 +58,11 @@ export default function ActiveJobScreen() {
       if (data.job?.status === 'COMPLETED' || data.job?.status === 'CANCELLED') {
         router.replace('/(tabs)/dashboard');
       }
-    } catch {
-      /* ignore */
+    } catch (e) {
+      console.warn('[load]', e?.message);
+      // Still mark as loaded so UI
+      // doesn't stay blank
+      setJobLoaded(true);
     }
   }, [jobId]);
 
@@ -154,8 +158,10 @@ export default function ActiveJobScreen() {
       navReady &&
       custLat &&
       custLng &&
-      navigationController
+      navigationController &&
+      !navStarted
     ) {
+      setNavStarted(true);
       startNavigation();
     }
   }, [
@@ -164,8 +170,15 @@ export default function ActiveJobScreen() {
     custLat,
     custLng,
     navigationController,
+    navStarted,
     startNavigation,
   ]);
+
+  useEffect(() => {
+    if (jobStatus !== 'DISPATCHED') {
+      setNavStarted(false);
+    }
+  }, [jobStatus]);
 
   useEffect(() => {
     if (jobStatus !== 'DISPATCHED' && navigationController) {
@@ -347,7 +360,8 @@ export default function ActiveJobScreen() {
 
   return (
     <View style={styles.flex}>
-      {jobLoaded && (
+      {jobLoaded &&
+      jobStatus === 'DISPATCHED' && (
       <NavigationView
         style={StyleSheet.absoluteFill}
         myLocationEnabled={true}
@@ -358,9 +372,23 @@ export default function ActiveJobScreen() {
           navigationHeaderPrimaryBackgroundColor: '#111111',
           navigationHeaderDistanceValueTextColor: '#D4A017',
         }}
-        onMapViewControllerCreated={(controller) => {
-          setNavViewController(controller);
-        }}
+        onMapViewControllerCreated={
+          async (controller) => {
+            setNavViewController(controller);
+            try {
+              await controller.setPadding({
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 150,
+              });
+            } catch (e) {
+              console.warn(
+                '[mapPadding]', e?.message
+              );
+            }
+          }
+        }
         onNavigationViewControllerCreated={
           async (controller) => {
             navViewControllerRef.current =
@@ -382,40 +410,51 @@ export default function ActiveJobScreen() {
       />
       )}
 
+      {jobStatus !== 'DISPATCHED' && (
       <SafeAreaView style={styles.topBar} edges={['top']}>
         <Text style={styles.navHint}>
           {isDisputed
             ? 'Dispute in progress — check notifications'
             : jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY'
               ? 'Waiting for customer payment…'
-              : 'Follow the route to the customer'}
+              : 'En route to customer'}
         </Text>
       </SafeAreaView>
+      )}
 
       <SafeAreaView style={styles.cardWrap} edges={['bottom']}>
-        <View style={styles.card}>
+        <View style={[
+          styles.card,
+          jobStatus === 'DISPATCHED' &&
+            styles.cardCompact,
+        ]}>
           <Text style={styles.custName}>{job?.customer?.name || 'Customer'}</Text>
-          {job?.customerNote ? (
-            <Text style={styles.note}>{job.customerNote}</Text>
-          ) : null}
-          <Text style={styles.svc}>{job?.serviceType?.replace(/_/g, ' ')}</Text>
-          <Text style={styles.addr}>{job?.customerAddress}</Text>
+          {/* Show full details only when not navigating */}
+          {jobStatus !== 'DISPATCHED' && (
+            <>
+              {job?.customerNote ? (
+                <Text style={styles.note}>{job.customerNote}</Text>
+              ) : null}
+              <Text style={styles.svc}>{job?.serviceType?.replace(/_/g, ' ')}</Text>
+              <Text style={styles.addr}>{job?.customerAddress}</Text>
 
-          {job?.vehicleDetails && (
-            job.vehicleDetails.make ||
-            job.vehicleDetails.model ||
-            job.vehicleDetails.color
-          ) && (
-            <View style={styles.vehicleCard}>
-              <Ionicons name="car-outline" size={14} color="#D4A017" />
-              <Text style={styles.vehicleText}>
-                {[
-                  job.vehicleDetails.make,
-                  job.vehicleDetails.model,
-                  job.vehicleDetails.color,
-                ].filter(Boolean).join(' · ')}
-              </Text>
-            </View>
+              {job?.vehicleDetails && (
+                job.vehicleDetails.make ||
+                job.vehicleDetails.model ||
+                job.vehicleDetails.color
+              ) && (
+                <View style={styles.vehicleCard}>
+                  <Ionicons name="car-outline" size={14} color="#D4A017" />
+                  <Text style={styles.vehicleText}>
+                    {[
+                      job.vehicleDetails.make,
+                      job.vehicleDetails.model,
+                      job.vehicleDetails.color,
+                    ].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+              )}
+            </>
           )}
 
           {!isDisputed && jobStatus === 'ACCEPTED' && jobMode === 'EMERGENCY' ? (
@@ -570,6 +609,10 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: '#2a2a2a',
+  },
+  cardCompact: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   custName: { color: COLORS.text, fontSize: 20, fontWeight: '800' },
   note: { color: COLORS.textMuted, marginTop: 8, fontSize: 15 },
