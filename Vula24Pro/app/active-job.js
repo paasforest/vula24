@@ -175,6 +175,32 @@ export default function ActiveJobScreen() {
   ]);
 
   useEffect(() => {
+    if (jobStatus !== 'DISPATCHED' ||
+        !navStarted) return;
+
+    // Reset camera perspective
+    // every 10s to prevent lag
+    const interval = setInterval(
+      async () => {
+        if (navViewControllerRef.current) {
+          try {
+            await navViewControllerRef
+              .current
+              .setFollowingPerspective(
+                CameraPerspective.TILTED
+              );
+          } catch {
+            // ignore
+          }
+        }
+      },
+      10000
+    );
+
+    return () => clearInterval(interval);
+  }, [jobStatus, navStarted]);
+
+  useEffect(() => {
     if (jobStatus !== 'DISPATCHED') {
       setNavStarted(false);
     }
@@ -582,8 +608,12 @@ export default function ActiveJobScreen() {
                   styles.arrivedBtn,
                   !nearCustomer && styles.arrivedBtnDisabled,
                 ]}
-                onPress={() => {
+                onPress={async () => {
                   if (nearCustomer) {
+                    // Reload job first to get
+                    // latest status
+                    await load();
+                    // Then attempt arrived
                     action('/arrived');
                   }
                 }}

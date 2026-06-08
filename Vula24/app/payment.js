@@ -91,20 +91,63 @@ export default function PaymentScreen() {
       url.includes('status=deposit') ||
       url.includes('status=complete')
     ) {
-      try {
-        if (job?.mode === 'EMERGENCY') {
-          await api.post(`/api/jobs/${jobId}/dispatch`);
+      if (job?.mode === 'EMERGENCY') {
+        // Retry dispatch up to 10 times
+        // with 2 second delay between
+        // attempts. This handles the race
+        // between PayFast return URL and
+        // webhook setting depositPaid.
+        let dispatched = false;
+        for (let i = 0; i < 10; i++) {
+          try {
+            await api.post(
+              `/api/jobs/${jobId}/dispatch`
+            );
+            dispatched = true;
+            break;
+          } catch (e) {
+            const msg =
+              e.response?.data?.error || '';
+            // If payment not yet confirmed
+            // wait and retry
+            if (
+              msg.includes('Payment is required') ||
+              msg.includes('payment')
+            ) {
+              await new Promise(resolve =>
+                setTimeout(resolve, 2000)
+              );
+            } else {
+              // Different error — stop retry
+              Alert.alert(
+                'Error',
+                msg ||
+                'Could not dispatch. Please contact support.'
+              );
+              return;
+            }
+          }
         }
-        router.replace({
-          pathname: '/tracking',
-          params: { jobId },
-        });
-      } catch (e) {
-        Alert.alert(
-          'Error',
-          'Payment received but could not dispatch. Please contact support.'
-        );
+        if (!dispatched) {
+          Alert.alert(
+            'Payment Processing',
+            'Your payment is being processed. Your locksmith will be notified shortly. Please wait on the tracking screen.',
+            [{
+              text: 'OK',
+              onPress: () =>
+                router.replace({
+                  pathname: '/tracking',
+                  params: { jobId },
+                })
+            }]
+          );
+          return;
+        }
       }
+      router.replace({
+        pathname: '/tracking',
+        params: { jobId },
+      });
     } else {
       Alert.alert(
         'Payment cancelled',
