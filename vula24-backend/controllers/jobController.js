@@ -795,11 +795,79 @@ async function cancelJob(req, res) {
       job.locksithId === req.locksmith.id;
 
     if (!shouldReassign) {
+      const { reason } = req.body;
+
+      const updatedLocksmith = await prisma.locksmith.update({
+        where: { id: req.locksmith.id },
+        data: {
+          cancellationCount: {
+            increment: 1,
+          },
+        },
+        select: {
+          cancellationCount: true,
+          name: true,
+          pushToken: true,
+        },
+      });
+
       const updated = await prisma.job.update({
         where: { id: job.id },
-        data: { status: 'CANCELLED' },
+        data: {
+          status: 'CANCELLED',
+          cancelledBy: 'LOCKSMITH',
+          cancelReason: reason || 'No reason provided',
+          locksithId: null,
+          teamMemberId: null,
+        },
       });
-      return res.json({ job: updated, reassigned: false });
+
+      if (job.customerId) {
+        const customer = await prisma.customer.findUnique({
+          where: { id: job.customerId },
+          select: { pushToken: true },
+        });
+        if (customer?.pushToken) {
+          sendPushNotification(
+            customer.pushToken,
+            'Locksmith Cancelled',
+            'Your locksmith cancelled. We are finding you a new one.',
+            {
+              jobId: String(job.id),
+              type: 'LOCKSMITH_CANCELLED',
+            }
+          );
+        }
+        await prisma.notification.create({
+          data: {
+            recipientId: job.customerId,
+            recipientType: 'CUSTOMER',
+            title: 'Locksmith Cancelled',
+            message: 'Your locksmith cancelled. We are finding you a new one.',
+          },
+        });
+      }
+
+      const count = updatedLocksmith.cancellationCount;
+      let warning = null;
+      if (count >= 5) {
+        warning = 'SUSPENDED';
+        await prisma.locksmith.update({
+          where: { id: req.locksmith.id },
+          data: { isSuspended: true },
+        });
+      } else if (count >= 3) {
+        warning = 'FINAL_WARNING';
+      } else if (count === 1) {
+        warning = 'FIRST_WARNING';
+      }
+
+      return res.json({
+        job: updated,
+        reassigned: false,
+        cancellationCount: count,
+        warning,
+      });
     }
 
     const next = await getNearestLocksmith({
@@ -844,6 +912,21 @@ async function cancelJob(req, res) {
       'A job has been reassigned away from you.',
       { jobId: String(job.id) }
     );
+
+    const { reason } = req.body;
+    await prisma.locksmith.update({
+      where: { id: req.locksmith.id },
+      data: {
+        cancellationCount: { increment: 1 },
+      },
+    });
+    await prisma.job.update({
+      where: { id: job.id },
+      data: {
+        cancelReason: reason || 'No reason provided',
+        cancelledBy: 'LOCKSMITH',
+      },
+    });
 
     const pricing = calculateJobPrice(next.basePrice);
     const updated = await prisma.job.update({

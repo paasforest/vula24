@@ -124,6 +124,7 @@ model Locksmith {
   currentLng        Float?
   rating            Float       @default(5.0)
   totalJobs         Int         @default(0)
+  cancellationCount Int         @default(0)
   walletMinimum     Float       @default(200)
   profilePhoto      String?
   vehicleMake       String?
@@ -224,6 +225,7 @@ model Job {
   disputeReason     String?
   cancellationFee   Float?
   cancelledBy       String?
+  cancelReason      String?
   createdAt         DateTime    @default(now())
   acceptedAt        DateTime?
   completedAt       DateTime?

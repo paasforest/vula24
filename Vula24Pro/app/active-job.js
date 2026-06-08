@@ -358,6 +358,103 @@ export default function ActiveJobScreen() {
 
   const phone = job?.customer?.phone;
 
+  const CANCEL_REASONS = [
+    'Vehicle breakdown',
+    'Personal emergency',
+    'Job location unsafe',
+    'Customer unresponsive',
+    'Other',
+  ];
+
+  const confirmCancel = async (reason) => {
+    Alert.alert(
+      'Confirm Cancellation',
+      `Reason: "${reason}"\n\nThis cancellation will be permanently recorded. Are you sure?`,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { data } = await api.post(
+                `/api/jobs/${jobId}/cancel`,
+                { reason }
+              );
+
+              if (data.warning === 'SUSPENDED') {
+                Alert.alert(
+                  'Account Suspended',
+                  'You have been suspended due to too many cancellations. Contact support.',
+                  [{
+                    text: 'OK',
+                    onPress: () => router.replace('/(tabs)/dashboard'),
+                  }]
+                );
+              } else if (data.warning === 'FINAL_WARNING') {
+                Alert.alert(
+                  'Final Warning',
+                  'You have cancelled 3 jobs. One more cancellation will suspend your account.',
+                  [{
+                    text: 'OK',
+                    onPress: () => router.replace('/(tabs)/dashboard'),
+                  }]
+                );
+              } else if (data.warning === 'FIRST_WARNING') {
+                Alert.alert(
+                  'Warning',
+                  'This cancellation has been recorded. Repeated cancellations affect your standing.',
+                  [{
+                    text: 'OK',
+                    onPress: () => router.replace('/(tabs)/dashboard'),
+                  }]
+                );
+              } else {
+                router.replace('/(tabs)/dashboard');
+              }
+            } catch (e) {
+              Alert.alert(
+                'Error',
+                e.response?.data?.error || 'Could not cancel job.'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const showReasonPicker = () => {
+    const buttons = CANCEL_REASONS.map((reason) => ({
+      text: reason,
+      onPress: () => confirmCancel(reason),
+    }));
+    buttons.push({
+      text: 'Back',
+      style: 'cancel',
+    });
+    Alert.alert(
+      'Select a reason',
+      'Why are you cancelling?',
+      buttons
+    );
+  };
+
+  const cancelJob = () => {
+    Alert.alert(
+      '⚠️ Cancel Job',
+      'Warning: Cancellations are logged against your account. Repeated cancellations may result in suspension.',
+      [
+        { text: 'Keep Job', style: 'cancel' },
+        {
+          text: 'Cancel Job',
+          style: 'destructive',
+          onPress: () => showReasonPicker(),
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.flex}>
       {jobLoaded &&
@@ -546,6 +643,19 @@ export default function ActiveJobScreen() {
             <Text style={styles.callText}>Call customer</Text>
           </TouchableOpacity>
 
+          {(jobStatus === 'ACCEPTED' ||
+            jobStatus === 'DISPATCHED') &&
+            !isDisputed && (
+            <TouchableOpacity
+              style={styles.locksmithCancelBtn}
+              onPress={cancelJob}
+            >
+              <Text style={styles.locksmithCancelText}>
+                Cancel Job
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {job?.status === 'COMPLETED' && !isMember && (
             <TouchableOpacity
               style={{
@@ -666,6 +776,19 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   callText: { color: COLORS.bg, fontWeight: '700', fontSize: 16, marginLeft: 8 },
+  locksmithCancelBtn: {
+    marginTop: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#555555',
+    borderRadius: 12,
+  },
+  locksmithCancelText: {
+    color: '#AAAAAA',
+    fontSize: 13,
+    fontWeight: '500',
+  },
   proximityHint: {
     textAlign: 'center',
     color: '#AAAAAA',
