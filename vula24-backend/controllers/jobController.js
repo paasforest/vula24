@@ -745,21 +745,25 @@ async function cancelJob(req, res) {
         where: { locksithId: job.locksithId },
       });
       if (wallet) {
-        await prisma.wallet.update({
-          where: { id: wallet.id },
-          data: {
-            balance: { increment: locksmithShare },
-          },
-        });
-        await prisma.transaction.create({
-          data: {
-            walletId: wallet.id,
-            jobId: job.id,
-            amount: locksmithShare,
-            type: 'CREDIT',
-            description: 'Cancellation fee compensation',
-          },
-        });
+        await prisma.$transaction([
+          prisma.wallet.update({
+            where: { id: wallet.id },
+            data: {
+              balance: {
+                increment: locksmithShare,
+              },
+            },
+          }),
+          prisma.transaction.create({
+            data: {
+              walletId: wallet.id,
+              jobId: job.id,
+              amount: locksmithShare,
+              type: 'CREDIT',
+              description: 'Cancellation fee compensation',
+            },
+          }),
+        ]);
       }
     }
 
