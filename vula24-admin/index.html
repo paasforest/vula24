@@ -151,6 +151,20 @@
     </div>
 
     <div class="card">
+      <h2>Cancellations</h2>
+      <div class="toolbar">
+        <button type="button"
+          class="btn btn-ghost"
+          id="btn-refresh-cancellations">
+          Refresh
+        </button>
+      </div>
+      <div id="cancellations"></div>
+      <div id="cancellations-err"
+        class="err hidden"></div>
+    </div>
+
+    <div class="card">
       <h2>Withdrawal Requests</h2>
       <div class="toolbar">
         <div>
@@ -615,6 +629,77 @@
           await loadRefunds();
         } catch (e) {
           alert(e.message || 'Could not process refund');
+        }
+      }
+
+      async function loadCancellations() {
+        try {
+          const data = await apiFetch(
+            '/api/admin/jobs?status=CANCELLED'
+          );
+          const jobs = (data.jobs || [])
+            .filter(j =>
+              j.status === 'CANCELLED' &&
+              j.cancelledBy
+            );
+
+          if (jobs.length === 0) {
+            document.getElementById(
+              'cancellations'
+            ).innerHTML =
+              '<p>No cancellations yet.</p>';
+            return;
+          }
+
+          document.getElementById(
+            'cancellations'
+          ).innerHTML = `
+      <table>
+        <tr>
+          <th>Date</th>
+          <th>Service</th>
+          <th>Cancelled By</th>
+          <th>Reason</th>
+          <th>Customer</th>
+          <th>Locksmith</th>
+          <th>Fee</th>
+        </tr>
+        ${jobs.map(j => `
+          <tr>
+            <td>${new Date(j.createdAt)
+              .toLocaleDateString()}</td>
+            <td>${escapeHtml(
+              j.serviceType
+                ?.replace(/_/g,' ') || ''
+            )}</td>
+            <td style="color:${
+              j.cancelledBy === 'CUSTOMER'
+                ? '#E53935'
+                : '#FF9800'
+            }">${j.cancelledBy || '-'}</td>
+            <td>${escapeHtml(
+              j.cancelReason || '-'
+            )}</td>
+            <td>${escapeHtml(
+              j.customer?.name || '-'
+            )}</td>
+            <td>${escapeHtml(
+              j.locksmith?.name || '-'
+            )}</td>
+            <td>${j.cancellationFee > 0
+              ? 'R' + j.cancellationFee
+              : 'Free'}</td>
+          </tr>
+        `).join('')}
+      </table>
+    `;
+        } catch (e) {
+          document.getElementById(
+            'cancellations-err'
+          ).textContent = e.message;
+          document.getElementById(
+            'cancellations-err'
+          ).classList.remove('hidden');
         }
       }
 
@@ -1325,6 +1410,7 @@
         refreshCommission();
         refreshPayments();
         loadRefunds();
+        loadCancellations();
         refreshWithdrawals();
         refreshPending();
         refreshDisputes();
@@ -1356,6 +1442,11 @@
         refreshPayments();
       };
       document.getElementById('btn-refresh-refunds').onclick = loadRefunds;
+      document.getElementById(
+        'btn-refresh-cancellations'
+      )?.addEventListener(
+        'click', loadCancellations
+      );
       document.getElementById('btn-refresh-withdrawals').onclick = refreshWithdrawals;
       document.getElementById('withdrawals-status-filter').onchange = refreshWithdrawals;
       document.getElementById('btn-refresh-pending').onclick = refreshPending;
