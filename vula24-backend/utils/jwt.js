@@ -13,7 +13,7 @@ function signCustomerToken(customerId) {
   return jwt.sign(
     { sub: customerId, type: 'customer' },
     process.env.JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '30d' }
   );
 }
 
@@ -22,7 +22,7 @@ function signLocksmithToken(locksmithId) {
   return jwt.sign(
     { sub: locksmithId, type: 'locksmith' },
     process.env.JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '30d' }
   );
 }
 
@@ -31,7 +31,7 @@ function signMemberToken(memberId, businessId) {
   return jwt.sign(
     { sub: memberId, type: 'member', memberId, businessId },
     process.env.JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '30d' }
   );
 }
 
