@@ -338,6 +338,22 @@ export default function ActiveJobScreen() {
     return () => subscription.remove();
   }, [jobStatus, custLat, custLng]);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      async (nextState) => {
+        if (
+          appStateRef.current.match(/inactive|background/) &&
+          nextState === 'active'
+        ) {
+          await load();
+        }
+        appStateRef.current = nextState;
+      }
+    );
+    return () => subscription.remove();
+  }, [load]);
+
 
   const jobMode = job?.mode;
   const isDisputed = job?.isDisputed === true;

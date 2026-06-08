@@ -403,6 +403,7 @@ export default function DashboardScreen() {
         try {
           await loadProfile();
           await postLocationIfPossible();
+          await loadJobs();
         } catch {
           /* ignore */
         }
@@ -410,7 +411,7 @@ export default function DashboardScreen() {
       appStateRef.current = next;
     });
     return () => sub.remove();
-  }, [loadProfile]);
+  }, [loadProfile, loadJobs]);
 
   const onToggleOnline = async (value) => {
     if (toggleLoading) return;
