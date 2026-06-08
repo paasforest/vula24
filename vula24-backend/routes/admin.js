@@ -90,6 +90,15 @@ router.get('/stats', asyncHandler(admin.getStats));
 
 router.get('/payments', asyncHandler(admin.getPaymentHistory));
 
+router.get('/refunds', asyncHandler(admin.listRefunds));
+
+router.put(
+  '/refunds/:id/process',
+  [param('id').isUUID()],
+  handleValidationErrors,
+  asyncHandler(admin.processRefund)
+);
+
 router.get('/withdrawals', asyncHandler(admin.getWithdrawals));
 
 router.put(

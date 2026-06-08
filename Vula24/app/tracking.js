@@ -196,6 +196,49 @@ export default function TrackingScreen() {
     return null;
   };
 
+  const cancelJob = async () => {
+    const isFree = job?.status !== 'DISPATCHED';
+    const message = isFree
+      ? 'Are you sure you want to cancel this job?'
+      : 'A cancellation fee of R120 applies because the locksmith is already on the way. Cancel anyway?';
+
+    Alert.alert(
+      'Cancel Job',
+      message,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { data } = await api.post(
+                `/api/jobs/${jobId}/cancel`
+              );
+              if (data.cancellationFee > 0) {
+                Alert.alert(
+                  'Job Cancelled',
+                  `A cancellation fee of R${data.cancellationFee} has been charged.`,
+                  [{
+                    text: 'OK',
+                    onPress: () => router.replace('/(tabs)/home'),
+                  }]
+                );
+              } else {
+                router.replace('/(tabs)/home');
+              }
+            } catch (e) {
+              Alert.alert(
+                'Error',
+                e.response?.data?.error || 'Could not cancel job.'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.flex}>
       <MapView
@@ -325,6 +368,20 @@ export default function TrackingScreen() {
         <TouchableOpacity style={styles.sos} onPress={() => Linking.openURL('tel:10111')}>
           <Text style={styles.sosText}>SOS</Text>
         </TouchableOpacity>
+        {(job?.status === 'PENDING' ||
+          job?.status === 'ACCEPTED' ||
+          job?.status === 'DISPATCHED') && (
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={cancelJob}
+          >
+            <Text style={styles.cancelBtnText}>
+              {job?.status === 'DISPATCHED'
+                ? 'Cancel Job (R120 fee)'
+                : 'Cancel Job'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -487,6 +544,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sosText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  cancelBtn: {
+    marginTop: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E53935',
+    borderRadius: 12,
+    marginHorizontal: 0,
+  },
+  cancelBtnText: {
+    color: '#E53935',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   divider: {
     height: 1,
     backgroundColor: '#333333',

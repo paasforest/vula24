@@ -91,8 +91,9 @@ model Customer {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  jobs    Job[]
-  reviews Review[]
+  jobs           Job[]
+  reviews        Review[]
+  refundRequests RefundRequest[]
 }
 
 model Locksmith {
@@ -221,6 +222,8 @@ model Job {
   disputeResolvedAt DateTime?
   disputeNotes      String?
   disputeReason     String?
+  cancellationFee   Float?
+  cancelledBy       String?
   createdAt         DateTime    @default(now())
   acceptedAt        DateTime?
   completedAt       DateTime?
@@ -230,6 +233,23 @@ model Job {
   review         Review?
   transactions   Transaction[] @relation("JobWalletTx")
   pendingPayout  PendingPayout?
+  refundRequest  RefundRequest?
+}
+
+model RefundRequest {
+  id              String    @id @default(uuid())
+  jobId           String    @unique
+  job             Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  customerId      String
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  totalPaid       Float
+  cancellationFee Float
+  refundAmount    Float
+  status          String    @default("PENDING")
+  processedAt     DateTime?
+  processedBy     String?
+  notes           String?
+  createdAt       DateTime  @default(now())
 }
 
 model Quote {

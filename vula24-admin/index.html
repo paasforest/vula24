@@ -142,6 +142,15 @@
     </div>
 
     <div class="card">
+      <h2>Refund Requests</h2>
+      <div class="toolbar">
+        <button type="button" class="btn btn-ghost" id="btn-refresh-refunds">Refresh</button>
+      </div>
+      <div id="refunds"></div>
+      <div id="refunds-err" class="err hidden"></div>
+    </div>
+
+    <div class="card">
       <h2>Withdrawal Requests</h2>
       <div class="toolbar">
         <div>
@@ -527,6 +536,85 @@
           alert(e.message);
         } finally {
           if (btn) btn.disabled = false;
+        }
+      }
+
+      async function loadRefunds() {
+        elErr('refunds-err', '');
+        const wrap = document.getElementById('refunds');
+        wrap.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+        try {
+          const data = await apiFetch('/api/admin/refunds');
+          const refunds = data.refunds || [];
+          const pendingRefunds = refunds.filter(function (r) {
+            return r.status === 'PENDING';
+          });
+
+          if (!refunds.length) {
+            wrap.innerHTML = '<p style="color:var(--muted)">No refund requests.</p>';
+            return;
+          }
+
+          let html =
+            '<h3 style="margin:0 0 12px;font-size:1rem">Refund Requests</h3>' +
+            '<p style="color:var(--muted);margin:0 0 12px">' +
+            pendingRefunds.length +
+            ' pending refunds</p>' +
+            '<table><thead><tr>' +
+            '<th>Customer</th><th>Phone</th><th>Total Paid</th>' +
+            '<th>Cancel Fee</th><th>Refund Amount</th><th>Date</th>' +
+            '<th>Status</th><th>Action</th>' +
+            '</tr></thead><tbody>';
+
+          for (const r of refunds) {
+            html +=
+              '<tr><td>' +
+              escapeHtml(r.customer?.name || '—') +
+              '</td><td>' +
+              escapeHtml(r.customer?.phone || '—') +
+              '</td><td>R' +
+              Number(r.totalPaid || 0).toFixed(2) +
+              '</td><td>R' +
+              Number(r.cancellationFee || 0).toFixed(2) +
+              '</td><td>R' +
+              Number(r.refundAmount || 0).toFixed(2) +
+              '</td><td>' +
+              escapeHtml(fmtDate(r.createdAt)) +
+              '</td><td>' +
+              escapeHtml(r.status || '—') +
+              '</td><td>' +
+              (r.status === 'PENDING'
+                ? '<button type="button" class="btn btn-gold btn-refund-process" data-id="' +
+                  r.id +
+                  '">Mark Processed</button>'
+                : 'Done') +
+              '</td></tr>';
+          }
+
+          html += '</tbody></table>';
+          wrap.innerHTML = html;
+          wrap.querySelectorAll('.btn-refund-process').forEach(function (b) {
+            b.onclick = function () {
+              processRefund(b.getAttribute('data-id'));
+            };
+          });
+        } catch (e) {
+          wrap.innerHTML = '';
+          elErr('refunds-err', e.message || String(e));
+        }
+      }
+
+      async function processRefund(id) {
+        const notes = window.prompt('Add reference/notes (optional):');
+        if (notes === null) return;
+        try {
+          await apiFetch('/api/admin/refunds/' + id + '/process', {
+            method: 'PUT',
+            body: JSON.stringify({ notes: notes || null }),
+          });
+          await loadRefunds();
+        } catch (e) {
+          alert(e.message || 'Could not process refund');
         }
       }
 
@@ -1236,6 +1324,7 @@
         refreshStats();
         refreshCommission();
         refreshPayments();
+        loadRefunds();
         refreshWithdrawals();
         refreshPending();
         refreshDisputes();
@@ -1266,6 +1355,7 @@
         paymentsPage += 1;
         refreshPayments();
       };
+      document.getElementById('btn-refresh-refunds').onclick = loadRefunds;
       document.getElementById('btn-refresh-withdrawals').onclick = refreshWithdrawals;
       document.getElementById('withdrawals-status-filter').onchange = refreshWithdrawals;
       document.getElementById('btn-refresh-pending').onclick = refreshPending;

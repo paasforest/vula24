@@ -679,6 +679,45 @@ async function cancelJob(req, res) {
   res.json({ success: true });
 }
 
+async function listRefunds(req, res) {
+  const refunds = await prisma.refundRequest.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      job: {
+        select: {
+          serviceType: true,
+          customerAddress: true,
+          createdAt: true,
+        },
+      },
+      customer: {
+        select: {
+          name: true,
+          phone: true,
+          email: true,
+        },
+      },
+    },
+  });
+  res.json({ refunds });
+}
+
+async function processRefund(req, res) {
+  const { id } = req.params;
+  const { notes } = req.body;
+
+  const refund = await prisma.refundRequest.update({
+    where: { id },
+    data: {
+      status: 'PROCESSED',
+      processedAt: new Date(),
+      processedBy: 'ADMIN',
+      notes: notes || null,
+    },
+  });
+  res.json({ refund });
+}
+
 module.exports = {
   adminLogin,
   listPendingLocksmiths,
@@ -696,6 +735,8 @@ module.exports = {
   listAdminTeamMembers,
   getAuditLogs,
   getPaymentHistory,
+  listRefunds,
+  processRefund,
   getWithdrawals,
   markWithdrawalPaid,
   cancelJob,

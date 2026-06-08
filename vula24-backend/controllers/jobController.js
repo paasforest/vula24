@@ -696,11 +696,92 @@ async function cancelJob(req, res) {
   }
 
   if (role === 'customer') {
+    const cancellationFee =
+      job.status === 'DISPATCHED' && job.depositPaid ? 120 : 0;
+
     const updated = await prisma.job.update({
       where: { id: job.id },
-      data: { status: 'CANCELLED' },
+      data: {
+        status: 'CANCELLED',
+        cancelledBy: 'CUSTOMER',
+        cancellationFee,
+        locksithId: null,
+        teamMemberId: null,
+      },
     });
-    return res.json({ job: updated, reassigned: false });
+
+    if (job.locksithId) {
+      const locksmith = await prisma.locksmith.findUnique({
+        where: { id: job.locksithId },
+        select: {
+          pushToken: true,
+          name: true,
+        },
+      });
+      if (locksmith?.pushToken) {
+        sendPushNotification(
+          locksmith.pushToken,
+          'Job Cancelled',
+          'The customer has cancelled this job.',
+          {
+            jobId: String(job.id),
+            type: 'JOB_CANCELLED',
+          }
+        );
+      }
+      await prisma.notification.create({
+        data: {
+          recipientId: job.locksithId,
+          recipientType: 'LOCKSMITH',
+          title: 'Job Cancelled',
+          message: 'The customer has cancelled this job.',
+        },
+      });
+    }
+
+    if (cancellationFee > 0 && job.locksithId) {
+      const locksmithShare = 60;
+      const wallet = await prisma.wallet.findUnique({
+        where: { locksithId: job.locksithId },
+      });
+      if (wallet) {
+        await prisma.wallet.update({
+          where: { id: wallet.id },
+          data: {
+            balance: { increment: locksmithShare },
+          },
+        });
+        await prisma.transaction.create({
+          data: {
+            walletId: wallet.id,
+            jobId: job.id,
+            amount: locksmithShare,
+            type: 'CREDIT',
+            description: 'Cancellation fee compensation',
+          },
+        });
+      }
+    }
+
+    if (cancellationFee > 0) {
+      const refundAmount = job.totalPrice - cancellationFee;
+      await prisma.refundRequest.create({
+        data: {
+          jobId: job.id,
+          customerId: job.customerId,
+          totalPaid: job.totalPrice,
+          cancellationFee,
+          refundAmount,
+          status: 'PENDING',
+        },
+      });
+    }
+
+    return res.json({
+      job: updated,
+      reassigned: false,
+      cancellationFee,
+    });
   }
 
   if (role === 'locksmith') {
