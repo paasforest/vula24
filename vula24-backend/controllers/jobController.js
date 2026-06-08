@@ -1134,6 +1134,35 @@ async function listCustomerJobs(req, res) {
   res.json({ jobs });
 }
 
+async function getActiveCustomerJob(req, res) {
+  const customerId = req.customer.id;
+  const job = await prisma.job.findFirst({
+    where: {
+      customerId,
+      status: {
+        in: [
+          'DISPATCHED',
+          'ARRIVED',
+          'IN_PROGRESS',
+        ],
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      locksmith: {
+        select: {
+          name: true,
+          phone: true,
+          profilePhoto: true,
+          currentLat: true,
+          currentLng: true,
+        },
+      },
+    },
+  });
+  res.json({ job: job || null });
+}
+
 async function listLocksmithJobs(req, res) {
   const jobs = await prisma.job.findMany({
     where: { locksithId: req.locksmith.id },
@@ -2051,6 +2080,7 @@ module.exports = {
   updateLocksmithLocation,
   getLocksmithLocationForJob,
   listCustomerJobs,
+  getActiveCustomerJob,
   listLocksmithJobs,
   getServicePricing,
   upsertServicePricing,

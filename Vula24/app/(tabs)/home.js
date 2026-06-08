@@ -152,6 +152,31 @@ export default function HomeScreen() {
   const [nearbyLocksmiths, setNearbyLocksmiths] = useState([]);
   const pushRegisteredRef = useRef(false);
 
+  useFocusEffect(
+    useCallback(() => {
+      const checkActiveJob = async () => {
+        try {
+          const { data } = await api.get('/api/jobs/customer/active');
+          const job = data?.job;
+          if (job && [
+            'DISPATCHED',
+            'ARRIVED',
+            'IN_PROGRESS',
+          ].includes(job.status)) {
+            router.push({
+              pathname: '/tracking',
+              params: { jobId: job.id },
+            });
+          }
+        } catch {
+          // No active job or error —
+          // stay on home
+        }
+      };
+      checkActiveJob();
+    }, [])
+  );
+
   useEffect(() => {
     if (pushRegisteredRef.current) return;
     pushRegisteredRef.current = true;

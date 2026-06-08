@@ -155,7 +155,18 @@ export default function MyJobsScreen() {
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.9}
-        onPress={() => setSelected(item)}
+        onPress={() => {
+          if (item.status === 'DISPATCHED' ||
+              item.status === 'ARRIVED' ||
+              item.status === 'IN_PROGRESS') {
+            router.push({
+              pathname: '/tracking',
+              params: { jobId: item.id },
+            });
+          } else {
+            setSelected(item);
+          }
+        }}
       >
         <View style={styles.cardTop}>
           <Ionicons name={serviceIcon(item.serviceType)} size={28} color={COLORS.accent} />

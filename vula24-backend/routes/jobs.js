@@ -53,6 +53,12 @@ router.get(
 );
 
 router.get(
+  '/customer/active',
+  authenticateCustomer,
+  asyncHandler(jobs.getActiveCustomerJob)
+);
+
+router.get(
   '/locksmith/my-jobs',
   authenticateLocksmith,
   asyncHandler(jobs.listLocksmithJobs)
