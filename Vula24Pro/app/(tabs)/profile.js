@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../constants/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUser, clearAuth, saveUser } from '../../lib/storage';
 import api, { postMultipart } from '../../lib/api';
 import { GoldButton } from '../../components/GoldButton';
@@ -225,6 +226,29 @@ export default function ProfileScreen() {
         text: 'Sign out',
         style: 'destructive',
         onPress: async () => {
+          try {
+            if (isMember) {
+              await api.put('/api/member/toggle-online', {});
+            } else {
+              await api.put('/api/locksmith/toggle-online');
+            }
+          } catch {
+            // ignore — still log out
+          }
+          try {
+            const keys = await AsyncStorage.getAllKeys();
+            const jobKeys = keys.filter(
+              (k) =>
+                k.startsWith('dismiss_job_') ||
+                k.startsWith('pushed_job_') ||
+                k.startsWith('dismissed_active_')
+            );
+            if (jobKeys.length > 0) {
+              await AsyncStorage.multiRemove(jobKeys);
+            }
+          } catch {
+            // ignore — still log out
+          }
           await clearAuth();
           router.replace('/welcome');
         },

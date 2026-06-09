@@ -769,16 +769,27 @@ export default function DashboardScreen() {
 
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Recent jobs</Text>
-          <TouchableOpacity onPress={() => router.push('/my-jobs')}>
-            <Text style={styles.seeAll}>See all</Text>
-          </TouchableOpacity>
+          {null}
         </View>
 
         {recent.length === 0 ? (
           <Text style={styles.empty}>No jobs yet. Go online to receive requests.</Text>
         ) : (
           recent.map((j) => (
-            <View key={j.id} style={styles.jobCard}>
+            <TouchableOpacity
+              key={j.id}
+              style={styles.jobCard}
+              onPress={() => {
+                Alert.alert(
+                  j.serviceType?.replace(/_/g, ' ') || 'Job',
+                  `Status: ${j.status}\n` +
+                    `Date: ${new Date(j.createdAt).toLocaleDateString()}\n` +
+                    `Address: ${j.customerAddress || 'N/A'}\n` +
+                    `Amount: R${j.locksithEarning?.toFixed(2) || '0.00'}`,
+                  [{ text: 'OK' }]
+                );
+              }}
+            >
               <View style={styles.jobIconWrap}>
                 <Ionicons name={getJobIcon(j.serviceType)} size={20} color={COLORS.accent} />
               </View>
@@ -798,7 +809,7 @@ export default function DashboardScreen() {
                   {j.status}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
