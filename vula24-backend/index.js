@@ -77,6 +77,27 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth', authLimiter);
 
+// Strict limit for admin auth
+const adminAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: {
+    error: 'Too many admin login attempts',
+  },
+});
+app.use('/api/admin/auth', adminAuthLimiter);
+
+// OTP rate limit
+const otpLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 3,
+  message: {
+    error: 'Too many OTP requests, please wait before trying again',
+  },
+});
+app.use('/api/auth/send-otp', otpLimiter);
+app.use('/api/auth/verify-otp', otpLimiter);
+
 // Relaxed limit for payment gateway webhook callbacks
 const webhookLimiter = rateLimit({
   windowMs: 60 * 1000,

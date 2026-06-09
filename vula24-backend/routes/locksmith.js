@@ -73,12 +73,6 @@ router.post(
         if (!item || typeof item !== 'object') {
           throw new Error('Each item must be an object');
         }
-        // eslint-disable-next-line no-console
-        console.log('[locksmith/pricing] validate row', {
-          receivedServiceType: item.serviceType,
-          typeofReceived: typeof item.serviceType,
-          allowedServiceTypes: SERVICE_TYPES,
-        });
         if (!SERVICE_TYPES.includes(item.serviceType)) {
           throw new Error('Invalid serviceType');
         }
