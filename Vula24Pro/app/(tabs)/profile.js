@@ -219,6 +219,41 @@ export default function ProfileScreen() {
     }
   };
 
+  const deleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account, wallet and all data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (isMember) {
+                // Team members contact admin to delete account
+                Alert.alert(
+                  'Delete Account',
+                  'To delete your team member account please contact support at support@vula24.co.za',
+                  [{ text: 'OK' }]
+                );
+                return;
+              }
+              await api.delete('/api/locksmith/account');
+              await clearAuth();
+              router.replace('/welcome');
+            } catch (e) {
+              Alert.alert(
+                'Error',
+                e.response?.data?.error || 'Could not delete account.'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const signOut = () => {
     Alert.alert('Sign out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
@@ -541,6 +576,13 @@ export default function ProfileScreen() {
           <Ionicons name="log-out-outline" size={22} color={COLORS.error} />
           <Text style={styles.signOut}>Sign Out</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.signOutBtn, { borderColor: '#E53935', marginTop: 8 }]}
+          onPress={deleteAccount}
+        >
+          <Ionicons name="trash-outline" size={20} color="#E53935" />
+          <Text style={[styles.signOutText, { color: '#E53935' }]}>Delete Account</Text>
+        </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -658,6 +700,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 12,
     fontWeight: '600',
+  },
+  signOutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.error,
+    backgroundColor: COLORS.inputBg,
+  },
+  signOutText: {
+    color: COLORS.error,
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   vehicleCard: {
     marginHorizontal: 16,

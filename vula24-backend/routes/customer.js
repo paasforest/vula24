@@ -5,6 +5,7 @@ const { handleValidationErrors } = require('../middleware/validate');
 const { authenticateCustomer } = require('../middleware/auth');
 const { customerPhotoUpload } = require('../middleware/uploadLocksmith');
 const auth = require('../controllers/authController');
+const customer = require('../controllers/customerController');
 
 const router = Router();
 
@@ -38,6 +39,12 @@ router.post(
   authenticateCustomer,
   customerPhotoUpload,
   asyncHandler(auth.uploadCustomerPhoto)
+);
+
+router.delete(
+  '/account',
+  authenticateCustomer,
+  asyncHandler(customer.deleteCustomerAccount)
 );
 
 module.exports = router;

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
 import { getUser, clearAuth } from '../../lib/storage';
+import api from '../../lib/api';
 
 const MENU = [
   { key: 'edit', label: 'Edit Profile', icon: 'person-outline' },
@@ -76,6 +77,32 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const deleteAccount = async () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all your data. This cannot be undone. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete('/api/customer/account');
+              await clearAuth();
+              router.replace('/login');
+            } catch (e) {
+              Alert.alert(
+                'Error',
+                e.response?.data?.error || 'Could not delete account.'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <Text style={styles.h1}>Profile</Text>
@@ -103,6 +130,10 @@ export default function ProfileScreen() {
         <TouchableOpacity style={styles.row} onPress={signOut}>
           <Ionicons name="log-out-outline" size={22} color={COLORS.error} />
           <Text style={styles.signOut}>Sign Out</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.row} onPress={deleteAccount}>
+          <Ionicons name="trash-outline" size={22} color="#E53935" />
+          <Text style={[styles.signOut, { color: '#E53935' }]}>Delete Account</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

@@ -8,6 +8,7 @@ const {
   locksmithDocumentUpload,
 } = require('../middleware/uploadLocksmith');
 const jobs = require('../controllers/jobController');
+const locksmith = require('../controllers/locksmithController');
 const { SERVICE_TYPES } = require('../constants/serviceTypes');
 
 const router = Router();
@@ -155,6 +156,12 @@ router.post(
   [param('memberId').isUUID()],
   handleValidationErrors,
   asyncHandler(jobs.deactivateTeamMember)
+);
+
+router.delete(
+  '/account',
+  authenticateLocksmith,
+  asyncHandler(locksmith.deleteLocksmithAccount)
 );
 
 module.exports = router;
