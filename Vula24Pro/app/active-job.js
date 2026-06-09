@@ -7,6 +7,7 @@ import {
   Alert,
   TouchableOpacity,
   AppState,
+  Animated,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
@@ -32,9 +33,11 @@ export default function ActiveJobScreen() {
   const [jobLoaded, setJobLoaded] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [nearCustomer, setNearCustomer] = useState(false);
+  const [currentDistance, setCurrentDistance] = useState(null);
   const locInterval = useRef(null);
   const proximityIntervalRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
+  const slideAnim = useRef(new Animated.Value(0)).current;
   const { navigationController } = useNavigation();
   const [navReady, setNavReady] = useState(false);
   const [navStarted, setNavStarted] = useState(false);
@@ -133,7 +136,8 @@ export default function ActiveJobScreen() {
           try {
             await navViewControllerRef.current
               .setFollowingPerspective(
-                CameraPerspective.TILTED
+                CameraPerspective.TILTED,
+                { zoomLevel: 17 }
               );
           } catch (e) {
             console.warn('[camera]', e?.message);
@@ -174,32 +178,6 @@ export default function ActiveJobScreen() {
     navStarted,
     startNavigation,
   ]);
-
-  useEffect(() => {
-    if (jobStatus !== 'DISPATCHED' ||
-        !navStarted) return;
-
-    // Reset camera perspective
-    // every 10s to prevent lag
-    const interval = setInterval(
-      async () => {
-        if (navViewControllerRef.current) {
-          try {
-            await navViewControllerRef
-              .current
-              .setFollowingPerspective(
-                CameraPerspective.TILTED
-              );
-          } catch {
-            // ignore
-          }
-        }
-      },
-      10000
-    );
-
-    return () => clearInterval(interval);
-  }, [jobStatus, navStarted]);
 
   useEffect(() => {
     if (jobStatus !== 'DISPATCHED') {
@@ -308,6 +286,7 @@ export default function ActiveJobScreen() {
           custLat,
           custLng
         );
+        setCurrentDistance(Math.round(distance));
         if (distance <= 500) {
           setNearCustomer(true);
           if (proximityIntervalRef.current) {
@@ -329,6 +308,16 @@ export default function ActiveJobScreen() {
       }
     };
   }, [jobStatus, custLat, custLng]);
+
+  useEffect(() => {
+    if (jobStatus !== 'DISPATCHED') return;
+    Animated.spring(slideAnim, {
+      toValue: nearCustomer ? 1 : 0,
+      useNativeDriver: false,
+      tension: 50,
+      friction: 8,
+    }).start();
+  }, [nearCustomer, jobStatus, slideAnim]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener(
@@ -356,6 +345,7 @@ export default function ActiveJobScreen() {
               custLat,
               custLng
             );
+            setCurrentDistance(Math.round(distance));
             if (distance <= 500) {
               setNearCustomer(true);
             }
@@ -509,6 +499,21 @@ export default function ActiveJobScreen() {
       <NavigationView
         style={StyleSheet.absoluteFill}
         myLocationEnabled={true}
+        recenterButtonEnabled={true}
+        onRecenterButtonClick={async () => {
+          if (navViewControllerRef.current) {
+            try {
+              await navViewControllerRef
+                .current
+                .setFollowingPerspective(
+                  CameraPerspective.TILTED,
+                  { zoomLevel: 17 }
+                );
+            } catch {
+              // ignore
+            }
+          }
+        }}
         androidStylingOptions={{
           primaryDayModeThemeColor: '#D4A017',
           headerDistanceValueTextColor: '#FFFFFF',
@@ -540,7 +545,8 @@ export default function ActiveJobScreen() {
             try {
               await controller
                 .setFollowingPerspective(
-                  CameraPerspective.TILTED
+                  CameraPerspective.TILTED,
+                  { zoomLevel: 17 }
                 );
             } catch (e) {
               console.warn(
@@ -567,7 +573,7 @@ export default function ActiveJobScreen() {
       )}
 
       <SafeAreaView style={styles.cardWrap} edges={['bottom']}>
-        <View style={[
+        <Animated.View style={[
           styles.card,
           jobStatus === 'DISPATCHED' &&
             styles.cardCompact,
@@ -608,61 +614,79 @@ export default function ActiveJobScreen() {
           {/* DISPATCHED: Navigation flow */}
           {jobStatus === 'DISPATCHED' && !isDisputed && (
             <>
-              <TouchableOpacity
-                style={[
-                  styles.arrivedBtn,
-                  (!nearCustomer || actionLoading) &&
-                    styles.arrivedBtnDisabled,
-                ]}
-                onPress={async () => {
-                  if (nearCustomer && !actionLoading) {
-                    await load();
-                    action('/arrived');
-                  }
-                }}
-                activeOpacity={nearCustomer ? 0.8 : 1}
-              >
-                <Text
+              {/* Always visible distance strip */}
+              {!nearCustomer && (
+                <View style={styles.distanceStrip}>
+                  <Ionicons
+                    name="navigate-circle"
+                    size={16}
+                    color="#D4A017"
+                  />
+                  <Text style={styles.distanceStripText}>
+                    {currentDistance
+                      ? `${currentDistance}m away`
+                      : 'En route to customer...'}
+                  </Text>
+                </View>
+              )}
+
+              {/* Slide up controls when near */}
+              <Animated.View style={{
+                overflow: 'hidden',
+                maxHeight: slideAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 300],
+                }),
+                opacity: slideAnim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0, 0.8, 1],
+                }),
+              }}>
+                <TouchableOpacity
                   style={[
+                    styles.arrivedBtn,
+                    (!nearCustomer || actionLoading) &&
+                      styles.arrivedBtnDisabled,
+                  ]}
+                  onPress={async () => {
+                    if (nearCustomer && !actionLoading) {
+                      await load();
+                      action('/arrived');
+                    }
+                  }}
+                  activeOpacity={nearCustomer ? 0.8 : 1}
+                >
+                  <Text style={[
                     styles.arrivedBtnText,
                     (!nearCustomer || actionLoading) &&
                       styles.arrivedBtnTextDisabled,
-                  ]}
+                  ]}>
+                    {actionLoading
+                      ? 'Please wait...'
+                      : 'I Have Arrived'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.openMapsBtn}
+                  onPress={() => {
+                    const url =
+                      'https://www.google.com/maps/dir/?api=1' +
+                      '&destination=' + custLat +
+                      ',' + custLng +
+                      '&travelmode=driving';
+                    Linking.openURL(url);
+                  }}
                 >
-                  {actionLoading ?
-                    'Please wait...' :
-                    'I Have Arrived'}
-                </Text>
-              </TouchableOpacity>
-
-              {!nearCustomer && (
-                <Text style={styles.proximityHint}>
-                  Button enables within 500m
-                </Text>
-              )}
-
-              <TouchableOpacity
-                style={styles.openMapsBtn}
-                onPress={() => {
-                  const url =
-                    'https://www.google.com/maps/dir/?api=1' +
-                    '&destination=' +
-                    custLat +
-                    ',' +
-                    custLng +
-                    '&travelmode=driving';
-                  Linking.openURL(url);
-                }}
-              >
-                <Ionicons
-                  name="navigate-outline"
-                  size={16}
-                  color="#AAAAAA"
-                />
-                <Text style={styles.openMapsBtnText}>
-                  Open in Google Maps
-                </Text>
-              </TouchableOpacity>
+                  <Ionicons
+                    name="navigate-outline"
+                    size={16}
+                    color="#AAAAAA"
+                  />
+                  <Text style={styles.openMapsBtnText}>
+                    Open in Google Maps
+                  </Text>
+                </TouchableOpacity>
+              </Animated.View>
             </>
           )}
 
@@ -692,6 +716,9 @@ export default function ActiveJobScreen() {
             </View>
           )}
 
+          {!isDisputed &&
+            (jobStatus !== 'DISPATCHED' ||
+              nearCustomer) && (
           <TouchableOpacity
             style={[
               styles.call,
@@ -702,9 +729,11 @@ export default function ActiveJobScreen() {
             <Ionicons name="call" size={18} color="#D4A017" />
             <Text style={styles.callText}>Call customer</Text>
           </TouchableOpacity>
+          )}
 
           {(jobStatus === 'ACCEPTED' ||
-            jobStatus === 'DISPATCHED') &&
+            (jobStatus === 'DISPATCHED' &&
+              nearCustomer)) &&
             !isDisputed && (
             <TouchableOpacity
               style={[
@@ -739,7 +768,7 @@ export default function ActiveJobScreen() {
               <Text style={{ color: COLORS.accent, fontWeight: '700' }}>View Receipt</Text>
             </TouchableOpacity>
           )}
-        </View>
+        </Animated.View>
       </SafeAreaView>
     </View>
   );
@@ -860,6 +889,17 @@ const styles = StyleSheet.create({
     color: '#AAAAAA',
     fontSize: 13,
     fontWeight: '500',
+  },
+  distanceStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  distanceStripText: {
+    color: '#AAAAAA',
+    fontSize: 13,
+    flex: 1,
   },
   proximityHint: {
     textAlign: 'center',
