@@ -40,6 +40,7 @@ export default function ActiveJobScreen() {
   const [navStarted, setNavStarted] = useState(false);
   const [navViewController, setNavViewController] = useState(null);
   const navViewControllerRef = useRef(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const custLat = job?.customerLat;
   const custLng = job?.customerLng;
@@ -258,6 +259,8 @@ export default function ActiveJobScreen() {
 
   const action = async (path) => {
     if (!jobId) return;
+    if (actionLoading) return;
+    setActionLoading(true);
     try {
       if (isMember) {
         await api.post(
@@ -274,6 +277,8 @@ export default function ActiveJobScreen() {
         'Error',
         e.response?.data?.error || 'Action failed.'
       );
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -519,7 +524,7 @@ export default function ActiveJobScreen() {
                 top: 0,
                 left: 0,
                 right: 0,
-                bottom: 150,
+                bottom: 320,
               });
             } catch (e) {
               console.warn(
@@ -606,14 +611,12 @@ export default function ActiveJobScreen() {
               <TouchableOpacity
                 style={[
                   styles.arrivedBtn,
-                  !nearCustomer && styles.arrivedBtnDisabled,
+                  (!nearCustomer || actionLoading) &&
+                    styles.arrivedBtnDisabled,
                 ]}
                 onPress={async () => {
-                  if (nearCustomer) {
-                    // Reload job first to get
-                    // latest status
+                  if (nearCustomer && !actionLoading) {
                     await load();
-                    // Then attempt arrived
                     action('/arrived');
                   }
                 }}
@@ -622,10 +625,13 @@ export default function ActiveJobScreen() {
                 <Text
                   style={[
                     styles.arrivedBtnText,
-                    !nearCustomer && styles.arrivedBtnTextDisabled,
+                    (!nearCustomer || actionLoading) &&
+                      styles.arrivedBtnTextDisabled,
                   ]}
                 >
-                  I Have Arrived
+                  {actionLoading ?
+                    'Please wait...' :
+                    'I Have Arrived'}
                 </Text>
               </TouchableOpacity>
 
@@ -662,7 +668,12 @@ export default function ActiveJobScreen() {
 
           {/* ARRIVED, IN_PROGRESS: normal flow */}
           {jobStatus !== 'DISPATCHED' && !isDisputed && primary && (
-            <GoldButton title={primary.label} onPress={primary.onPress} />
+            <GoldButton
+              title={actionLoading ?
+                'Please wait...' : primary.label}
+              onPress={primary.onPress}
+              disabled={actionLoading}
+            />
           )}
 
           {/* Dispute card */}
@@ -682,7 +693,10 @@ export default function ActiveJobScreen() {
           )}
 
           <TouchableOpacity
-            style={styles.call}
+            style={[
+              styles.call,
+              jobStatus === 'DISPATCHED' && styles.callCompact,
+            ]}
             onPress={() => Linking.openURL('tel:' + job?.customer?.phone)}
           >
             <Ionicons name="call" size={18} color="#D4A017" />
@@ -693,7 +707,11 @@ export default function ActiveJobScreen() {
             jobStatus === 'DISPATCHED') &&
             !isDisputed && (
             <TouchableOpacity
-              style={styles.locksmithCancelBtn}
+              style={[
+                styles.locksmithCancelBtn,
+                jobStatus === 'DISPATCHED' &&
+                  styles.locksmithCancelBtnCompact,
+              ]}
               onPress={cancelJob}
             >
               <Text style={styles.locksmithCancelText}>
@@ -767,7 +785,7 @@ const styles = StyleSheet.create({
     borderColor: '#2a2a2a',
   },
   cardCompact: {
-    paddingVertical: 12,
+    paddingVertical: 8,
     paddingHorizontal: 16,
   },
   custName: { color: COLORS.text, fontSize: 20, fontWeight: '800' },
@@ -821,6 +839,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 12,
   },
+  callCompact: {
+    marginTop: 4,
+    padding: 10,
+  },
   callText: { color: COLORS.bg, fontWeight: '700', fontSize: 16, marginLeft: 8 },
   locksmithCancelBtn: {
     marginTop: 8,
@@ -829,6 +851,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#555555',
     borderRadius: 12,
+  },
+  locksmithCancelBtnCompact: {
+    marginTop: 4,
+    paddingVertical: 8,
   },
   locksmithCancelText: {
     color: '#AAAAAA',
