@@ -1579,13 +1579,27 @@ async function memberAcceptJob(req, res) {
       throw new AppError('Job is not available to accept', 400);
     }
 
-    return tx.job.update({
-      where: { id: jobId },
+    const result = await tx.job.updateMany({
+      where: {
+        id: jobId,
+        status: 'PENDING',
+      },
       data: {
         teamMemberId: memberId,
         status: 'ACCEPTED',
         acceptedAt: new Date(),
       },
+    });
+
+    if (result.count === 0) {
+      throw new AppError(
+        'Job is no longer available — another team member accepted it.',
+        400
+      );
+    }
+
+    return tx.job.findUnique({
+      where: { id: jobId },
     });
   });
 
