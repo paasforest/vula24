@@ -696,6 +696,15 @@ async function cancelJob(req, res) {
   }
 
   if (role === 'customer') {
+    // Cannot cancel after locksmith arrived
+    if (job.status === 'ARRIVED' ||
+        job.status === 'IN_PROGRESS') {
+      throw new AppError(
+        'Cannot cancel after locksmith has arrived at your location.',
+        400
+      );
+    }
+
     const cancellationFee =
       job.status === 'DISPATCHED' && job.depositPaid ? 120 : 0;
 
