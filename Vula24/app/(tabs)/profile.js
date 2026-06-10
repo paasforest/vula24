@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -104,7 +104,11 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
       <Text style={styles.h1}>Profile</Text>
       <View style={styles.header}>
         <View style={styles.avatar}>
@@ -131,17 +135,18 @@ export default function ProfileScreen() {
           <Ionicons name="log-out-outline" size={22} color={COLORS.error} />
           <Text style={styles.signOut}>Sign Out</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.row} onPress={deleteAccount}>
+        <TouchableOpacity style={[styles.row, { marginBottom: 24 }]} onPress={deleteAccount}>
           <Ionicons name="trash-outline" size={22} color="#E53935" />
           <Text style={[styles.signOut, { color: '#E53935' }]}>Delete Account</Text>
         </TouchableOpacity>
       </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
+  container: { flex: 1, backgroundColor: COLORS.bg },
   h1: {
     color: COLORS.text,
     fontSize: 24,
