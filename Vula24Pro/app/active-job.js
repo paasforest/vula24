@@ -207,7 +207,9 @@ export default function ActiveJobScreen() {
         s === 'DISPATCHED' || s === 'ARRIVED' || s === 'IN_PROGRESS';
     } else {
       shouldPing =
-        s === 'ACCEPTED' || s === 'ARRIVED' || s === 'IN_PROGRESS';
+        s === 'ACCEPTED' ||
+        s === 'DISPATCHED' ||
+        s === 'ARRIVED' || s === 'IN_PROGRESS';
     }
 
     if (!shouldPing) {

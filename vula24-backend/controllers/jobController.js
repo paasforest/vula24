@@ -2212,10 +2212,24 @@ async function toggleMemberOnline(req, res) {
 
 async function updateMemberLocation(req, res) {
   const { lat, lng } = req.body;
+  const memberId = req.member.id;
+  const businessId = req.member.businessId;
+
+  // Update team member location
   await prisma.teamMember.update({
-    where: { id: req.member.id },
+    where: { id: memberId },
     data: { currentLat: lat, currentLng: lng },
   });
+
+  // Also update parent locksmith so
+  // customer tracking screen shows pin
+  if (businessId) {
+    await prisma.locksmith.update({
+      where: { id: businessId },
+      data: { currentLat: lat, currentLng: lng },
+    });
+  }
+
   res.json({ success: true });
 }
 
