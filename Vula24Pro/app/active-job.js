@@ -167,7 +167,9 @@ export default function ActiveJobScreen() {
       !navStarted
     ) {
       setNavStarted(true);
-      startNavigation();
+      setTimeout(() => {
+        startNavigation();
+      }, 1500);
     }
   }, [
     jobStatus,
@@ -182,6 +184,7 @@ export default function ActiveJobScreen() {
   useEffect(() => {
     if (jobStatus !== 'DISPATCHED') {
       setNavStarted(false);
+      setNavReady(false);
     }
   }, [jobStatus]);
 
