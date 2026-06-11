@@ -14,6 +14,7 @@ import {
   NavigationView,
   useNavigation,
   CameraPerspective,
+  NavigationSessionStatus,
   RouteStatus,
   useNavigationController,
 } from '@googlemaps/react-native-navigation-sdk';
@@ -126,6 +127,7 @@ export default function ActiveJobScreen() {
           await navigationController.showTermsAndConditionsDialog();
 
         if (!termsAccepted) {
+          setNavStarted(false);
           Alert.alert(
             'Terms Required',
             'You must accept the navigation terms to use in-app navigation.',
@@ -134,7 +136,12 @@ export default function ActiveJobScreen() {
           return;
         }
 
-        await navigationController.init();
+        const status = await navigationController.init();
+        if (status !== NavigationSessionStatus.OK) {
+          console.warn('[navigation] init failed:', status);
+          setNavStarted(false);
+          return;
+        }
 
         const waypoint = {
           title: customerAddressRef.current,
@@ -161,6 +168,7 @@ export default function ActiveJobScreen() {
         }
       } catch (e) {
         console.warn('[navigation] start failed:', e?.message);
+        setNavStarted(false);
         Alert.alert(
           'Navigation Error',
           'Could not start navigation. ' +
@@ -183,9 +191,10 @@ export default function ActiveJobScreen() {
       !navStarted
     ) {
       setNavStarted(true);
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         startNavigation();
       }, 1500);
+      return () => clearTimeout(timer);
     }
   }, [
     jobStatus,
@@ -441,10 +450,10 @@ export default function ActiveJobScreen() {
           await load();
           if (
             jobStatus === 'DISPATCHED' &&
-            navGuidanceActive.current === false &&
             navigationController &&
             navViewControllerRef.current
           ) {
+            navGuidanceActive.current = false;
             setNavStarted(false);
           }
         }
