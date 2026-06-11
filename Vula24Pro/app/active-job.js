@@ -48,6 +48,8 @@ export default function ActiveJobScreen() {
   const navViewControllerRef = useRef(null);
   const [actionLoading, setActionLoading] = useState(false);
   const socketRef = useRef(null);
+  const customerAddressRef = useRef('Customer');
+  const navGuidanceActive = useRef(false);
 
   const custLat = job?.customerLat;
   const custLng = job?.customerLng;
@@ -79,6 +81,12 @@ export default function ActiveJobScreen() {
     const p = setInterval(load, 5000);
     return () => clearInterval(p);
   }, [load]);
+
+  useEffect(() => {
+    if (job?.customerAddress) {
+      customerAddressRef.current = job.customerAddress;
+    }
+  }, [job?.customerAddress]);
 
   const sendLocation = useCallback(async () => {
     try {
@@ -129,7 +137,7 @@ export default function ActiveJobScreen() {
         await navigationController.init();
 
         const waypoint = {
-          title: job?.customerAddress || 'Customer',
+          title: customerAddressRef.current,
           position: {
             lat: custLat,
             lng: custLng,
@@ -137,6 +145,7 @@ export default function ActiveJobScreen() {
         };
         await navigationController.setDestinations([waypoint]);
         await navigationController.startGuidance();
+        navGuidanceActive.current = true;
         // Set camera to follow driver
         // in tilted driving perspective
         if (navViewControllerRef.current) {
@@ -161,7 +170,7 @@ export default function ActiveJobScreen() {
         );
       }
     },
-    [custLat, custLng, navigationController, job]
+    [custLat, custLng, navigationController]
   );
 
   useEffect(() => {
@@ -202,6 +211,7 @@ export default function ActiveJobScreen() {
       } catch (e) {
         // ignore
       }
+      navGuidanceActive.current = false;
     }
   }, [jobStatus, navigationController]);
 
@@ -429,12 +439,23 @@ export default function ActiveJobScreen() {
           nextState === 'active'
         ) {
           await load();
+          if (
+            jobStatus === 'DISPATCHED' &&
+            navGuidanceActive.current === false &&
+            navigationController &&
+            navViewControllerRef.current
+          ) {
+            setNavStarted(false);
+          }
+        }
+        if (nextState === 'background' && jobStatus === 'DISPATCHED') {
+          // Keep navigation running in background - do not call cleanup or stopGuidance
         }
         appStateRef.current = nextState;
       }
     );
     return () => subscription.remove();
-  }, [load]);
+  }, [load, jobStatus, navigationController]);
 
 
   const jobMode = job?.mode;
@@ -558,6 +579,7 @@ export default function ActiveJobScreen() {
       {jobLoaded &&
       jobStatus === 'DISPATCHED' && (
       <NavigationView
+        key="nav-view-stable"
         style={StyleSheet.absoluteFill}
         myLocationEnabled={true}
         recenterButtonEnabled={true}
