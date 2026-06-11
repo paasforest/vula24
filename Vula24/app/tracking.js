@@ -474,6 +474,12 @@ export default function TrackingScreen() {
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         region={region}
+        mapPadding={{
+          top: 60,
+          right: 20,
+          bottom: 320,
+          left: 20,
+        }}
       >
         {typeof custLat === 'number' &&
         typeof custLng === 'number' &&
@@ -707,7 +713,7 @@ const styles = StyleSheet.create({
     right: 0,
   },
   card: {
-    backgroundColor: COLORS.bg,
+    backgroundColor: 'rgba(17,17,17,0.95)',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 16,
