@@ -14,7 +14,6 @@ import {
   NavigationView,
   useNavigation,
   CameraPerspective,
-  NavigationSessionStatus,
   RouteStatus,
   useNavigationController,
 } from '@googlemaps/react-native-navigation-sdk';
@@ -136,12 +135,8 @@ export default function ActiveJobScreen() {
           return;
         }
 
-        const status = await navigationController.init();
-        if (status !== NavigationSessionStatus.OK) {
-          console.warn('[navigation] init failed:', status);
-          setNavStarted(false);
-          return;
-        }
+        // init() handled by NavigationProvider
+        // on app start - no need to call again
 
         const waypoint = {
           title: customerAddressRef.current,
