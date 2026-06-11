@@ -81,6 +81,8 @@ export default function ActiveJobScreen() {
   }, [load]);
 
   const sendLocation = useCallback(async () => {
+    if (sendLocation.running) return;
+    sendLocation.running = true;
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
@@ -110,6 +112,8 @@ export default function ActiveJobScreen() {
       }
     } catch (e) {
       console.warn('[sendLocation]', e?.message);
+    } finally {
+      sendLocation.running = false;
     }
   }, [isMember, jobId]);
 
@@ -215,7 +219,9 @@ export default function ActiveJobScreen() {
         s === 'DISPATCHED' || s === 'ARRIVED' || s === 'IN_PROGRESS';
     } else {
       shouldPing =
-        s === 'ACCEPTED' || s === 'ARRIVED' || s === 'IN_PROGRESS';
+        s === 'ACCEPTED' ||
+        s === 'DISPATCHED' ||
+        s === 'ARRIVED' || s === 'IN_PROGRESS';
     }
 
     if (!shouldPing) {
