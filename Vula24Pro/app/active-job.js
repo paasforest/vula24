@@ -48,8 +48,6 @@ export default function ActiveJobScreen() {
   const navViewControllerRef = useRef(null);
   const [actionLoading, setActionLoading] = useState(false);
   const socketRef = useRef(null);
-  const customerAddressRef = useRef('Customer');
-  const navGuidanceActive = useRef(false);
 
   const custLat = job?.customerLat;
   const custLng = job?.customerLng;
@@ -82,12 +80,6 @@ export default function ActiveJobScreen() {
     return () => clearInterval(p);
   }, [load]);
 
-  useEffect(() => {
-    if (job?.customerAddress) {
-      customerAddressRef.current = job.customerAddress;
-    }
-  }, [job?.customerAddress]);
-
   const sendLocation = useCallback(async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -111,7 +103,10 @@ export default function ActiveJobScreen() {
         });
       }
       if (socketRef.current?.connected) {
-        socketRef.current.emit('location:update', { jobId, lat, lng });
+        socketRef.current.emit(
+          'location:update',
+          { jobId, lat, lng }
+        );
       }
     } catch (e) {
       console.warn('[sendLocation]', e?.message);
@@ -126,7 +121,6 @@ export default function ActiveJobScreen() {
           await navigationController.showTermsAndConditionsDialog();
 
         if (!termsAccepted) {
-          setNavStarted(false);
           Alert.alert(
             'Terms Required',
             'You must accept the navigation terms to use in-app navigation.',
@@ -135,11 +129,10 @@ export default function ActiveJobScreen() {
           return;
         }
 
-        // init() handled by NavigationProvider
-        // on app start - no need to call again
+        await navigationController.init();
 
         const waypoint = {
-          title: customerAddressRef.current,
+          title: job?.customerAddress || 'Customer',
           position: {
             lat: custLat,
             lng: custLng,
@@ -147,7 +140,6 @@ export default function ActiveJobScreen() {
         };
         await navigationController.setDestinations([waypoint]);
         await navigationController.startGuidance();
-        navGuidanceActive.current = true;
         // Set camera to follow driver
         // in tilted driving perspective
         if (navViewControllerRef.current) {
@@ -163,7 +155,6 @@ export default function ActiveJobScreen() {
         }
       } catch (e) {
         console.warn('[navigation] start failed:', e?.message);
-        setNavStarted(false);
         Alert.alert(
           'Navigation Error',
           'Could not start navigation. ' +
@@ -173,7 +164,7 @@ export default function ActiveJobScreen() {
         );
       }
     },
-    [custLat, custLng, navigationController]
+    [custLat, custLng, navigationController, job]
   );
 
   useEffect(() => {
@@ -186,10 +177,7 @@ export default function ActiveJobScreen() {
       !navStarted
     ) {
       setNavStarted(true);
-      const timer = setTimeout(() => {
-        startNavigation();
-      }, 1500);
-      return () => clearTimeout(timer);
+      startNavigation();
     }
   }, [
     jobStatus,
@@ -215,7 +203,6 @@ export default function ActiveJobScreen() {
       } catch (e) {
         // ignore
       }
-      navGuidanceActive.current = false;
     }
   }, [jobStatus, navigationController]);
 
@@ -228,9 +215,7 @@ export default function ActiveJobScreen() {
         s === 'DISPATCHED' || s === 'ARRIVED' || s === 'IN_PROGRESS';
     } else {
       shouldPing =
-        s === 'ACCEPTED' ||
-        s === 'DISPATCHED' ||
-        s === 'ARRIVED' || s === 'IN_PROGRESS';
+        s === 'ACCEPTED' || s === 'ARRIVED' || s === 'IN_PROGRESS';
     }
 
     if (!shouldPing) {
@@ -251,19 +236,20 @@ export default function ActiveJobScreen() {
   useEffect(() => {
     if (jobStatus !== 'DISPATCHED') {
       if (socketRef.current) {
-        socketRef.current.emit('leave:job', jobId);
+        socketRef.current.emit(
+          'leave:job', jobId
+        );
         socketRef.current.disconnect();
         socketRef.current = null;
       }
       return;
     }
-
     const connectSocket = async () => {
       try {
-        const { getToken } = await import('../lib/storage');
+        const { getToken } =
+          await import('../lib/storage');
         const token = await getToken();
         if (!token) return;
-
         const socket = io(SOCKET_URL, {
           auth: { token },
           transports: ['websocket'],
@@ -271,26 +257,27 @@ export default function ActiveJobScreen() {
           reconnectionAttempts: 5,
           reconnectionDelay: 2000,
         });
-
         socket.on('connect', () => {
           socket.emit('join:job', jobId);
         });
-
         socket.on('connect_error', (e) => {
-          console.warn('[socket]', e?.message);
+          console.warn(
+            '[socket]', e?.message
+          );
         });
-
         socketRef.current = socket;
       } catch (e) {
-        console.warn('[socket connect]', e?.message);
+        console.warn(
+          '[socket connect]', e?.message
+        );
       }
     };
-
     connectSocket();
-
     return () => {
       if (socketRef.current) {
-        socketRef.current.emit('leave:job', jobId);
+        socketRef.current.emit(
+          'leave:job', jobId
+        );
         socketRef.current.disconnect();
         socketRef.current = null;
       }
@@ -443,23 +430,12 @@ export default function ActiveJobScreen() {
           nextState === 'active'
         ) {
           await load();
-          if (
-            jobStatus === 'DISPATCHED' &&
-            navigationController &&
-            navViewControllerRef.current
-          ) {
-            navGuidanceActive.current = false;
-            setNavStarted(false);
-          }
-        }
-        if (nextState === 'background' && jobStatus === 'DISPATCHED') {
-          // Keep navigation running in background - do not call cleanup or stopGuidance
         }
         appStateRef.current = nextState;
       }
     );
     return () => subscription.remove();
-  }, [load, jobStatus, navigationController]);
+  }, [load]);
 
 
   const jobMode = job?.mode;
@@ -583,7 +559,6 @@ export default function ActiveJobScreen() {
       {jobLoaded &&
       jobStatus === 'DISPATCHED' && (
       <NavigationView
-        key="nav-view-stable"
         style={StyleSheet.absoluteFill}
         myLocationEnabled={true}
         recenterButtonEnabled={true}
@@ -819,8 +794,7 @@ export default function ActiveJobScreen() {
           )}
 
           {(jobStatus === 'ACCEPTED' ||
-            (jobStatus === 'DISPATCHED' &&
-              nearCustomer)) &&
+            jobStatus === 'DISPATCHED') &&
             !isDisputed && (
             <TouchableOpacity
               style={[
