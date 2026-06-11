@@ -36,6 +36,89 @@ const notificationRoutes = require('./routes/notifications');
 const customerRoutes = require('./routes/customer');
 
 const app = express();
+const http = require('http');
+const { Server } = require('socket.io');
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+  transports: ['websocket', 'polling'],
+});
+
+// Store io instance for use in controllers
+app.set('io', io);
+
+// Socket authentication middleware
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+      return next(new Error('Authentication required'));
+    }
+    const { verifyUserToken } = require('./utils/jwt');
+    const decoded = verifyUserToken(token);
+    socket.userId = decoded.sub;
+    socket.userType = decoded.type;
+    next();
+  } catch (e) {
+    next(new Error('Invalid token'));
+  }
+});
+
+// Socket connection handler
+io.on('connection', (socket) => {
+  // Join job room for tracking
+  socket.on('join:job', async (jobId) => {
+    if (!jobId) return;
+    try {
+      const prisma = require('./lib/prisma');
+      const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        select: {
+          customerId: true,
+          locksithId: true,
+          teamMemberId: true,
+        },
+      });
+      if (!job) return;
+      const allowed =
+        job.customerId === socket.userId ||
+        job.locksithId === socket.userId ||
+        job.teamMemberId === socket.userId;
+      if (!allowed) return;
+      socket.join(`job:${jobId}`);
+    } catch {
+      // ignore
+    }
+  });
+
+  // Locksmith emits location
+  socket.on('location:update', (data) => {
+    const { jobId, lat, lng } = data;
+    if (
+      !jobId ||
+      lat === null ||
+      lat === undefined ||
+      lng === null ||
+      lng === undefined ||
+      isNaN(lat) ||
+      isNaN(lng)
+    ) {
+      return;
+    }
+    socket.to(`job:${jobId}`).emit('location:update', { lat, lng, jobId });
+  });
+
+  socket.on('leave:job', (jobId) => {
+    socket.leave(`job:${jobId}`);
+  });
+
+  socket.on('disconnect', () => {
+    // cleanup handled by socket.io
+  });
+});
 
 // Trust Railway's proxy
 app.set('trust proxy', 1);
@@ -204,6 +287,6 @@ setInterval(() => {
   );
 }, 60000);
 
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Vula24 API listening on 0.0.0.0:${PORT}`);
 });

@@ -18,7 +18,10 @@ import MapView, {
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/theme';
-import api from '../lib/api';
+import api, { getBaseURL } from '../lib/api';
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = getBaseURL();
 
 function initialsFromName(name) {
   if (!name?.trim()) return '?';
@@ -108,6 +111,9 @@ export default function TrackingScreen() {
   const [routeCoords, setRouteCoords] = useState([]);
   const prevLlRef = useRef(null);
   const routeFetchRef = useRef(0);
+  const socketRef = useRef(null);
+  const custLatRef = useRef(null);
+  const custLngRef = useRef(null);
 
   const GOOGLE_MAPS_KEY = 'AIzaSyDZ_7hL_97LzMvKbdB4PQOSmare2ogZ514';
 
@@ -187,9 +193,33 @@ export default function TrackingScreen() {
             );
           }
 
+          if (mapRef.current && custLat && custLng) {
+            mapRef.current.fitToCoordinates(
+              [
+                {
+                  latitude: newLat,
+                  longitude: newLng,
+                },
+                {
+                  latitude: custLat,
+                  longitude: custLng,
+                },
+              ],
+              {
+                edgePadding: {
+                  top: 100,
+                  right: 50,
+                  bottom: 350,
+                  left: 50,
+                },
+                animated: true,
+              }
+            );
+          }
+
           const now = Date.now();
           if (
-            now - routeFetchRef.current > 30000 &&
+            now - routeFetchRef.current > 15000 &&
             custLat &&
             custLng
           ) {
@@ -221,7 +251,7 @@ export default function TrackingScreen() {
     };
 
     poll();
-    const t = setInterval(poll, 5000);
+    const t = setInterval(poll, 3000);
     return () => {
       cancelled = true;
       clearInterval(t);
@@ -231,6 +261,94 @@ export default function TrackingScreen() {
   const custLat = job?.customerLat;
   const custLng = job?.customerLng;
   const lock = job?.locksmith;
+
+  useEffect(() => {
+    custLatRef.current = custLat;
+    custLngRef.current = custLng;
+  }, [custLat, custLng]);
+
+  useEffect(() => {
+    if (!jobId) return;
+
+    const connectSocket = async () => {
+      try {
+        const AsyncStorage = (
+          await import('@react-native-async-storage/async-storage')
+        ).default;
+        const token = await AsyncStorage.getItem('vula24_token');
+        if (!token) return;
+
+        const socket = io(SOCKET_URL, {
+          auth: { token },
+          transports: ['websocket'],
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 2000,
+        });
+
+        socket.on('connect', () => {
+          socket.emit('join:job', jobId);
+        });
+
+        socket.on('location:update', (data) => {
+          const { lat, lng } = data;
+          if (
+            typeof lat !== 'number' ||
+            typeof lng !== 'number' ||
+            isNaN(lat) ||
+            isNaN(lng)
+          ) {
+            return;
+          }
+
+          if (locksmithMarkerRef.current) {
+            locksmithMarkerRef.current.animateMarkerToCoordinate(
+              { latitude: lat, longitude: lng },
+              1000
+            );
+          }
+
+          if (mapRef.current && custLatRef.current && custLngRef.current) {
+            mapRef.current.fitToCoordinates(
+              [
+                { latitude: lat, longitude: lng },
+                { latitude: custLatRef.current, longitude: custLngRef.current },
+              ],
+              {
+                edgePadding: {
+                  top: 100,
+                  right: 50,
+                  bottom: 350,
+                  left: 50,
+                },
+                animated: true,
+              }
+            );
+          }
+
+          setLl({ lat, lng });
+        });
+
+        socket.on('connect_error', (e) => {
+          console.warn('[socket]', e?.message);
+        });
+
+        socketRef.current = socket;
+      } catch (e) {
+        console.warn('[socket connect]', e?.message);
+      }
+    };
+
+    connectSocket();
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.emit('leave:job', jobId);
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [jobId]);
 
   const custLatOk =
     typeof custLat === 'number' && !isNaN(custLat);

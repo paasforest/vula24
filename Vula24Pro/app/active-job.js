@@ -22,8 +22,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { GoldButton } from '../components/GoldButton';
 import { COLORS } from '../constants/theme';
-import api from '../lib/api';
+import api, { getBaseURL } from '../lib/api';
 import { getUser } from '../lib/storage';
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = getBaseURL();
 
 export default function ActiveJobScreen() {
   const { jobId: jid } = useLocalSearchParams();
@@ -44,6 +47,7 @@ export default function ActiveJobScreen() {
   const [navViewController, setNavViewController] = useState(null);
   const navViewControllerRef = useRef(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const socketRef = useRef(null);
 
   const custLat = job?.customerLat;
   const custLng = job?.customerLng;
@@ -81,9 +85,9 @@ export default function ActiveJobScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
       const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 5000,
-        distanceInterval: 10,
+        accuracy: Location.Accuracy.High,
+        timeInterval: 2000,
+        distanceInterval: 5,
       });
       const lat = loc.coords.latitude;
       const lng = loc.coords.longitude;
@@ -98,10 +102,13 @@ export default function ActiveJobScreen() {
           lng,
         });
       }
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('location:update', { jobId, lat, lng });
+      }
     } catch (e) {
       console.warn('[sendLocation]', e?.message);
     }
-  }, [isMember]);
+  }, [isMember, jobId]);
 
   const startNavigation = useCallback(
     async () => {
@@ -220,12 +227,61 @@ export default function ActiveJobScreen() {
       return undefined;
     }
     sendLocation();
-    locInterval.current = setInterval(sendLocation, 5000);
+    locInterval.current = setInterval(sendLocation, 1000);
     return () => {
       if (locInterval.current) clearInterval(locInterval.current);
       locInterval.current = null;
     };
   }, [job?.status, job?.mode, sendLocation]);
+
+  useEffect(() => {
+    if (jobStatus !== 'DISPATCHED') {
+      if (socketRef.current) {
+        socketRef.current.emit('leave:job', jobId);
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
+    }
+
+    const connectSocket = async () => {
+      try {
+        const { getToken } = await import('../lib/storage');
+        const token = await getToken();
+        if (!token) return;
+
+        const socket = io(SOCKET_URL, {
+          auth: { token },
+          transports: ['websocket'],
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 2000,
+        });
+
+        socket.on('connect', () => {
+          socket.emit('join:job', jobId);
+        });
+
+        socket.on('connect_error', (e) => {
+          console.warn('[socket]', e?.message);
+        });
+
+        socketRef.current = socket;
+      } catch (e) {
+        console.warn('[socket connect]', e?.message);
+      }
+    };
+
+    connectSocket();
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.emit('leave:job', jobId);
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [jobStatus, jobId]);
 
   function getDistanceMeters(lat1, lng1, lat2, lng2) {
     const R = 6371000;
