@@ -8,9 +8,14 @@ import {
   TouchableOpacity,
   Platform,
   Image,
+  Animated,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, {
+  Marker,
+  Polyline,
+  PROVIDER_GOOGLE,
+} from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/theme';
@@ -61,6 +66,37 @@ function safeRegion(region) {
   return region;
 }
 
+function decodePolyline(encoded) {
+  const poly = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+  while (index < encoded.length) {
+    let shift = 0;
+    let result = 0;
+    let byte;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lat += (result & 1) ? ~(result >> 1) : result >> 1;
+    shift = 0;
+    result = 0;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lng += (result & 1) ? ~(result >> 1) : result >> 1;
+    poly.push({
+      latitude: lat / 1e5,
+      longitude: lng / 1e5,
+    });
+  }
+  return poly;
+}
+
 export default function TrackingScreen() {
   const { jobId: jid } = useLocalSearchParams();
   const jobId = Array.isArray(jid) ? jid[0] : jid;
@@ -68,6 +104,58 @@ export default function TrackingScreen() {
   const [job, setJob] = useState(null);
   const [ll, setLl] = useState({ lat: null, lng: null });
   const completedNavigated = useRef(false);
+  const animatedCoord = useRef({
+    latitude: new Animated.Value(0),
+    longitude: new Animated.Value(0),
+  }).current;
+  const mapRef = useRef(null);
+  const [routeCoords, setRouteCoords] = useState([]);
+  const prevLlRef = useRef(null);
+  const routeFetchRef = useRef(0);
+
+  const GOOGLE_MAPS_KEY = 'AIzaSyDZ_7hL_97LzMvKbdB4PQOSmare2ogZ514';
+
+  const fetchRoute = async (fromLat, fromLng, toLat, toLng) => {
+    try {
+      const res = await fetch(
+        'https://routes.googleapis.com/directions/v2:computeRoutes',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': GOOGLE_MAPS_KEY,
+            'X-Goog-FieldMask': 'routes.polyline.encodedPolyline',
+          },
+          body: JSON.stringify({
+            origin: {
+              location: {
+                latLng: {
+                  latitude: fromLat,
+                  longitude: fromLng,
+                },
+              },
+            },
+            destination: {
+              location: {
+                latLng: {
+                  latitude: toLat,
+                  longitude: toLng,
+                },
+              },
+            },
+            travelMode: 'DRIVE',
+          }),
+        }
+      );
+      const data = await res.json();
+      const encoded = data?.routes?.[0]?.polyline?.encodedPolyline;
+      if (encoded) {
+        setRouteCoords(decodePolyline(encoded));
+      }
+    } catch (e) {
+      console.warn('[fetchRoute]', e?.message);
+    }
+  };
 
   useEffect(() => {
     if (!jobId) return;
@@ -88,7 +176,41 @@ export default function TrackingScreen() {
           !isNaN(lat) &&
           !isNaN(lng)
         ) {
-          setLl({ lat, lng });
+          const newLat = lat;
+          const newLng = lng;
+          const custLat = data.job?.customerLat;
+          const custLng = data.job?.customerLng;
+
+          if (prevLlRef.current === null) {
+            animatedCoord.latitude.setValue(newLat);
+            animatedCoord.longitude.setValue(newLng);
+          } else {
+            Animated.parallel([
+              Animated.timing(animatedCoord.latitude, {
+                toValue: newLat,
+                duration: 4500,
+                useNativeDriver: false,
+              }),
+              Animated.timing(animatedCoord.longitude, {
+                toValue: newLng,
+                duration: 4500,
+                useNativeDriver: false,
+              }),
+            ]).start();
+          }
+
+          const now = Date.now();
+          if (
+            now - routeFetchRef.current > 30000 &&
+            custLat &&
+            custLng
+          ) {
+            routeFetchRef.current = now;
+            fetchRoute(newLat, newLng, custLat, custLng);
+          }
+
+          prevLlRef.current = { lat: newLat, lng: newLng };
+          setLl({ lat: newLat, lng: newLng });
         }
 
         if (data.job?.status === 'COMPLETED' && !completedNavigated.current) {
@@ -242,6 +364,7 @@ export default function TrackingScreen() {
   return (
     <View style={styles.flex}>
       <MapView
+        ref={mapRef}
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         region={region}
@@ -264,16 +387,24 @@ export default function TrackingScreen() {
         typeof ll.lng === 'number' &&
         !isNaN(ll.lat) &&
         !isNaN(ll.lng) ? (
-          <Marker
-            coordinate={{
-              latitude: ll.lat,
-              longitude: ll.lng,
-            }}
-            tracksViewChanges={false}
+          <Marker.Animated
+            coordinate={animatedCoord}
+            tracksViewChanges={true}
+            anchor={{ x: 0.5, y: 0.5 }}
           >
-            <View style={styles.pinWhite} />
-          </Marker>
+            <View style={styles.carMarker}>
+              <Ionicons name="car" size={16} color="#111111" />
+            </View>
+          </Marker.Animated>
         ) : null}
+        {routeCoords.length > 1 && (
+          <Polyline
+            coordinates={routeCoords}
+            strokeWidth={3}
+            strokeColor="#D4A017"
+            lineDashPattern={[0]}
+          />
+        )}
       </MapView>
 
       {banner()}
@@ -421,6 +552,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 2,
     borderColor: COLORS.accent,
+  },
+  carMarker: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#D4A017',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   bannerGold: {
     position: 'absolute',
