@@ -105,6 +105,28 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      try {
+        const { clearAuth } =
+          await import('./storage');
+        await clearAuth();
+        const { router } =
+          await import('expo-router');
+        router.replace('/login');
+      } catch (e) {
+        console.warn(
+          '[auth] logout failed:',
+          e?.message
+        );
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 /**
  * Clear message when signup/login fails (network vs misconfigured production API).
  */

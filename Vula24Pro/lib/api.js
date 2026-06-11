@@ -105,6 +105,28 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      try {
+        const { clearAuth } =
+          await import('./storage');
+        await clearAuth();
+        const { router } =
+          await import('expo-router');
+        router.replace('/welcome');
+      } catch (e) {
+        console.warn(
+          '[auth] logout failed:',
+          e?.message
+        );
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   // eslint-disable-next-line no-console
   console.log('[Vula24 Pro api] base URL:', getBaseURL());
