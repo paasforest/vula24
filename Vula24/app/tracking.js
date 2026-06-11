@@ -114,6 +114,7 @@ export default function TrackingScreen() {
   const socketRef = useRef(null);
   const custLatRef = useRef(null);
   const custLngRef = useRef(null);
+  const [showReceipt, setShowReceipt] = useState(false);
 
   const GOOGLE_MAPS_KEY = 'AIzaSyDZ_7hL_97LzMvKbdB4PQOSmare2ogZ514';
 
@@ -477,7 +478,7 @@ export default function TrackingScreen() {
         mapPadding={{
           top: 60,
           right: 20,
-          bottom: 320,
+          bottom: 220,
           left: 20,
         }}
       >
@@ -571,8 +572,24 @@ export default function TrackingScreen() {
               </View>
             </View>
           ) : null}
-          <View style={styles.divider} />
-          <View style={styles.receiptSection}>
+          <TouchableOpacity
+            style={styles.receiptToggle}
+            onPress={() =>
+              setShowReceipt((prev) => !prev)
+            }
+            activeOpacity={0.7}
+          >
+            <Text style={styles.receiptToggleText}>
+              {showReceipt
+                ? 'Hide breakdown ▲'
+                : 'View breakdown ▼'}
+            </Text>
+          </TouchableOpacity>
+
+          {showReceipt && (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.receiptSection}>
             <View style={styles.receiptRow}>
               <Text style={styles.receiptLabel}>Service</Text>
               <Text style={styles.receiptValue}>
@@ -610,7 +627,9 @@ export default function TrackingScreen() {
                 {job?.depositPaid ? 'Paid' : 'Pending'}
               </Text>
             </View>
-          </View>
+              </View>
+            </>
+          )}
         </View>
         <TouchableOpacity style={styles.sos} onPress={() => Linking.openURL('tel:10111')}>
           <Text style={styles.sosText}>SOS</Text>
@@ -819,6 +838,15 @@ const styles = StyleSheet.create({
     color: '#E53935',
     fontSize: 14,
     fontWeight: '600',
+  },
+  receiptToggle: {
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  receiptToggleText: {
+    color: '#D4A017',
+    fontSize: 13,
+    fontWeight: '500',
   },
   divider: {
     height: 1,
