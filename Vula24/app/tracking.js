@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Platform,
   Image,
-  Animated,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import MapView, {
@@ -104,10 +103,7 @@ export default function TrackingScreen() {
   const [job, setJob] = useState(null);
   const [ll, setLl] = useState({ lat: null, lng: null });
   const completedNavigated = useRef(false);
-  const animatedCoord = useRef({
-    latitude: new Animated.Value(0),
-    longitude: new Animated.Value(0),
-  }).current;
+  const locksmithMarkerRef = useRef(null);
   const mapRef = useRef(null);
   const [routeCoords, setRouteCoords] = useState([]);
   const prevLlRef = useRef(null);
@@ -181,22 +177,14 @@ export default function TrackingScreen() {
           const custLat = data.job?.customerLat;
           const custLng = data.job?.customerLng;
 
-          if (prevLlRef.current === null) {
-            animatedCoord.latitude.setValue(newLat);
-            animatedCoord.longitude.setValue(newLng);
-          } else {
-            Animated.parallel([
-              Animated.timing(animatedCoord.latitude, {
-                toValue: newLat,
-                duration: 4500,
-                useNativeDriver: false,
-              }),
-              Animated.timing(animatedCoord.longitude, {
-                toValue: newLng,
-                duration: 4500,
-                useNativeDriver: false,
-              }),
-            ]).start();
+          if (locksmithMarkerRef.current) {
+            locksmithMarkerRef.current.animateMarkerToCoordinate(
+              {
+                latitude: newLat,
+                longitude: newLng,
+              },
+              4500
+            );
           }
 
           const now = Date.now();
@@ -387,15 +375,19 @@ export default function TrackingScreen() {
         typeof ll.lng === 'number' &&
         !isNaN(ll.lat) &&
         !isNaN(ll.lng) ? (
-          <Marker.Animated
-            coordinate={animatedCoord}
-            tracksViewChanges={true}
+          <Marker
+            ref={locksmithMarkerRef}
+            coordinate={{
+              latitude: ll.lat,
+              longitude: ll.lng,
+            }}
+            tracksViewChanges={false}
             anchor={{ x: 0.5, y: 0.5 }}
           >
             <View style={styles.carMarker}>
               <Ionicons name="car" size={16} color="#111111" />
             </View>
-          </Marker.Animated>
+          </Marker>
         ) : null}
         {routeCoords.length > 1 && (
           <Polyline
