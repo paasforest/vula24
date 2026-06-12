@@ -597,7 +597,7 @@ export default function ActiveJobScreen() {
                 top: 0,
                 left: 0,
                 right: 0,
-                bottom: 320,
+                bottom: 400,
               });
             } catch (e) {
               console.warn(
@@ -881,10 +881,15 @@ const styles = StyleSheet.create({
     borderColor: '#2a2a2a',
   },
   cardCompact: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
-  custName: { color: COLORS.text, fontSize: 20, fontWeight: '800' },
+  custName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
   note: { color: COLORS.textMuted, marginTop: 8, fontSize: 15 },
   svc: { color: COLORS.accent, marginTop: 12, fontSize: 17, fontWeight: '700' },
   addr: { color: COLORS.textMuted, marginTop: 8, marginBottom: 16, fontSize: 15 },
@@ -960,8 +965,8 @@ const styles = StyleSheet.create({
   distanceStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
+    gap: 6,
+    paddingVertical: 2,
   },
   distanceStripText: {
     color: '#AAAAAA',
