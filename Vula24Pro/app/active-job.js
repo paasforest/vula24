@@ -646,7 +646,11 @@ export default function ActiveJobScreen() {
           jobStatus === 'DISPATCHED' &&
             styles.cardCompact,
         ]}>
-          <Text style={styles.custName}>{job?.customer?.name || 'Customer'}</Text>
+          {jobStatus !== 'DISPATCHED' && (
+            <Text style={styles.custName}>
+              {job?.customer?.name || 'Customer'}
+            </Text>
+          )}
           {/* Show full details only when not navigating */}
           {jobStatus !== 'DISPATCHED' && (
             <>
@@ -800,7 +804,8 @@ export default function ActiveJobScreen() {
           )}
 
           {(jobStatus === 'ACCEPTED' ||
-            jobStatus === 'DISPATCHED') &&
+            (jobStatus === 'DISPATCHED' &&
+              nearCustomer)) &&
             !isDisputed && (
             <TouchableOpacity
               style={[
