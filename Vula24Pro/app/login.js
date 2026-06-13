@@ -35,7 +35,10 @@ export default function LoginScreen() {
         password,
       });
       await saveToken(data.token);
-      await saveUser(data.locksmith);
+      await saveUser({
+        ...data.locksmith,
+        isMember: false,
+      });
       if (data.locksmith.isVerified !== true) {
         router.replace('/pending');
       } else {
